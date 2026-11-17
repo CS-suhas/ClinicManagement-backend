@@ -1,0 +1,11 @@
+@ClinicManagement.Api_HostAddress = http://localhost:5294
+
+GET {{ClinicManagement.Api_HostAddress}}/openapi/v1.json
+Accept: application/json
+
+###
+
+GET {{ClinicManagement.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
