@@ -1,6 +1,7 @@
 using ClinicManagement.Infrastructure;
 using ClinicManagement.Application;
 using ClinicManagement.Api.Endpoints;
+using ClinicManagement.Application.Common.Settings;
 using ClinicManagement.Application.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -8,6 +9,16 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services
+    .AddOptions<ClinicManagementSettings>()
+    .BindConfiguration(ClinicManagementSettings.SectionName)
+    .Validate(
+        settings => settings.DefaultAppointmentDurationMinutes > 0,
+        "Default appointment duration must be greater than zero.")
+    .Validate(
+        settings => settings.DefaultClinicEndTime > settings.DefaultClinicStartTime,
+        "Default clinic end time must be after its start time.")
+    .ValidateOnStart();
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 builder.Services.AddHealthChecks();
