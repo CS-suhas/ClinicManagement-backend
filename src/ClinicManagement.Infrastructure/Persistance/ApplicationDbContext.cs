@@ -11,6 +11,7 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     {}
 
     public DbSet<Patient> Patients => Set<Patient>();
+    public DbSet<Clinic> Clinics => Set<Clinic>();
     public DbSet<Provider> Providers => Set<Provider>();
     public DbSet<Appointment> Appointments => Set<Appointment>();
     public DbSet<Allergy> Allergies => Set<Allergy>();

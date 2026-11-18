@@ -23,12 +23,13 @@ public class ProviderConfiguration : IEntityTypeConfiguration<Provider>
             .HasMaxLength(100);
 
         builder.HasOne(provider => provider.Clinic)
-            .WithMany()
+            .WithMany(clinic => clinic.Providers)
             .HasForeignKey("ClinicId")
             .IsRequired();
 
         builder.HasMany(provider => provider.Appointments)
-            .WithOne()
-            .HasForeignKey("AppointmentId");
+            .WithOne(appointment => appointment.Provider)
+            .HasForeignKey("ProviderId")
+            .IsRequired();
     }
 }

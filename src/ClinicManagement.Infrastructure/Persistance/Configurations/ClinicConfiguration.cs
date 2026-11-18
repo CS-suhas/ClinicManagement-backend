@@ -23,7 +23,8 @@ public class ClinicConfiguration : IEntityTypeConfiguration<Clinic>
             .HasMaxLength(15);
 
         builder.HasMany(clinic => clinic.Providers)
-            .WithOne()
-            .HasForeignKey("ProviderId");
+            .WithOne(provider => provider.Clinic)
+            .HasForeignKey("ClinicId")
+            .IsRequired();
     }
 }

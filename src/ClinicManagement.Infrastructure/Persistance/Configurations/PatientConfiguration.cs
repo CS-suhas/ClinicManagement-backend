@@ -31,12 +31,12 @@ public class PatientConfiguration : IEntityTypeConfiguration<Patient>
             .HasMaxLength(15);
 
         builder.HasMany(patient => patient.Allergies)
-            .WithOne()
+            .WithOne(allergy => allergy.Patient)
             .HasForeignKey("PatientId")
             .IsRequired();
 
         builder.HasMany(patient => patient.Appointments)
-            .WithOne()
+            .WithOne(appointment => appointment.Patient)
             .HasForeignKey("PatientId")
             .IsRequired();
     }

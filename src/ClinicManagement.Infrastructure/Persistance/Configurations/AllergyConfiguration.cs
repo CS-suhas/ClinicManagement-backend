@@ -17,11 +17,13 @@ public class AllergyConfiguration : IEntityTypeConfiguration<Allergy>
             .HasMaxLength(500);
 
         builder.HasOne(allergy => allergy.Patient)
-            .WithMany()
-            .HasForeignKey("PatientId");
+            .WithMany(patient => patient.Allergies)
+            .HasForeignKey("PatientId")
+            .IsRequired();
 
         builder.HasOne(allergy => allergy.AllergyType)
-            .WithMany()
-            .HasForeignKey("AllergyTypeId");
+            .WithMany(allergyType => allergyType.Allergies)
+            .HasForeignKey("AllergyTypeId")
+            .IsRequired();
     }
 }

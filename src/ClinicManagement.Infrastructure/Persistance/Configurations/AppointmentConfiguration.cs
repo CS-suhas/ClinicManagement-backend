@@ -17,12 +17,12 @@ public class AppointmentConfiguration : IEntityTypeConfiguration<Appointment>
             .HasMaxLength(500);
 
         builder.HasOne(appointment => appointment.Patient)
-            .WithMany()
+            .WithMany(patient => patient.Appointments)
             .HasForeignKey("PatientId")
             .IsRequired();
 
         builder.HasOne(appointment => appointment.Provider)
-            .WithMany()
+            .WithMany(provider => provider.Appointments)
             .HasForeignKey("ProviderId")
             .IsRequired();
     }
