@@ -5,4 +5,7 @@
     <Project Path="src/ClinicManagement.Application/ClinicManagement.Application.csproj" />
     <Project Path="src/ClinicManagement.API/ClinicManagement.Api.csproj" />
   </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/ClinicManagement.Domain.Tests/ClinicManagement.Domain.Tests.csproj" />
+  </Folder>
 </Solution>
