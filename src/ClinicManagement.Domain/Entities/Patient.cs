@@ -6,7 +6,7 @@ public class Patient : BaseEntity
 {
     public string FirstName { get; private set; } = string.Empty;
     public string LastName { get; private set; } = string.Empty;
-    public DateTimeOffset DateOfBirth { get; private set; } // as UTC timestamp
+    public DateOnly DateOfBirth { get; private set; } // as UTC timestamp
     public string Email { get; private set; } = string.Empty;
     public string PhoneNumber {get; private set;} = string.Empty;
     public ICollection<Allergy> Allergies { get; private set; } = new List<Allergy>();
@@ -14,12 +14,12 @@ public class Patient : BaseEntity
 
     private Patient() { }
 
-    public static Patient Create(string firstName, string lastName, DateTimeOffset dateOfBirth, string email, string phoneNumber)
+    public static Patient Create(Guid id, string firstName, string lastName, DateOnly dateOfBirth, string email, string phoneNumber)
     {
         if (string.IsNullOrWhiteSpace(firstName) || string.IsNullOrWhiteSpace(lastName))
             throw new ArgumentException("First and last names cannot be empty.", nameof(firstName));
 
-        if (dateOfBirth <= DateTime.UtcNow)
+        if (dateOfBirth <= DateOnly.FromDateTime(DateTime.UtcNow))
             throw new ArgumentException("Date of birth must be a valid timestamp.", nameof(dateOfBirth));
 
         if (string.IsNullOrWhiteSpace(email))
@@ -30,6 +30,7 @@ public class Patient : BaseEntity
 
         return new Patient
         {
+            Id = id,
             FirstName = firstName.Trim(),
             LastName = lastName.Trim(),
             DateOfBirth =  dateOfBirth,
@@ -56,9 +57,9 @@ public class Patient : BaseEntity
         UpdatedAtUtc = DateTime.UtcNow;
     }
 
-    public void SetDateOfBirth(DateTimeOffset dateOfBirth)
+    public void SetDateOfBirth(DateOnly dateOfBirth)
     {
-        if (dateOfBirth >= DateTimeOffset.UtcNow)
+        if (dateOfBirth >= DateOnly.FromDateTime(DateTime.UtcNow))
             throw new ArgumentException("Date of birth cannot be in the future.", nameof(dateOfBirth));
 
         DateOfBirth = dateOfBirth;
