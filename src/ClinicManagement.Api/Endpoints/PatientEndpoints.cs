@@ -1,5 +1,6 @@
 using ClinicManagement.Application.Patients.Interfaces;
 using ClinicManagement.Application.Patients.Models;
+using Microsoft.AspNetCore.Mvc;
 
 namespace ClinicManagement.Api.Endpoints;
 
@@ -7,13 +8,13 @@ public static class PatientEndpoints
 {
     public static IEndpointRouteBuilder MapPatientEndpoints(this WebApplication app)
     {
-        app.MapGet("/api/patients", async (IPatientManagementService patientService) =>
+        app.MapGet("/api/patients", async ([FromServices] IPatientManagementService patientService) =>
         {
             var patients = await patientService.GetAllPatientsAsync();
             return Results.Ok(patients);
         });
 
-        app.MapGet("/api/patients/{id}", async (Guid id, IPatientManagementService patientService) =>
+        app.MapGet("/api/patients/{id}", async (Guid id, [FromServices] IPatientManagementService patientService) =>
         {
             var patient = await patientService.GetPatientByIdAsync(id);
             if (patient == null)
@@ -24,15 +25,15 @@ public static class PatientEndpoints
         });
 
         app.MapPost("/api/patients", async (
-            PatientRequest request,
-            IPatientManagementService patientService) =>
+            [FromBody] PatientRequest request,
+            [FromServices] IPatientManagementService patientService) =>
         {
             var id = await patientService.AddPatientAsync(request with { Id = Guid.NewGuid() });
 
             return Results.Created($"/api/patients/{id}", new { id });
         });
 
-        app.MapPut("/api/patients/{id}", async (Guid id, PatientRequest patientRequest, IPatientManagementService patientService) =>
+        app.MapPut("/api/patients/{id}", async (Guid id, [FromBody] PatientRequest patientRequest, [FromServices] IPatientManagementService patientService) =>
         {
             var existingPatient = await patientService.GetPatientByIdAsync(id);
             if (existingPatient == null)
@@ -44,7 +45,7 @@ public static class PatientEndpoints
             return Results.NoContent();
         });
 
-        app.MapDelete("/api/patients/{id}", async (Guid id, IPatientManagementService patientService) =>
+        app.MapDelete("/api/patients/{id}", async (Guid id, [FromServices] IPatientManagementService patientService) =>
         {
             var existingPatient = await patientService.GetPatientByIdAsync(id);
             if (existingPatient == null)
