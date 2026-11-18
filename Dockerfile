@@ -1,5 +1,5 @@
 # Stage 1, building the application
-FROM mcr.microsoft.com/dotnet/sdk:11.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 ARG TARGET_RID=linux-x64
 
@@ -20,7 +20,7 @@ RUN dotnet publish src/ClinicManagement.Api/ClinicManagement.Api.csproj \
     --no-restore
 
 # Stage 2, runtime image
-FROM mcr.microsoft.com/dotnet/runtime-deps:11.0 AS final
+FROM mcr.microsoft.com/dotnet/runtime-deps:10.0 AS final
 WORKDIR /app
 COPY --from=build /app/publish .
 
