@@ -4,6 +4,7 @@ using ClinicManagement.Api.Endpoints;
 using ClinicManagement.Application.Common.Settings;
 using ClinicManagement.Application.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -19,6 +20,8 @@ builder.Services
         settings => settings.DefaultClinicEndTime > settings.DefaultClinicStartTime,
         "Default clinic end time must be after its start time.")
     .ValidateOnStart();
+builder.Services.AddSingleton(
+    serviceProvider => serviceProvider.GetRequiredService<IOptions<ClinicManagementSettings>>().Value);
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 builder.Services.AddHealthChecks();
@@ -29,6 +32,8 @@ await using (var scope = app.Services.CreateAsyncScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     await dbContext.Database.MigrateAsync();
+
+    var clinicSettings = scope.ServiceProvider.GetRequiredService<ClinicManagementSettings>();
 }
 
 if (app.Environment.IsDevelopment())

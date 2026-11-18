@@ -12,7 +12,10 @@ public static class AppointmentMappings
         new(
             appointment.Id,
             appointment.Patient.Id,
+            $"{appointment.Patient.FirstName} {appointment.Patient.LastName}",
             appointment.Provider.Id,
+            $"{appointment.Provider.FirstName} {appointment.Provider.LastName}",
+            appointment.Provider.Specialty,
             appointment.AppointmentDateTime,
             appointment.ReasonForVisit);
 
