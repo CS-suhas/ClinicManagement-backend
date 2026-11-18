@@ -9,4 +9,55 @@ public class Provider : BaseEntity
     public string Specialty { get; private set; } = string.Empty;
     public Clinic Clinic { get; private set; } = null!;
     public ICollection<Appointment> Appointments { get; private set; } = new List<Appointment>();
+
+    private Provider() { }
+
+    public static Provider Create(Guid id, string firstName, string lastName, string specialty, Clinic clinic)
+    {
+        if (string.IsNullOrWhiteSpace(firstName) || string.IsNullOrWhiteSpace(lastName))
+            throw new ArgumentException("First and last names cannot be empty.");
+        if (string.IsNullOrWhiteSpace(specialty))
+            throw new ArgumentException("Specialty cannot be empty.", nameof(specialty));
+        if (clinic == null)
+            throw new ArgumentNullException(nameof(clinic), "Clinic cannot be null.");
+
+        return new Provider
+        {
+            Id = id,
+            FirstName = firstName.Trim(),
+            LastName = lastName.Trim(),
+            Specialty = specialty.Trim(),
+            Clinic = clinic
+        };
+    }
+
+    public void SetFirstName(string firstName)
+    {
+        if (string.IsNullOrWhiteSpace(firstName))
+            throw new ArgumentException("First name cannot be empty.", nameof(firstName));
+        FirstName = firstName.Trim();
+        UpdatedAtUtc = DateTime.UtcNow;
+    }
+
+    public void SetLastName(string lastName)
+    {
+        if (string.IsNullOrWhiteSpace(lastName))
+            throw new ArgumentException("Last name cannot be empty.", nameof(lastName));
+        LastName = lastName.Trim();
+        UpdatedAtUtc = DateTime.UtcNow;
+    }
+
+    public void SetSpecialty(string specialty)
+    {
+        if (string.IsNullOrWhiteSpace(specialty))
+            throw new ArgumentException("Specialty cannot be empty.", nameof(specialty));
+        Specialty = specialty.Trim();
+        UpdatedAtUtc = DateTime.UtcNow;
+    }
+
+    public void SetClinic(Clinic clinic)
+    {
+        Clinic = clinic ?? throw new ArgumentNullException(nameof(clinic), "Clinic cannot be null.");
+        UpdatedAtUtc = DateTime.UtcNow;
+    }
 }

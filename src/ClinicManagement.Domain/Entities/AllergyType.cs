@@ -9,6 +9,13 @@ public class AllergyType : BaseEntity
 
     private AllergyType() { }
 
+    public static AllergyType Create(Guid id, string name)
+    {
+        var allergyType = Create(name);
+        allergyType.Id = id;
+        return allergyType;
+    }
+
     public static AllergyType Create(string name)
     {
         if (string.IsNullOrWhiteSpace(name))
@@ -18,5 +25,13 @@ public class AllergyType : BaseEntity
         {
             Name = name.Trim()
         };
+    }
+
+    public void SetName(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            throw new ArgumentException("Allergy type name cannot be empty.", nameof(name));
+        Name = name.Trim();
+        UpdatedAtUtc = DateTime.UtcNow;
     }
 }

@@ -12,6 +12,13 @@ public class Clinic : BaseEntity
 
     private Clinic() { }
 
+    public static Clinic Create(Guid id, string name, string? address, string phoneNumber)
+    {
+        var clinic = Create(name, address, phoneNumber);
+        clinic.Id = id;
+        return clinic;
+    }
+
     public static Clinic Create(string name, string? address, string phoneNumber)
     {
         if (string.IsNullOrWhiteSpace(name))
@@ -25,5 +32,27 @@ public class Clinic : BaseEntity
             Address = address?.Trim(),
             PhoneNumber = phoneNumber.Trim()
         };
+    }
+
+    public void SetName(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            throw new ArgumentException("Clinic name cannot be empty.", nameof(name));
+        Name = name.Trim();
+        UpdatedAtUtc = DateTime.UtcNow;
+    }
+
+    public void SetAddress(string? address)
+    {
+        Address = address?.Trim();
+        UpdatedAtUtc = DateTime.UtcNow;
+    }
+
+    public void SetPhoneNumber(string phoneNumber)
+    {
+        if (string.IsNullOrWhiteSpace(phoneNumber))
+            throw new ArgumentException("Clinic phone number cannot be empty.", nameof(phoneNumber));
+        PhoneNumber = phoneNumber.Trim();
+        UpdatedAtUtc = DateTime.UtcNow;
     }
 }

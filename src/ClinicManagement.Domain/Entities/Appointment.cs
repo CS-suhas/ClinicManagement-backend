@@ -32,6 +32,13 @@ public class Appointment : BaseEntity
         };
     }
 
+    public static Appointment Create(Guid id, Patient patient, Provider provider, DateTimeOffset dateTime, string? reasonForVisit)
+    {
+        var appointment = Create(patient, provider, dateTime, reasonForVisit);
+        appointment.Id = id;
+        return appointment;
+    }
+
     public void SetAppointmentDateTime(DateTimeOffset dateTime)
     {
         if (dateTime <= DateTimeOffset.UtcNow)
@@ -39,6 +46,29 @@ public class Appointment : BaseEntity
 
         AppointmentDateTime = dateTime;
         UpdatedAtUtc = DateTime.UtcNow;
+    }
+
+    public void SetReasonForVisit(string? reasonForVisit)
+    {
+        ReasonForVisit = reasonForVisit?.Trim();
+        UpdatedAtUtc = DateTime.UtcNow;
+    }
+
+    public void SetPatient(Patient patient)
+    {
+        Patient = patient ?? throw new ArgumentNullException(nameof(patient), "Patient cannot be null.");
+        UpdatedAtUtc = DateTime.UtcNow;
+    }
+
+    public void SetProvider(Provider provider)
+    {
+        Provider = provider ?? throw new ArgumentNullException(nameof(provider), "Provider cannot be null.");
+        UpdatedAtUtc = DateTime.UtcNow;
+    }
+
+    public static TimeSpan operator -(Appointment a1, Appointment a2)
+    {
+        return a1.AppointmentDateTime - a2.AppointmentDateTime;
     }
  
 }
