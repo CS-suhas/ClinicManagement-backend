@@ -1,16 +1,21 @@
 using ClinicManagement.Domain.Common;
+using ClinicManagement.Domain.Exceptions;
+using ClinicManagement.Domain.Enums;
 
 namespace ClinicManagement.Domain.Entities;
 
 public class Patient : BaseEntity
 {
+    private readonly List<Allergy> _allergies = new();
+    private readonly List<Appointment> _appointments = new();
+
     public string FirstName { get; private set; } = string.Empty;
     public string LastName { get; private set; } = string.Empty;
     public DateOnly DateOfBirth { get; private set; } // as UTC timestamp
     public string Email { get; private set; } = string.Empty;
-    public string PhoneNumber {get; private set;} = string.Empty;
-    public ICollection<Allergy> Allergies { get; private set; } = new List<Allergy>();
-    public ICollection<Appointment> Appointments { get; private set; } = new List<Appointment>();
+    public string PhoneNumber { get; private set; } = string.Empty;
+    public IReadOnlyCollection<Allergy> Allergies => _allergies.AsReadOnly();
+    public IReadOnlyCollection<Appointment> Appointments => _appointments.AsReadOnly();
 
     private Patient() { }
 
@@ -33,7 +38,7 @@ public class Patient : BaseEntity
             Id = id,
             FirstName = firstName.Trim(),
             LastName = lastName.Trim(),
-            DateOfBirth =  dateOfBirth,
+            DateOfBirth = dateOfBirth,
             Email = email.Trim(),
             PhoneNumber = phoneNumber.Trim()
         };
@@ -83,5 +88,15 @@ public class Patient : BaseEntity
         PhoneNumber = phoneNumber.Trim();
         UpdatedAtUtc = DateTime.UtcNow;
     }
- 
+
+    public void AddAllergy(AllergyType type, AllergySeverity severity, string? notes)
+    {
+        ArgumentNullException.ThrowIfNull(type);
+
+        if (_allergies.Any(a => a.AllergyType.Id == type.Id))
+            throw new DuplicatePatientAllergyException();
+
+        _allergies.Add(Allergy.Create(Guid.NewGuid(), this, type, severity, notes));
+    }
+
 }

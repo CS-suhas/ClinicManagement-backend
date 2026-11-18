@@ -35,9 +35,17 @@ public class PatientConfiguration : IEntityTypeConfiguration<Patient>
             .HasForeignKey("PatientId")
             .IsRequired();
 
+        builder.Navigation(patient => patient.Allergies)
+            .HasField("_allergies")
+            .UsePropertyAccessMode(PropertyAccessMode.Field);
+
         builder.HasMany(patient => patient.Appointments)
             .WithOne(appointment => appointment.Patient)
             .HasForeignKey("PatientId")
             .IsRequired();
+
+        builder.Navigation(patient => patient.Appointments)
+            .HasField("_appointments")
+            .UsePropertyAccessMode(PropertyAccessMode.Field);
     }
 }
