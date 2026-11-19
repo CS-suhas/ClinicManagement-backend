@@ -8,16 +8,16 @@ public static class ProviderEndpoints
 {
     public static IEndpointRouteBuilder MapProviderEndpoints(this WebApplication app)
     {
-        app.MapGet("/api/providers", async ([FromServices] IProviderManagementService service) =>
+        app.MapGet("/api/providers", async ([FromServices] IProviderService service) =>
             Results.Ok(await service.GetAllProvidersAsync()));
 
-        app.MapGet("/api/providers/{id}", async (Guid id, [FromServices] IProviderManagementService service) =>
+        app.MapGet("/api/providers/{id}", async (Guid id, [FromServices] IProviderService service) =>
         {
             var provider = await service.GetProviderByIdAsync(id);
             return provider is null ? Results.NotFound() : Results.Ok(provider);
         });
 
-        app.MapPost("/api/providers", async ([FromBody] ProviderRequest request, [FromServices] IProviderManagementService service) =>
+        app.MapPost("/api/providers", async ([FromBody] ProviderRequest request, [FromServices] IProviderService service) =>
         {
             try
             {
@@ -30,7 +30,7 @@ public static class ProviderEndpoints
             }
         });
 
-        app.MapPut("/api/providers/{id}", async (Guid id, [FromBody] ProviderRequest request, [FromServices] IProviderManagementService service) =>
+        app.MapPut("/api/providers/{id}", async (Guid id, [FromBody] ProviderRequest request, [FromServices] IProviderService service) =>
         {
             if (await service.GetProviderByIdAsync(id) is null)
                 return Results.NotFound();
@@ -46,7 +46,7 @@ public static class ProviderEndpoints
             }
         });
 
-        app.MapDelete("/api/providers/{id}", async (Guid id, [FromServices] IProviderManagementService service) =>
+        app.MapDelete("/api/providers/{id}", async (Guid id, [FromServices] IProviderService service) =>
         {
             if (await service.GetProviderByIdAsync(id) is null)
                 return Results.NotFound();

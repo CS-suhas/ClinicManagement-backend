@@ -8,22 +8,22 @@ public static class ClinicEndpoints
 {
     public static IEndpointRouteBuilder MapClinicEndpoints(this WebApplication app)
     {
-        app.MapGet("/api/clinics", async ([FromServices] IClinicManagementService service) =>
+        app.MapGet("/api/clinics", async ([FromServices] IClinicService service) =>
             Results.Ok(await service.GetAllClinicsAsync()));
 
-        app.MapGet("/api/clinics/{id}", async (Guid id, [FromServices] IClinicManagementService service) =>
+        app.MapGet("/api/clinics/{id}", async (Guid id, [FromServices] IClinicService service) =>
         {
             var clinic = await service.GetClinicByIdAsync(id);
             return clinic is null ? Results.NotFound() : Results.Ok(clinic);
         });
 
-        app.MapPost("/api/clinics", async ([FromBody] ClinicRequest request, [FromServices] IClinicManagementService service) =>
+        app.MapPost("/api/clinics", async ([FromBody] ClinicRequest request, [FromServices] IClinicService service) =>
         {
             var id = await service.AddClinicAsync(request with { Id = Guid.NewGuid() });
             return Results.Created($"/api/clinics/{id}", new { id });
         });
 
-        app.MapPut("/api/clinics/{id}", async (Guid id, [FromBody] ClinicRequest request, [FromServices] IClinicManagementService service) =>
+        app.MapPut("/api/clinics/{id}", async (Guid id, [FromBody] ClinicRequest request, [FromServices] IClinicService service) =>
         {
             if (await service.GetClinicByIdAsync(id) is null)
                 return Results.NotFound();
@@ -32,7 +32,7 @@ public static class ClinicEndpoints
             return Results.NoContent();
         });
 
-        app.MapDelete("/api/clinics/{id}", async (Guid id, [FromServices] IClinicManagementService service) =>
+        app.MapDelete("/api/clinics/{id}", async (Guid id, [FromServices] IClinicService service) =>
         {
             if (await service.GetClinicByIdAsync(id) is null)
                 return Results.NotFound();

@@ -8,13 +8,13 @@ public static class PatientEndpoints
 {
     public static IEndpointRouteBuilder MapPatientEndpoints(this WebApplication app)
     {
-        app.MapGet("/api/patients", async ([FromServices] IPatientManagementService patientService) =>
+        app.MapGet("/api/patients", async ([FromServices] IPatientService patientService) =>
         {
             var patients = await patientService.GetAllPatientsAsync();
             return Results.Ok(patients);
         });
 
-        app.MapGet("/api/patients/{id}", async (Guid id, [FromServices] IPatientManagementService patientService) =>
+        app.MapGet("/api/patients/{id}", async (Guid id, [FromServices] IPatientService patientService) =>
         {
             var patient = await patientService.GetPatientByIdAsync(id);
             if (patient == null)
@@ -26,14 +26,14 @@ public static class PatientEndpoints
 
         app.MapPost("/api/patients", async (
             [FromBody] PatientRequest request,
-            [FromServices] IPatientManagementService patientService) =>
+            [FromServices] IPatientService patientService) =>
         {
             var id = await patientService.AddPatientAsync(request with { Id = Guid.NewGuid() });
 
             return Results.Created($"/api/patients/{id}", new { id });
         });
 
-        app.MapPut("/api/patients/{id}", async (Guid id, [FromBody] PatientRequest patientRequest, [FromServices] IPatientManagementService patientService) =>
+        app.MapPut("/api/patients/{id}", async (Guid id, [FromBody] PatientRequest patientRequest, [FromServices] IPatientService patientService) =>
         {
             var existingPatient = await patientService.GetPatientByIdAsync(id);
             if (existingPatient == null)
@@ -45,7 +45,7 @@ public static class PatientEndpoints
             return Results.NoContent();
         });
 
-        app.MapDelete("/api/patients/{id}", async (Guid id, [FromServices] IPatientManagementService patientService) =>
+        app.MapDelete("/api/patients/{id}", async (Guid id, [FromServices] IPatientService patientService) =>
         {
             var existingPatient = await patientService.GetPatientByIdAsync(id);
             if (existingPatient == null)

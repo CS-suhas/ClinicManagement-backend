@@ -9,16 +9,16 @@ public static class AppointmentEndpoints
 {
     public static IEndpointRouteBuilder MapAppointmentEndpoints(this WebApplication app)
     {
-        app.MapGet("/api/appointments", async ([FromServices] IAppointmentManagementService service) =>
+        app.MapGet("/api/appointments", async ([FromServices] IAppointmentService service) =>
             Results.Ok(await service.GetAllAppointmentsAsync()));
 
-        app.MapGet("/api/appointments/{id}", async (Guid id, [FromServices] IAppointmentManagementService service) =>
+        app.MapGet("/api/appointments/{id}", async (Guid id, [FromServices] IAppointmentService service) =>
         {
             var appointment = await service.GetAppointmentByIdAsync(id);
             return appointment is null ? Results.NotFound() : Results.Ok(appointment);
         });
 
-        app.MapPost("/api/appointments", async ([FromBody] AppointmentRequest request, [FromServices] IAppointmentManagementService service) =>
+        app.MapPost("/api/appointments", async ([FromBody] AppointmentRequest request, [FromServices] IAppointmentService service) =>
         {
             try
             {
@@ -35,7 +35,7 @@ public static class AppointmentEndpoints
             }
         });
 
-        app.MapPut("/api/appointments/{id}", async (Guid id, [FromBody] AppointmentRequest request, [FromServices] IAppointmentManagementService service) =>
+        app.MapPut("/api/appointments/{id}", async (Guid id, [FromBody] AppointmentRequest request, [FromServices] IAppointmentService service) =>
         {
             if (await service.GetAppointmentByIdAsync(id) is null)
                 return Results.NotFound();
@@ -55,7 +55,7 @@ public static class AppointmentEndpoints
             }
         });
 
-        app.MapDelete("/api/appointments/{id}", async (Guid id, [FromServices] IAppointmentManagementService service) =>
+        app.MapDelete("/api/appointments/{id}", async (Guid id, [FromServices] IAppointmentService service) =>
         {
             if (await service.GetAppointmentByIdAsync(id) is null)
                 return Results.NotFound();
