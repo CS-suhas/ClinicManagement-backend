@@ -12,7 +12,7 @@ public class Provider : BaseEntity
 
     private Provider() { }
 
-    public static Provider Create(Guid id, string firstName, string lastName, string specialty, Clinic clinic)
+    public static Provider Create(Guid id, string firstName, string lastName, string specialty, Clinic clinic = null!)
     {
         if (string.IsNullOrWhiteSpace(firstName) || string.IsNullOrWhiteSpace(lastName))
             throw new ArgumentException("First and last names cannot be empty.");

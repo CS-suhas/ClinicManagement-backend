@@ -2,7 +2,7 @@ using ClinicManagement.Application.Appointments.Models;
 
 namespace ClinicManagement.Application.Appointments.Interfaces;
 
-public interface IAppointmentManagementService
+public interface IAppointmentService
 {
     Task<AppointmentResponse?> GetAppointmentByIdAsync(Guid appointmentId);
     Task<List<AppointmentResponse>> GetAllAppointmentsAsync();

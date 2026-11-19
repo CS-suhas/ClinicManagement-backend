@@ -11,7 +11,7 @@ public class Appointment : BaseEntity
     
     private Appointment() { }
 
-    public static Appointment Create(Patient patient, Provider provider, DateTimeOffset dateTime, string? reasonForVisit)
+    public static Appointment Create(DateTimeOffset dateTime, string? reasonForVisit, Patient patient = null!, Provider provider = null!)
     {
         if (patient == null)
             throw new ArgumentNullException(nameof(patient), "Patient cannot be null.");
@@ -32,9 +32,9 @@ public class Appointment : BaseEntity
         };
     }
 
-    public static Appointment Create(Guid id, Patient patient, Provider provider, DateTimeOffset dateTime, string? reasonForVisit)
+    public static Appointment Create(Guid id, DateTimeOffset dateTime, string? reasonForVisit, Patient patient = null!, Provider provider = null!)
     {
-        var appointment = Create(patient, provider, dateTime, reasonForVisit);
+        var appointment = Create(dateTime, reasonForVisit, patient, provider);
         appointment.Id = id;
         return appointment;
     }

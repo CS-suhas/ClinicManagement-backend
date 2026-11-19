@@ -57,7 +57,7 @@ public class AppointmentRepository(IDbConnectionFactory connectionFactory) : IAp
             splitOn: "Id,Id");
     }
 
-    public async Task<Guid> AddAppointmentAsync(Appointment appointment)
+    public async Task<Guid> AddAppointmentAsync(Appointment appointment, Guid patientId, Guid providerId)
     {
         using var connection = connectionFactory.CreateConnection();
         const string sql = """
@@ -67,15 +67,15 @@ public class AppointmentRepository(IDbConnectionFactory connectionFactory) : IAp
         await connection.ExecuteAsync(sql, new
         {
             appointment.Id,
-            PatientId = appointment.Patient.Id,
-            ProviderId = appointment.Provider.Id,
+            PatientId = patientId,
+            ProviderId = providerId,
             appointment.AppointmentDateTime,
             appointment.ReasonForVisit
         });
         return appointment.Id;
     }
 
-    public async Task<Guid> UpdateAppointmentAsync(Appointment appointment)
+    public async Task<Guid> UpdateAppointmentAsync(Appointment appointment, Guid patientId, Guid providerId)
     {
         using var connection = connectionFactory.CreateConnection();
         const string sql = """
@@ -89,8 +89,8 @@ public class AppointmentRepository(IDbConnectionFactory connectionFactory) : IAp
         await connection.ExecuteAsync(sql, new
         {
             appointment.Id,
-            PatientId = appointment.Patient.Id,
-            ProviderId = appointment.Provider.Id,
+            PatientId = patientId,
+            ProviderId = providerId,
             appointment.AppointmentDateTime,
             appointment.ReasonForVisit
         });
@@ -103,5 +103,30 @@ public class AppointmentRepository(IDbConnectionFactory connectionFactory) : IAp
         const string sql = "DELETE FROM Appointments WHERE Id = @Id";
         await connection.ExecuteAsync(sql, new { Id = appointmentId });
         return appointmentId;
+    }
+
+    public async Task<IEnumerable<Appointment>> GetAppointmentsByProviderIdAsync(Guid providerId)
+    {
+        using var connection = connectionFactory.CreateConnection();
+        const string sql = """
+            SELECT a.Id, a.AppointmentDateTime, a.ReasonForVisit,
+                   p.Id, p.FirstName, p.LastName, p.DateOfBirth, p.PhoneNumber, p.Email,
+                   pr.Id, pr.FirstName, pr.LastName, pr.Specialty
+            FROM Appointments a
+            INNER JOIN Patients p ON p.Id = a.PatientId
+            INNER JOIN Providers pr ON pr.Id = a.ProviderId
+            WHERE a.ProviderId = @ProviderId
+            """;
+
+        return await connection.QueryAsync<Appointment, Patient, Provider, Appointment>(
+            sql,
+            (item, patient, provider) =>
+            {
+                item.SetPatient(patient);
+                item.SetProvider(provider);
+                return item;
+            },
+            new { ProviderId = providerId },
+            splitOn: "Id,Id");
     }
 }

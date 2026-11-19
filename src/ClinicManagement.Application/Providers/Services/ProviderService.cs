@@ -22,10 +22,13 @@ public class ProviderService(IProviderRepository providerRepository, IClinicRepo
 
     public async Task<Guid> AddProviderAsync(ProviderRequest request)
     {
-        var clinic = await clinicRepository.GetClinicByIdAsync(request.ClinicId) 
-            ?? throw new KeyNotFoundException($"Clinic '{request.ClinicId}' was not found.");
-        var provider = request.ToEntity(clinic);
-        await providerRepository.AddProviderAsync(provider);
+        var clinicExists = await clinicRepository.ClinicExistsAsync(request.ClinicId);
+        if (!clinicExists)
+        {
+            throw new KeyNotFoundException($"Clinic '{request.ClinicId}' was not found.");
+        }
+        var provider = request.ToEntity();
+        await providerRepository.AddProviderAsync(provider, request.ClinicId);
         return provider.Id;
     }
 
@@ -36,13 +39,13 @@ public class ProviderService(IProviderRepository providerRepository, IClinicRepo
         {
             throw new KeyNotFoundException($"Provider '{request.Id}' was not found.");
         }
-        var clinic = await clinicRepository.GetClinicByIdAsync(request.ClinicId);
-        if (clinic == null)
+        var clinic = await clinicRepository.ClinicExistsAsync(request.ClinicId);
+        if (!clinic)
         {
             throw new KeyNotFoundException($"Clinic '{request.ClinicId}' was not found.");
         }
-        request.ApplyTo(provider, clinic);
-        await providerRepository.UpdateProviderAsync(provider);
+        request.ApplyTo(provider);
+        await providerRepository.UpdateProviderAsync(provider, request.ClinicId);
         return provider.Id;
     }
 

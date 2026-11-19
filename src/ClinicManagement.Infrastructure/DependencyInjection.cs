@@ -1,6 +1,12 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration;
 using Infrastructure.Data;
+using ClinicManagement.Application.Patients.Interfaces;
+using ClinicManagement.Application.Clinics.Interfaces;
+using ClinicManagement.Application.Providers.Interfaces;
+using ClinicManagement.Application.Appointments.Interfaces;
+using ClinicManagement.Application.Allergies.Interfaces;
+using ClinicManagement.Infrastructure.Repositories;
 
 namespace ClinicManagement.Infrastructure;
 
@@ -16,7 +22,11 @@ public static class DependencyInjection
 
 
         services.AddSingleton<IDbConnectionFactory>(new SqlConnectionFactory(configuration));
-
+        services.AddScoped<IPatientRepository, PatientRepository>();
+        services.AddScoped<IClinicRepository, ClinicRepository>();
+        services.AddScoped<IProviderRepository, ProviderRepository>();
+        services.AddScoped<IAppointmentRepository, AppointmentRepository>();
+        services.AddScoped<IAllergyTypeRepository, AllergyTypeRepository>();
 
         return services;
     }

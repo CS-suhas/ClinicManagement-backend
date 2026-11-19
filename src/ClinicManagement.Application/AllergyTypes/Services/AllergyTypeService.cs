@@ -5,7 +5,7 @@ using ClinicManagement.Application.AllergyTypes.Models;
 
 namespace ClinicManagement.Application.AllergyTypes.Services;
 
-public class AllergyTypeManagementService(IAllergyTypeRepository allergyTypeRepository) : IAllergyTypeService
+public class AllergyTypeService(IAllergyTypeRepository allergyTypeRepository) : IAllergyTypeService
 {
     public async Task<AllergyTypeResponse?> GetAllergyTypeByIdAsync(Guid allergyTypeId)
     {

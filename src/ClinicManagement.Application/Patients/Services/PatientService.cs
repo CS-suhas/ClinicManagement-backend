@@ -1,4 +1,3 @@
-using ClinicManagement.Application.Common.Interfaces;
 using ClinicManagement.Application.Patients.Interfaces;
 using ClinicManagement.Application.Patients.Mapping;
 using ClinicManagement.Application.Patients.Models;

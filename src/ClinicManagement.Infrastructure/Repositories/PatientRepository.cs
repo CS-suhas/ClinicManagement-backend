@@ -60,4 +60,12 @@ public class PatientRepository(IDbConnectionFactory connectionFactory) : IPatien
         await connection.ExecuteAsync(sql, new { Id = patientId });
         return patientId;
     }
+
+    public async Task<bool> PatientExistsAsync(Guid patientId)
+    {
+        using var connection = connectionFactory.CreateConnection();
+        const string sql = "SELECT CASE WHEN EXISTS (SELECT 1 FROM Patients WHERE Id = @Id) THEN 1 ELSE 0 END";
+        var exists = await connection.ExecuteScalarAsync<bool>(sql, new { Id = patientId });
+        return exists;
+    }
 }

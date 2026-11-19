@@ -7,7 +7,7 @@ namespace ClinicManagement.Infrastructure.Repositories;
 
 public class ProviderRepository(IDbConnectionFactory connectionFactory) : IProviderRepository
 {
-    public async Task<Guid> AddProviderAsync(Provider provider)
+    public async Task<Guid> AddProviderAsync(Provider provider, Guid clinicId)
     {
         using var connection = connectionFactory.CreateConnection();
         const string sql = "INSERT INTO Providers (Id, FirstName, LastName, Specialty, ClinicId) VALUES (@Id, @FirstName, @LastName, @Specialty, @ClinicId)";
@@ -17,7 +17,7 @@ public class ProviderRepository(IDbConnectionFactory connectionFactory) : IProvi
             provider.FirstName,
             provider.LastName,
             provider.Specialty,
-            ClinicId = provider.Clinic.Id
+            ClinicId = clinicId
         });
         return provider.Id;
     }
@@ -37,7 +37,7 @@ public class ProviderRepository(IDbConnectionFactory connectionFactory) : IProvi
         return await connection.QueryAsync<Provider>(sql);
     }
 
-    public async Task<Guid> UpdateProviderAsync(Provider provider)
+    public async Task<Guid> UpdateProviderAsync(Provider provider, Guid clinicId)
     {
         using var connection = connectionFactory.CreateConnection();
         const string sql = "UPDATE Providers SET FirstName = @FirstName, LastName = @LastName, Specialty = @Specialty, ClinicId = @ClinicId WHERE Id = @Id";
@@ -47,7 +47,7 @@ public class ProviderRepository(IDbConnectionFactory connectionFactory) : IProvi
             provider.FirstName,
             provider.LastName,
             provider.Specialty,
-            ClinicId = provider.Clinic.Id
+            ClinicId = clinicId
         });
         return provider.Id;
     }

@@ -7,7 +7,7 @@ public interface IProviderRepository
 {
     Task<Provider?> GetProviderByIdAsync(Guid providerId);
     Task<IEnumerable<Provider>> GetAllProvidersAsync();
-    Task<Guid> AddProviderAsync(Provider request);
-    Task<Guid> UpdateProviderAsync(Provider request);
+    Task<Guid> AddProviderAsync(Provider request, Guid clinicId);
+    Task<Guid> UpdateProviderAsync(Provider request, Guid clinicId);
     Task<Guid> DeleteProviderAsync(Guid providerId);
 }

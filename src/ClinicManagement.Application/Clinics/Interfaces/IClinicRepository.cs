@@ -10,4 +10,5 @@ public interface IClinicRepository
     Task<Guid> AddClinicAsync(Clinic request);
     Task<Guid> UpdateClinicAsync(Clinic request);
     Task<Guid> DeleteClinicAsync(Guid clinicId);
+    Task<bool> ClinicExistsAsync(Guid clinicId);
 }

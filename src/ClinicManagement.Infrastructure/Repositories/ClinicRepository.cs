@@ -56,4 +56,12 @@ public class ClinicRepository(IDbConnectionFactory connectionFactory) : IClinicR
         await connection.ExecuteAsync(sql, new { Id = clinicId });
         return clinicId;
     }
+
+    public async Task<bool> ClinicExistsAsync(Guid clinicId)
+    {
+        using var connection = connectionFactory.CreateConnection();
+        const string sql = "SELECT CASE WHEN EXISTS (SELECT 1 FROM Clinics WHERE Id = @Id) THEN 1 ELSE 0 END";
+        var exists = await connection.ExecuteScalarAsync<bool>(sql, new { Id = clinicId });
+        return exists;
+    }
 }

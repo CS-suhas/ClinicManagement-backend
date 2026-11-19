@@ -5,8 +5,8 @@ namespace ClinicManagement.Application.Providers.Mapping;
 
 public static class ProviderMappings
 {
-    public static Provider ToEntity(this ProviderRequest request, Clinic clinic) =>
-        Provider.Create(request.Id, request.FirstName, request.LastName, request.Specialty, clinic);
+    public static Provider ToEntity(this ProviderRequest request) =>
+        Provider.Create(request.Id, request.FirstName, request.LastName, request.Specialty);
 
     public static ProviderResponse ToResponse(this Provider provider) =>
         new(
@@ -15,11 +15,10 @@ public static class ProviderMappings
             $"{provider.FirstName} {provider.LastName}",
             provider.Specialty);
 
-    public static void ApplyTo(this ProviderRequest request, Provider provider, Clinic clinic)
+    public static void ApplyTo(this ProviderRequest request, Provider provider)
     {
         provider.SetFirstName(request.FirstName);
         provider.SetLastName(request.LastName);
         provider.SetSpecialty(request.Specialty);
-        provider.SetClinic(clinic);
     }
 }
