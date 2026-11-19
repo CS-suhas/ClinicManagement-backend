@@ -1,8 +1,6 @@
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using ClinicManagement.Application.Persistence;
-using ClinicManagement.Application.Common.Interfaces;
+using Microsoft.Extensions.Configuration;
+using Infrastructure.Data;
 
 namespace ClinicManagement.Infrastructure;
 
@@ -16,11 +14,9 @@ public static class DependencyInjection
             ?? throw new InvalidOperationException(
                 "Connection string 'DefaultConnection' is not configured.");
 
-        services.AddDbContext<ApplicationDbContext>(options =>
-            options.UseOracle(connectionString));
 
-        services.AddScoped<IApplicationDbContext>(provider =>
-            provider.GetRequiredService<ApplicationDbContext>());
+        services.AddSingleton<IDbConnectionFactory>(new SqlConnectionFactory(configuration));
+
 
         return services;
     }
