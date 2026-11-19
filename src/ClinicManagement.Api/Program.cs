@@ -33,7 +33,6 @@ if (app.Environment.IsDevelopment())
 
 app.MapPatientEndpoints();
 app.MapAppointmentEndpoints();
-app.MapAllergyEndpoints();
 app.MapAllergyTypeEndpoints();
 app.MapClinicEndpoints();
 app.MapProviderEndpoints();
