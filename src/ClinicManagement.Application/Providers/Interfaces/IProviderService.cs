@@ -2,7 +2,7 @@ using ClinicManagement.Application.Providers.Models;
 
 namespace ClinicManagement.Application.Providers.Interfaces;
 
-public interface IProviderManagementService
+public interface IProviderService
 {
     Task<ProviderResponse?> GetProviderByIdAsync(Guid providerId);
     Task<List<ProviderResponse>> GetAllProvidersAsync();
