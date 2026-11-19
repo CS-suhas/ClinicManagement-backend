@@ -4,8 +4,8 @@ services:
       context: .
       dockerfile: Dockerfile
     depends_on:
-      oracle:
-        condition: service_healthy
+      liquibase:
+        condition: service_completed_successfully
     ports:
       - "8080:8080"
     environment:
@@ -20,6 +20,23 @@ services:
       - "1521:1521"
     volumes:
       - oracle-data:/opt/oracle/oradata
+
+  liquibase:
+    build:
+      context: ./liquibase
+      dockerfile: Dockerfile
+    depends_on:
+      oracle:
+        condition: service_healthy
+    environment:
+      LIQUIBASE_COMMAND_URL: "jdbc:oracle:thin:@oracle:1521/FREEPDB1"
+      LIQUIBASE_SEARCH_PATH: /liquibase/changelog
+      LIQUIBASE_COMMAND_USERNAME: SYSTEM
+      LIQUIBASE_COMMAND_PASSWORD: ${ORACLE_PASSWORD:?Set ORACLE_PASSWORD in your environment}
+      LIQUIBASE_COMMAND_CHANGELOG_FILE: db.changelog-master.xml
+    volumes:
+      - ./liquibase/changelog:/liquibase/changelog
+    command: update
 
 volumes:
   oracle-data:

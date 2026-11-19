@@ -1,0 +1,188 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="1.0-create-clinics" author="clinic-management">
+        <createTable tableName="Clinics">
+            <column name="Id" type="VARCHAR2(36)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="Name" type="VARCHAR2(200)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="Address" type="VARCHAR2(500)"/>
+            <column name="PhoneNumber" type="VARCHAR2(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="CreatedAtUtc" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="SYSTIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="UpdatedAtUtc" type="TIMESTAMP WITH TIME ZONE"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="1.0-create-patients" author="clinic-management">
+        <createTable tableName="Patients">
+            <column name="Id" type="VARCHAR2(36)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="FirstName" type="VARCHAR2(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="LastName" type="VARCHAR2(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="DateOfBirth" type="DATE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="Email" type="VARCHAR2(320)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="PhoneNumber" type="VARCHAR2(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="CreatedAtUtc" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="SYSTIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="UpdatedAtUtc" type="TIMESTAMP WITH TIME ZONE"/>
+        </createTable>
+        <addUniqueConstraint tableName="Patients" columnNames="Email" constraintName="UK_Patients_Email"/>
+    </changeSet>
+
+    <changeSet id="1.0-create-allergy-types" author="clinic-management">
+        <createTable tableName="AllergyTypes">
+            <column name="Id" type="VARCHAR2(36)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="Name" type="VARCHAR2(200)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="CreatedAtUtc" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="SYSTIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="UpdatedAtUtc" type="TIMESTAMP WITH TIME ZONE"/>
+        </createTable>
+        <addUniqueConstraint tableName="AllergyTypes" columnNames="Name" constraintName="UK_AllergyTypes_Name"/>
+    </changeSet>
+
+    <changeSet id="1.0-create-providers" author="clinic-management">
+        <createTable tableName="Providers">
+            <column name="Id" type="VARCHAR2(36)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="FirstName" type="VARCHAR2(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="LastName" type="VARCHAR2(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="Specialty" type="VARCHAR2(200)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="ClinicId" type="VARCHAR2(36)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="CreatedAtUtc" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="SYSTIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="UpdatedAtUtc" type="TIMESTAMP WITH TIME ZONE"/>
+        </createTable>
+        <addForeignKeyConstraint
+            baseTableName="Providers"
+            baseColumnNames="ClinicId"
+            referencedTableName="Clinics"
+            referencedColumnNames="Id"
+            constraintName="FK_Providers_Clinics"
+            onDelete="RESTRICT"/>
+        <createIndex tableName="Providers" indexName="IX_Providers_ClinicId">
+            <column name="ClinicId"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="1.0-create-patient-allergies" author="clinic-management">
+        <createTable tableName="PatientAllergies">
+            <column name="PatientId" type="VARCHAR2(36)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="AllergyId" type="VARCHAR2(36)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="Notes" type="VARCHAR2(1000)"/>
+            <column name="Severity" type="VARCHAR2(20)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="Id" type="VARCHAR2(36)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="CreatedAtUtc" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="SYSTIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="UpdatedAtUtc" type="TIMESTAMP WITH TIME ZONE"/>
+        </createTable>
+        <addPrimaryKey tableName="PatientAllergies" columnNames="PatientId,AllergyId" constraintName="PK_PatientAllergies"/>
+        <addForeignKeyConstraint
+            baseTableName="PatientAllergies"
+            baseColumnNames="PatientId"
+            referencedTableName="Patients"
+            referencedColumnNames="Id"
+            constraintName="FK_PatientAllergies_Patients"
+            onDelete="CASCADE"/>
+        <addForeignKeyConstraint
+            baseTableName="PatientAllergies"
+            baseColumnNames="AllergyId"
+            referencedTableName="AllergyTypes"
+            referencedColumnNames="Id"
+            constraintName="FK_PatientAllergies_AllergyTypes"
+            onDelete="CASCADE"/>
+        <sql>
+            ALTER TABLE PatientAllergies
+            ADD CONSTRAINT CK_PatientAllergies_Severity
+            CHECK (Severity IN ('MILD', 'MODERATE', 'SEVERE'))
+        </sql>
+    </changeSet>
+
+    <changeSet id="1.0-create-appointments" author="clinic-management">
+        <createTable tableName="Appointments">
+            <column name="Id" type="VARCHAR2(36)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="PatientId" type="VARCHAR2(36)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="ProviderId" type="VARCHAR2(36)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="AppointmentDateTime" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="ReasonForVisit" type="VARCHAR2(1000)"/>
+            <column name="CreatedAtUtc" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="SYSTIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="UpdatedAtUtc" type="TIMESTAMP WITH TIME ZONE"/>
+        </createTable>
+        <addForeignKeyConstraint
+            baseTableName="Appointments"
+            baseColumnNames="PatientId"
+            referencedTableName="Patients"
+            referencedColumnNames="Id"
+            constraintName="FK_Appointments_Patients"
+            onDelete="CASCADE"/>
+        <addForeignKeyConstraint
+            baseTableName="Appointments"
+            baseColumnNames="ProviderId"
+            referencedTableName="Providers"
+            referencedColumnNames="Id"
+            constraintName="FK_Appointments_Providers"
+            onDelete="CASCADE"/>
+        <createIndex tableName="Appointments" indexName="IX_Appointments_PatientId">
+            <column name="PatientId"/>
+        </createIndex>
+        <createIndex tableName="Appointments" indexName="IX_Appointments_ProviderId">
+            <column name="ProviderId"/>
+        </createIndex>
+    </changeSet>
+</databaseChangeLog>
