@@ -17,7 +17,7 @@ public class AppointmentRepository(IDbConnectionFactory connectionFactory) : IAp
             FROM Appointments a
             INNER JOIN Patients p ON p.Id = a.PatientId
             INNER JOIN Providers pr ON pr.Id = a.ProviderId
-            WHERE a.Id = @Id
+            WHERE a.Id = :Id
             """;
 
         var appointment = await connection.QueryAsync<Appointment, Patient, Provider, Appointment>(
@@ -28,7 +28,7 @@ public class AppointmentRepository(IDbConnectionFactory connectionFactory) : IAp
                 item.SetProvider(provider);
                 return item;
             },
-            new { Id = appointmentId },
+            new { Id = appointmentId.ToString() },
             splitOn: "Id,Id");
 
         return appointment.SingleOrDefault();
@@ -62,13 +62,13 @@ public class AppointmentRepository(IDbConnectionFactory connectionFactory) : IAp
         using var connection = connectionFactory.CreateConnection();
         const string sql = """
             INSERT INTO Appointments (Id, PatientId, ProviderId, AppointmentDateTime, ReasonForVisit)
-            VALUES (@Id, @PatientId, @ProviderId, @AppointmentDateTime, @ReasonForVisit)
+            VALUES (:Id, :PatientId, :ProviderId, :AppointmentDateTime, :ReasonForVisit)
             """;
         await connection.ExecuteAsync(sql, new
         {
-            appointment.Id,
-            PatientId = patientId,
-            ProviderId = providerId,
+            Id = appointment.Id.ToString(),
+            PatientId = patientId.ToString(),
+            ProviderId = providerId.ToString(),
             appointment.AppointmentDateTime,
             appointment.ReasonForVisit
         });
@@ -80,17 +80,17 @@ public class AppointmentRepository(IDbConnectionFactory connectionFactory) : IAp
         using var connection = connectionFactory.CreateConnection();
         const string sql = """
             UPDATE Appointments
-            SET PatientId = @PatientId,
-                ProviderId = @ProviderId,
-                AppointmentDateTime = @AppointmentDateTime,
-                ReasonForVisit = @ReasonForVisit
-            WHERE Id = @Id
+            SET PatientId = :PatientId,
+                ProviderId = :ProviderId,
+                AppointmentDateTime = :AppointmentDateTime,
+                ReasonForVisit = :ReasonForVisit
+            WHERE Id = :Id
             """;
         await connection.ExecuteAsync(sql, new
         {
-            appointment.Id,
-            PatientId = patientId,
-            ProviderId = providerId,
+            Id = appointment.Id.ToString(),
+            PatientId = patientId.ToString(),
+            ProviderId = providerId.ToString(),
             appointment.AppointmentDateTime,
             appointment.ReasonForVisit
         });
@@ -100,8 +100,8 @@ public class AppointmentRepository(IDbConnectionFactory connectionFactory) : IAp
     public async Task<Guid> DeleteAppointmentAsync(Guid appointmentId)
     {
         using var connection = connectionFactory.CreateConnection();
-        const string sql = "DELETE FROM Appointments WHERE Id = @Id";
-        await connection.ExecuteAsync(sql, new { Id = appointmentId });
+        const string sql = "DELETE FROM Appointments WHERE Id = :Id";
+        await connection.ExecuteAsync(sql, new { Id = appointmentId.ToString() });
         return appointmentId;
     }
 
@@ -115,7 +115,7 @@ public class AppointmentRepository(IDbConnectionFactory connectionFactory) : IAp
             FROM Appointments a
             INNER JOIN Patients p ON p.Id = a.PatientId
             INNER JOIN Providers pr ON pr.Id = a.ProviderId
-            WHERE a.ProviderId = @ProviderId
+            WHERE a.ProviderId = :ProviderId
             """;
 
         return await connection.QueryAsync<Appointment, Patient, Provider, Appointment>(
@@ -126,7 +126,7 @@ public class AppointmentRepository(IDbConnectionFactory connectionFactory) : IAp
                 item.SetProvider(provider);
                 return item;
             },
-            new { ProviderId = providerId },
+            new { ProviderId = providerId.ToString() },
             splitOn: "Id,Id");
     }
 }

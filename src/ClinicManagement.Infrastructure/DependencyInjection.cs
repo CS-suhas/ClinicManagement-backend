@@ -21,7 +21,7 @@ public static class DependencyInjection
                 "Connection string 'DefaultConnection' is not configured.");
 
 
-        services.AddSingleton<IDbConnectionFactory>(new SqlConnectionFactory(configuration));
+        services.AddSingleton<IDbConnectionFactory>(new OracleConnectionFactory(connectionString));
         services.AddScoped<IPatientRepository, PatientRepository>();
         services.AddScoped<IClinicRepository, ClinicRepository>();
         services.AddScoped<IProviderRepository, ProviderRepository>();

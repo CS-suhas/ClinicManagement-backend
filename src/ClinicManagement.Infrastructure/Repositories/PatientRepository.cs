@@ -10,8 +10,8 @@ public class PatientRepository(IDbConnectionFactory connectionFactory) : IPatien
     public async Task<Patient?> GetPatientByIdAsync(Guid patientId)
     {
         using var connection = connectionFactory.CreateConnection();
-        const string sql = "SELECT * FROM Patients WHERE Id = @Id";
-        return await connection.QuerySingleOrDefaultAsync<Patient>(sql, new { Id = patientId });
+        const string sql = "SELECT * FROM Patients WHERE Id = :Id";
+        return await connection.QuerySingleOrDefaultAsync<Patient>(sql, new { Id = patientId.ToString() });
     }
 
     public async Task<IEnumerable<Patient>> GetAllPatientsAsync()
@@ -24,10 +24,10 @@ public class PatientRepository(IDbConnectionFactory connectionFactory) : IPatien
     public async Task<Guid> AddPatientAsync(Patient patient)
     {
         using var connection = connectionFactory.CreateConnection();
-        const string sql = "INSERT INTO Patients (Id, FirstName, LastName, DateOfBirth, PhoneNumber, Email) VALUES (@Id, @FirstName, @LastName, @DateOfBirth, @PhoneNumber, @Email)";
+        const string sql = "INSERT INTO Patients (Id, FirstName, LastName, DateOfBirth, PhoneNumber, Email) VALUES (:Id, :FirstName, :LastName, :DateOfBirth, :PhoneNumber, :Email)";
         await connection.ExecuteAsync(sql, new
         {
-            patient.Id,
+            Id = patient.Id.ToString(),
             patient.FirstName,
             patient.LastName,
             patient.DateOfBirth,
@@ -40,10 +40,10 @@ public class PatientRepository(IDbConnectionFactory connectionFactory) : IPatien
     public async Task<Guid> UpdatePatientAsync(Patient patient)
     {
         using var connection = connectionFactory.CreateConnection();
-        const string sql = "UPDATE Patients SET FirstName = @FirstName, LastName = @LastName, DateOfBirth = @DateOfBirth, PhoneNumber = @PhoneNumber, Email = @Email WHERE Id = @Id";
+        const string sql = "UPDATE Patients SET FirstName = :FirstName, LastName = :LastName, DateOfBirth = :DateOfBirth, PhoneNumber = :PhoneNumber, Email = :Email WHERE Id = :Id";
         await connection.ExecuteAsync(sql, new
         {
-            patient.Id,
+            Id = patient.Id.ToString(),
             patient.FirstName,
             patient.LastName,
             patient.DateOfBirth,
@@ -56,16 +56,16 @@ public class PatientRepository(IDbConnectionFactory connectionFactory) : IPatien
     public async Task<Guid> DeletePatientAsync(Guid patientId)
     {
         using var connection = connectionFactory.CreateConnection();
-        const string sql = "DELETE FROM Patients WHERE Id = @Id";
-        await connection.ExecuteAsync(sql, new { Id = patientId });
+        const string sql = "DELETE FROM Patients WHERE Id = :Id";
+        await connection.ExecuteAsync(sql, new { Id = patientId.ToString() });
         return patientId;
     }
 
     public async Task<bool> PatientExistsAsync(Guid patientId)
     {
         using var connection = connectionFactory.CreateConnection();
-        const string sql = "SELECT CASE WHEN EXISTS (SELECT 1 FROM Patients WHERE Id = @Id) THEN 1 ELSE 0 END";
-        var exists = await connection.ExecuteScalarAsync<bool>(sql, new { Id = patientId });
+        const string sql = "SELECT CASE WHEN EXISTS (SELECT 1 FROM Patients WHERE Id = :Id) THEN 1 ELSE 0 END FROM DUAL";
+        var exists = await connection.ExecuteScalarAsync<bool>(sql, new { Id = patientId.ToString() });
         return exists;
     }
 }
