@@ -24,8 +24,8 @@ public class Patient : BaseEntity
         if (string.IsNullOrWhiteSpace(firstName) || string.IsNullOrWhiteSpace(lastName))
             throw new ArgumentException("First and last names cannot be empty.", nameof(firstName));
 
-        if (dateOfBirth <= DateOnly.FromDateTime(DateTime.UtcNow))
-            throw new ArgumentException("Date of birth must be a valid timestamp.", nameof(dateOfBirth));
+        if (dateOfBirth >= DateOnly.FromDateTime(DateTime.UtcNow))
+            throw new ArgumentException("Date of birth cannot be in the future.", nameof(dateOfBirth));
 
         if (string.IsNullOrWhiteSpace(email))
             throw new ArgumentException("Email cannot be empty.", nameof(email));
