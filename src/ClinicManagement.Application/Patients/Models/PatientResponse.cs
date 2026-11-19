@@ -5,5 +5,5 @@ public record PatientResponse(
     string Name,
     DateOnly DateOfBirth,
     string PhoneNumber,
-    string EmailAddress
+    string Email
 );
