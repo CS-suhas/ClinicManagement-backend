@@ -3,35 +3,35 @@ using ClinicManagement.Domain.Enums;
 
 namespace ClinicManagement.Domain.Entities;
 
-public class Allergy : BaseEntity
+public class PatientAllergy : BaseEntity
 {
     public Patient Patient { get; private set; } = null!;
     public AllergyType AllergyType { get; private set; } = null!;
     public AllergySeverity Severity { get; private set; }
     public string? Notes { get; private set; }
 
-    private Allergy() { }
+    private PatientAllergy() { }
 
-    public static Allergy Create(string name, AllergySeverity severity)
+    public static PatientAllergy Create(string name, AllergySeverity severity)
     {
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("Allergy name cannot be null or empty.", nameof(name));
 
-        return new Allergy
+        return new PatientAllergy
         {
             AllergyType = AllergyType.Create(name),
             Severity = severity
         };
     }
 
-    public static Allergy Create(Guid id, Patient patient, AllergyType allergyType, AllergySeverity severity, string? notes)
+    public static PatientAllergy Create(Guid id, Patient patient, AllergyType allergyType, AllergySeverity severity, string? notes)
     {
         if (patient == null)
             throw new ArgumentNullException(nameof(patient), "Patient cannot be null.");
         if (allergyType == null)
             throw new ArgumentNullException(nameof(allergyType), "Allergy type cannot be null.");
 
-        return new Allergy
+        return new PatientAllergy
         {
             Id = id,
             Patient = patient,

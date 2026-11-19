@@ -5,7 +5,6 @@ namespace ClinicManagement.Domain.Entities;
 public class AllergyType : BaseEntity
 {
     public string Name { get; private set; } = string.Empty;
-    public ICollection<Allergy> Allergies { get; private set; } = new List<Allergy>();
 
     private AllergyType() { }
 

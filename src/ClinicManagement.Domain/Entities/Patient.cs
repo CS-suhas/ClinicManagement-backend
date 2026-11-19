@@ -6,7 +6,7 @@ namespace ClinicManagement.Domain.Entities;
 
 public class Patient : BaseEntity
 {
-    private readonly List<Allergy> _allergies = new();
+    private readonly List<PatientAllergy> _allergies = new();
     private readonly List<Appointment> _appointments = new();
 
     public string FirstName { get; private set; } = string.Empty;
@@ -14,7 +14,7 @@ public class Patient : BaseEntity
     public DateOnly DateOfBirth { get; private set; } // as UTC timestamp
     public string Email { get; private set; } = string.Empty;
     public string PhoneNumber { get; private set; } = string.Empty;
-    public IReadOnlyCollection<Allergy> Allergies => _allergies.AsReadOnly();
+    public IReadOnlyCollection<PatientAllergy> Allergies => _allergies.AsReadOnly();
     public IReadOnlyCollection<Appointment> Appointments => _appointments.AsReadOnly();
 
     private Patient() { }
@@ -96,7 +96,7 @@ public class Patient : BaseEntity
         if (_allergies.Any(a => a.AllergyType.Id == type.Id))
             throw new DuplicatePatientAllergyException();
 
-        _allergies.Add(Allergy.Create(Guid.NewGuid(), this, type, severity, notes));
+        _allergies.Add(PatientAllergy.Create(Guid.NewGuid(), this, type, severity, notes));
     }
 
 }
