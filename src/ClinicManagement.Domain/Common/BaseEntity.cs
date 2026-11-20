@@ -3,6 +3,6 @@ namespace ClinicManagement.Domain.Common;
 public abstract class BaseEntity
 {
     public Guid Id { get; protected set; } = Guid.NewGuid();
-    public DateTime CreatedAtUtc { get; protected set; } = DateTime.UtcNow;
-    public DateTime? UpdatedAtUtc { get; protected set; }
+    public DateTimeOffset CreatedAtUtc { get; protected set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset? UpdatedAtUtc { get; protected set; }
 }
