@@ -40,6 +40,7 @@ app.MapAppointmentEndpoints();
 app.MapAllergyTypeEndpoints();
 app.MapClinicEndpoints();
 app.MapProviderEndpoints();
+app.MapReferenceDataEndpoints();
 app.MapControllers();
 app.MapHealthChecks("/health");
 app.Run();
