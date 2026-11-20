@@ -7,6 +7,8 @@ public class PatientAllergy : BaseEntity
 {
     public Patient Patient { get; private set; } = null!;
     public AllergyType AllergyType { get; private set; } = null!;
+    public Guid PatientId { get; private set; }
+    public Guid AllergyId { get; private set; }
     public AllergySeverity Severity { get; private set; }
     public string? Notes { get; private set; }
 
@@ -36,6 +38,8 @@ public class PatientAllergy : BaseEntity
             Id = id,
             Patient = patient,
             AllergyType = allergyType,
+            PatientId = patient.Id,
+            AllergyId = allergyType.Id,
             Severity = severity,
             Notes = notes?.Trim()
         };

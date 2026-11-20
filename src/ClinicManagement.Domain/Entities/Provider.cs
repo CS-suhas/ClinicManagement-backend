@@ -8,26 +8,34 @@ public class Provider : BaseEntity
     public string LastName { get; private set; } = string.Empty;
     public string Specialty { get; private set; } = string.Empty;
     public Clinic Clinic { get; private set; } = null!;
+    public Guid ClinicId { get; private set; }
     public ICollection<Appointment> Appointments { get; private set; } = new List<Appointment>();
 
     private Provider() { }
 
     public static Provider Create(Guid id, string firstName, string lastName, string specialty, Clinic clinic = null!)
     {
+        ArgumentNullException.ThrowIfNull(clinic);
+
+        var provider = Create(id, clinic.Id, firstName, lastName, specialty);
+        provider.Clinic = clinic;
+        return provider;
+    }
+
+    public static Provider Create(Guid id, Guid clinicId, string firstName, string lastName, string specialty)
+    {
         if (string.IsNullOrWhiteSpace(firstName) || string.IsNullOrWhiteSpace(lastName))
             throw new ArgumentException("First and last names cannot be empty.");
         if (string.IsNullOrWhiteSpace(specialty))
             throw new ArgumentException("Specialty cannot be empty.", nameof(specialty));
-        if (clinic == null)
-            throw new ArgumentNullException(nameof(clinic), "Clinic cannot be null.");
 
         return new Provider
         {
             Id = id,
+            ClinicId = clinicId,
             FirstName = firstName.Trim(),
             LastName = lastName.Trim(),
-            Specialty = specialty.Trim(),
-            Clinic = clinic
+            Specialty = specialty.Trim()
         };
     }
 
@@ -58,6 +66,7 @@ public class Provider : BaseEntity
     public void SetClinic(Clinic clinic)
     {
         Clinic = clinic ?? throw new ArgumentNullException(nameof(clinic), "Clinic cannot be null.");
+        ClinicId = clinic.Id;
         UpdatedAtUtc = DateTime.UtcNow;
     }
 }

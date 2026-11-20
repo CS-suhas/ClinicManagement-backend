@@ -6,7 +6,12 @@ namespace ClinicManagement.Application.Providers.Mapping;
 public static class ProviderMappings
 {
     public static Provider ToEntity(this ProviderRequest request) =>
-        Provider.Create(request.Id, request.FirstName, request.LastName, request.Specialty);
+        Provider.Create(
+            request.Id,
+            request.ClinicId,
+            request.FirstName,
+            request.LastName,
+            request.Specialty);
 
     public static ProviderResponse ToResponse(this Provider provider) =>
         new(
