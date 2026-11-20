@@ -1,6 +1,11 @@
 using ClinicManagement.Application.Clinics.Interfaces;
 using ClinicManagement.Application.Common;
 using ClinicManagement.Application.Common.Exceptions;
+using ClinicManagement.Application.Appointments.Interfaces;
+using ClinicManagement.Application.Appointments.Mapping;
+using ClinicManagement.Application.Appointments.Models;
+using ClinicManagement.Application.Clinics.Mapping;
+using ClinicManagement.Application.Clinics.Models;
 using ClinicManagement.Application.Providers.Interfaces;
 using ClinicManagement.Application.Providers.Mapping;
 using ClinicManagement.Application.Providers.Models;
@@ -9,7 +14,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ClinicManagement.Application.Providers.Services;
 
-public class ProviderService(IProviderRepository providerRepository, IClinicRepository clinicRepository) : IProviderService
+public class ProviderService(
+    IProviderRepository providerRepository,
+    IClinicRepository clinicRepository,
+    IAppointmentRepository appointmentRepository) : IProviderService
 {
     public async Task<ProviderResponse> GetProviderByIdAsync(Guid providerId)
     {
@@ -24,6 +32,26 @@ public class ProviderService(IProviderRepository providerRepository, IClinicRepo
     {
         var providers = await providerRepository.GetAllProvidersAsync();
         return providers.Select(item => item.ToResponse()).ToList();
+    }
+
+    public async Task<ClinicResponse> GetClinicByProviderIdAsync(Guid providerId)
+    {
+        RequestValidator.EnsureGuid(providerId, nameof(providerId), "Provider ID");
+
+        var provider = await providerRepository.GetProviderByIdAsync(providerId)
+            ?? throw new ResourceNotFoundException("Provider", providerId);
+        return provider.Clinic.ToResponse();
+    }
+
+    public async Task<List<AppointmentResponse>> GetAppointmentsByProviderIdAsync(Guid providerId)
+    {
+        RequestValidator.EnsureGuid(providerId, nameof(providerId), "Provider ID");
+
+        _ = await providerRepository.GetProviderByIdAsync(providerId)
+            ?? throw new ResourceNotFoundException("Provider", providerId);
+
+        var appointments = await appointmentRepository.GetAppointmentsByProviderIdAsync(providerId);
+        return appointments.Select(appointment => appointment.ToResponse()).ToList();
     }
 
     public async Task<Guid> AddProviderAsync(ProviderRequest request)

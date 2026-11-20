@@ -9,7 +9,6 @@ public class AppointmentRepository(IDbConnectionFactory connectionFactory) : IAp
 {
     public async Task<Appointment?> GetAppointmentByIdAsync(Guid appointmentId)
     {
-        using var connection = connectionFactory.CreateConnection();
         const string sql = """
             SELECT a.Id, a.AppointmentDateTime, a.ReasonForVisit,
                    p.Id, p.FirstName, p.LastName, p.DateOfBirth, p.PhoneNumber, p.Email,
@@ -20,23 +19,11 @@ public class AppointmentRepository(IDbConnectionFactory connectionFactory) : IAp
             WHERE a.Id = :Id
             """;
 
-        var appointment = await connection.QueryAsync<Appointment, Patient, Provider, Appointment>(
-            sql,
-            (item, patient, provider) =>
-            {
-                item.SetPatient(patient);
-                item.SetProvider(provider);
-                return item;
-            },
-            new { Id = appointmentId.ToString() },
-            splitOn: "Id,Id");
-
-        return appointment.SingleOrDefault();
+        return (await QueryAppointmentsAsync(sql, new { Id = appointmentId.ToString() })).SingleOrDefault();
     }
 
     public async Task<IEnumerable<Appointment>> GetAllAppointmentsAsync()
     {
-        using var connection = connectionFactory.CreateConnection();
         const string sql = """
             SELECT a.Id, a.AppointmentDateTime, a.ReasonForVisit,
                    p.Id, p.FirstName, p.LastName, p.DateOfBirth, p.PhoneNumber, p.Email,
@@ -46,15 +33,7 @@ public class AppointmentRepository(IDbConnectionFactory connectionFactory) : IAp
             INNER JOIN Providers pr ON pr.Id = a.ProviderId
             """;
 
-        return await connection.QueryAsync<Appointment, Patient, Provider, Appointment>(
-            sql,
-            (item, patient, provider) =>
-            {
-                item.SetPatient(patient);
-                item.SetProvider(provider);
-                return item;
-            },
-            splitOn: "Id,Id");
+        return await QueryAppointmentsAsync(sql);
     }
 
     public async Task<Guid> AddAppointmentAsync(Appointment appointment, Guid patientId, Guid providerId)
@@ -108,7 +87,6 @@ public class AppointmentRepository(IDbConnectionFactory connectionFactory) : IAp
 
     public async Task<IEnumerable<Appointment>> GetAppointmentsByProviderIdAsync(Guid providerId)
     {
-        using var connection = connectionFactory.CreateConnection();
         const string sql = """
             SELECT a.Id, a.AppointmentDateTime, a.ReasonForVisit,
                    p.Id, p.FirstName, p.LastName, p.DateOfBirth, p.PhoneNumber, p.Email,
@@ -117,17 +95,56 @@ public class AppointmentRepository(IDbConnectionFactory connectionFactory) : IAp
             INNER JOIN Patients p ON p.Id = a.PatientId
             INNER JOIN Providers pr ON pr.Id = a.ProviderId
             WHERE a.ProviderId = :ProviderId
+            ORDER BY a.AppointmentDateTime, a.Id
             """;
 
+        return await QueryAppointmentsAsync(sql, new { ProviderId = providerId.ToString() });
+    }
+
+    public async Task<IEnumerable<Appointment>> GetAppointmentsByPatientIdAsync(Guid patientId)
+    {
+        const string sql = """
+            SELECT a.Id, a.AppointmentDateTime, a.ReasonForVisit,
+                   p.Id, p.FirstName, p.LastName, p.DateOfBirth, p.PhoneNumber, p.Email,
+                   pr.Id, pr.FirstName, pr.LastName, pr.Specialty, pr.ClinicId
+            FROM Appointments a
+            INNER JOIN Patients p ON p.Id = a.PatientId
+            INNER JOIN Providers pr ON pr.Id = a.ProviderId
+            WHERE a.PatientId = :PatientId
+            ORDER BY a.AppointmentDateTime, a.Id
+            """;
+
+        return await QueryAppointmentsAsync(sql, new { PatientId = patientId.ToString() });
+    }
+
+    public async Task<IEnumerable<Appointment>> GetAppointmentsByClinicIdAsync(Guid clinicId)
+    {
+        const string sql = """
+            SELECT a.Id, a.AppointmentDateTime, a.ReasonForVisit,
+                   p.Id, p.FirstName, p.LastName, p.DateOfBirth, p.PhoneNumber, p.Email,
+                   pr.Id, pr.FirstName, pr.LastName, pr.Specialty, pr.ClinicId
+            FROM Appointments a
+            INNER JOIN Patients p ON p.Id = a.PatientId
+            INNER JOIN Providers pr ON pr.Id = a.ProviderId
+            WHERE pr.ClinicId = :ClinicId
+            ORDER BY a.AppointmentDateTime, a.Id
+            """;
+
+        return await QueryAppointmentsAsync(sql, new { ClinicId = clinicId.ToString() });
+    }
+
+    private async Task<IEnumerable<Appointment>> QueryAppointmentsAsync(string sql, object? parameters = null)
+    {
+        using var connection = connectionFactory.CreateConnection();
         return await connection.QueryAsync<Appointment, Patient, Provider, Appointment>(
             sql,
-            (item, patient, provider) =>
+            (appointment, patient, provider) =>
             {
-                item.SetPatient(patient);
-                item.SetProvider(provider);
-                return item;
+                appointment.SetPatient(patient);
+                appointment.SetProvider(provider);
+                return appointment;
             },
-            new { ProviderId = providerId.ToString() },
+            parameters,
             splitOn: "Id,Id");
     }
 }

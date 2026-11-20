@@ -4,6 +4,7 @@ using ClinicManagement.Application.Common.Exceptions;
 using ClinicManagement.Application.Common.Settings;
 using ClinicManagement.Application.Appointments.Interfaces;
 using ClinicManagement.Application.Patients.Interfaces;
+using ClinicManagement.Application.Clinics.Interfaces;
 using ClinicManagement.Domain.Entities;
 using ClinicManagement.Domain.Exceptions;
 
@@ -191,6 +192,49 @@ public class AppointmentServiceTests
     }
 
     [Fact]
+    public async Task GetRelatedResourcesByAppointmentIdAsync_ReturnsPatientProviderAndClinic()
+    {
+        var clinic = Clinic.Create(Guid.NewGuid(), "Test clinic", "Address", "555-0101");
+        var patient = Patient.Create(
+            Guid.NewGuid(),
+            "Ada",
+            "Lovelace",
+            new DateOnly(1985, 12, 10),
+            "ada@example.com",
+            "555-0100");
+        var provider = Provider.Create(Guid.NewGuid(), clinic.Id, "Grace", "Hopper", "Computing");
+        var appointment = Appointment.Create(
+            Guid.NewGuid(),
+            CurrentTime.AddHours(2),
+            "Checkup",
+            patient,
+            provider,
+            CurrentTime);
+        var service = CreateService(
+            new FakeAppointmentRepository { AppointmentById = appointment },
+            new FakePatientRepository(),
+            new FakeClinicRepository { ExistingClinic = clinic });
+
+        var appointmentPatient = await service.GetPatientByAppointmentIdAsync(appointment.Id);
+        var appointmentProvider = await service.GetProviderByAppointmentIdAsync(appointment.Id);
+        var appointmentClinic = await service.GetClinicByAppointmentIdAsync(appointment.Id);
+
+        Assert.Equal(patient.Id, appointmentPatient.Id);
+        Assert.Equal(provider.Id, appointmentProvider.Id);
+        Assert.Equal(clinic.Id, appointmentProvider.ClinicId);
+        Assert.Equal(clinic.Id, appointmentClinic.Id);
+    }
+
+    [Fact]
+    public async Task GetPatientByAppointmentIdAsync_ThrowsWhenAppointmentDoesNotExist()
+    {
+        var service = CreateService(new FakeAppointmentRepository(), new FakePatientRepository());
+
+        await Assert.ThrowsAsync<ResourceNotFoundException>(
+            () => service.GetPatientByAppointmentIdAsync(Guid.NewGuid()));
+    }
+
+    [Fact]
     public async Task UpdateAppointmentAsync_RejectsAppointmentEndingAtClinicClosingTime()
     {
         var request = CreateRequest(new DateTimeOffset(2030, 1, 2, 15, 40, 0, TimeSpan.Zero));
@@ -212,10 +256,12 @@ public class AppointmentServiceTests
 
     private static AppointmentService CreateService(
         FakeAppointmentRepository appointmentRepository,
-        FakePatientRepository patientRepository) =>
+        FakePatientRepository patientRepository,
+        FakeClinicRepository? clinicRepository = null) =>
         new(
             appointmentRepository,
             patientRepository,
+            clinicRepository ?? new FakeClinicRepository(),
             new ClinicManagementSettings { DefaultAppointmentDurationMinutes = 20 },
             new FixedTimeProvider(CurrentTime));
 
@@ -269,6 +315,8 @@ public class AppointmentServiceTests
         public Task<Guid> UpdatePatientAsync(Patient patient) => Task.FromResult(patient.Id);
         public Task<Guid> DeletePatientAsync(Guid patientId) => Task.FromResult(patientId);
         public Task<bool> HasDependentRecordsAsync(Guid patientId) => Task.FromResult(false);
+        public Task<IEnumerable<PatientAllergy>> GetAllergiesByPatientIdAsync(Guid patientId) =>
+            Task.FromResult<IEnumerable<PatientAllergy>>(Array.Empty<PatientAllergy>());
     }
 
     private sealed class FakeAppointmentRepository : IAppointmentRepository
@@ -304,5 +352,26 @@ public class AppointmentServiceTests
             ProviderAppointmentLookupCount++;
             return Task.FromResult<IEnumerable<Appointment>>(ProviderAppointments);
         }
+
+        public Task<IEnumerable<Appointment>> GetAppointmentsByPatientIdAsync(Guid patientId) =>
+            Task.FromResult<IEnumerable<Appointment>>(Array.Empty<Appointment>());
+
+        public Task<IEnumerable<Appointment>> GetAppointmentsByClinicIdAsync(Guid clinicId) =>
+            Task.FromResult<IEnumerable<Appointment>>(Array.Empty<Appointment>());
+    }
+
+    private sealed class FakeClinicRepository : IClinicRepository
+    {
+        public Clinic? ExistingClinic { get; init; }
+
+        public Task<Clinic?> GetClinicByIdAsync(Guid clinicId) =>
+            Task.FromResult(ExistingClinic?.Id == clinicId ? ExistingClinic : null);
+        public Task<IEnumerable<Clinic>> GetAllClinicsAsync() =>
+            Task.FromResult<IEnumerable<Clinic>>(Array.Empty<Clinic>());
+        public Task<Guid> AddClinicAsync(Clinic clinic) => Task.FromResult(clinic.Id);
+        public Task<Guid> UpdateClinicAsync(Clinic clinic) => Task.FromResult(clinic.Id);
+        public Task<Guid> DeleteClinicAsync(Guid clinicId) => Task.FromResult(clinicId);
+        public Task<bool> ClinicExistsAsync(Guid clinicId) =>
+            Task.FromResult(ExistingClinic?.Id == clinicId);
     }
 }

@@ -1,5 +1,8 @@
 using ClinicManagement.Application.Appointments.Interfaces;
 using ClinicManagement.Application.Appointments.Models;
+using ClinicManagement.Application.Clinics.Models;
+using ClinicManagement.Application.Patients.Models;
+using ClinicManagement.Application.Providers.Models;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ClinicManagement.Api.Endpoints;
@@ -13,6 +16,33 @@ public static class AppointmentEndpoints
 
         app.MapGet("/api/appointments/{id}", async (Guid id, [FromServices] IAppointmentService service) =>
             Results.Ok(await service.GetAppointmentByIdAsync(id)));
+
+        app.MapGet("/api/appointments/{id}/patient", async (
+            Guid id,
+            [FromServices] IAppointmentService service) =>
+            Results.Ok(await service.GetPatientByAppointmentIdAsync(id)))
+            .WithName("GetAppointmentPatient")
+            .WithSummary("Get the patient linked to an appointment")
+            .Produces<PatientResponse>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status404NotFound);
+
+        app.MapGet("/api/appointments/{id}/provider", async (
+            Guid id,
+            [FromServices] IAppointmentService service) =>
+            Results.Ok(await service.GetProviderByAppointmentIdAsync(id)))
+            .WithName("GetAppointmentProvider")
+            .WithSummary("Get the provider linked to an appointment")
+            .Produces<ProviderResponse>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status404NotFound);
+
+        app.MapGet("/api/appointments/{id}/clinic", async (
+            Guid id,
+            [FromServices] IAppointmentService service) =>
+            Results.Ok(await service.GetClinicByAppointmentIdAsync(id)))
+            .WithName("GetAppointmentClinic")
+            .WithSummary("Get the clinic for an appointment's provider")
+            .Produces<ClinicResponse>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status404NotFound);
 
         app.MapPost("/api/appointments", async ([FromBody] AppointmentRequest request, [FromServices] IAppointmentService service) =>
         {

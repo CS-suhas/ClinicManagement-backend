@@ -3,10 +3,19 @@ using ClinicManagement.Application.Common;
 using ClinicManagement.Application.Common.Exceptions;
 using ClinicManagement.Application.Clinics.Mapping;
 using ClinicManagement.Application.Clinics.Models;
+using ClinicManagement.Application.Appointments.Interfaces;
+using ClinicManagement.Application.Appointments.Mapping;
+using ClinicManagement.Application.Appointments.Models;
+using ClinicManagement.Application.Providers.Interfaces;
+using ClinicManagement.Application.Providers.Mapping;
+using ClinicManagement.Application.Providers.Models;
 
 namespace ClinicManagement.Application.Clinics.Services;
 
-public class ClinicService(IClinicRepository clinicRepository) : IClinicService
+public class ClinicService(
+    IClinicRepository clinicRepository,
+    IProviderRepository providerRepository,
+    IAppointmentRepository appointmentRepository) : IClinicService
 {
     public async Task<ClinicResponse> GetClinicByIdAsync(Guid clinicId)
     {
@@ -21,6 +30,28 @@ public class ClinicService(IClinicRepository clinicRepository) : IClinicService
     {
         var clinics = await clinicRepository.GetAllClinicsAsync();
         return clinics.Select(clinic => clinic.ToResponse());
+    }
+
+    public async Task<List<ProviderResponse>> GetProvidersByClinicIdAsync(Guid clinicId)
+    {
+        RequestValidator.EnsureGuid(clinicId, nameof(clinicId), "Clinic ID");
+
+        _ = await clinicRepository.GetClinicByIdAsync(clinicId)
+            ?? throw new ResourceNotFoundException("Clinic", clinicId);
+
+        var providers = await providerRepository.GetProvidersByClinicIdAsync(clinicId);
+        return providers.Select(provider => provider.ToResponse()).ToList();
+    }
+
+    public async Task<List<AppointmentResponse>> GetAppointmentsByClinicIdAsync(Guid clinicId)
+    {
+        RequestValidator.EnsureGuid(clinicId, nameof(clinicId), "Clinic ID");
+
+        _ = await clinicRepository.GetClinicByIdAsync(clinicId)
+            ?? throw new ResourceNotFoundException("Clinic", clinicId);
+
+        var appointments = await appointmentRepository.GetAppointmentsByClinicIdAsync(clinicId);
+        return appointments.Select(appointment => appointment.ToResponse()).ToList();
     }
 
     public async Task<Guid> AddClinicAsync(ClinicRequest request)

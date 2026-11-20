@@ -1,8 +1,10 @@
 using ClinicManagement.Application.Patients.Interfaces;
 using ClinicManagement.Application.Patients.Models;
 using ClinicManagement.Application.Patients.Services;
+using ClinicManagement.Application.Appointments.Interfaces;
 using ClinicManagement.Application.Common.Exceptions;
 using ClinicManagement.Domain.Entities;
+using ClinicManagement.Domain.Enums;
 using ClinicManagement.Domain.Exceptions;
 
 namespace ClinicManagement.Application.Tests;
@@ -12,17 +14,85 @@ public class PatientServiceTests
     [Fact]
     public async Task GetPatientByIdAsync_ThrowsWhenPatientDoesNotExist()
     {
-        var service = new PatientService(new FakePatientRepository());
+        var service = CreateService(new FakePatientRepository());
 
         await Assert.ThrowsAsync<ResourceNotFoundException>(
             () => service.GetPatientByIdAsync(Guid.NewGuid()));
     }
 
     [Fact]
+    public async Task GetPatientAllergiesAsync_ReturnsAllergyDetailsForThePatient()
+    {
+        var patient = Patient.Create(
+            Guid.NewGuid(),
+            "Ada",
+            "Lovelace",
+            new DateOnly(1985, 12, 10),
+            "ada@example.com",
+            "555-0100");
+        var allergyType = AllergyType.Create(Guid.NewGuid(), "Peanuts");
+        var repository = new FakePatientRepository { ExistingPatient = patient };
+        repository.PatientAllergies.Add(
+            PatientAllergy.Create(
+                Guid.NewGuid(),
+                patient,
+                allergyType,
+                AllergySeverity.SEVERE,
+                "Carries an epinephrine auto-injector"));
+        var service = CreateService(repository);
+
+        var result = await service.GetPatientAllergiesAsync(patient.Id);
+
+        var allergy = Assert.Single(result);
+        Assert.Equal(allergyType.Id, allergy.AllergyId);
+        Assert.Equal("Peanuts", allergy.Name);
+        Assert.Equal("SEVERE", allergy.Severity);
+        Assert.Equal("Carries an epinephrine auto-injector", allergy.Notes);
+    }
+
+    [Fact]
+    public async Task GetPatientAllergiesAsync_ReturnsEmptyListForPatientWithoutAllergies()
+    {
+        var patient = Patient.Create(
+            Guid.NewGuid(),
+            "Ada",
+            "Lovelace",
+            new DateOnly(1985, 12, 10),
+            "ada@example.com",
+            "555-0100");
+        var service = CreateService(new FakePatientRepository { ExistingPatient = patient });
+
+        var result = await service.GetPatientAllergiesAsync(patient.Id);
+
+        Assert.Empty(result);
+    }
+
+    [Fact]
+    public async Task GetPatientAllergiesAsync_ThrowsWhenPatientDoesNotExist()
+    {
+        var service = CreateService(new FakePatientRepository());
+
+        await Assert.ThrowsAsync<ResourceNotFoundException>(
+            () => service.GetPatientAllergiesAsync(Guid.NewGuid()));
+    }
+
+    [Fact]
+    public async Task GetPatientAllergiesAsync_RejectsEmptyPatientIdBeforeRepositoryCalls()
+    {
+        var repository = new FakePatientRepository();
+        var service = CreateService(repository);
+
+        await Assert.ThrowsAsync<DomainValidationException>(
+            () => service.GetPatientAllergiesAsync(Guid.Empty));
+
+        Assert.Equal(0, repository.PatientLookupCount);
+    }
+
+    [Fact]
     public async Task AddPatientAsync_PersistsTrimmedPatientAndReturnsItsId()
     {
         var repository = new FakePatientRepository();
-        var service = new PatientService(repository);
+        var service = CreateService(repository);
         var request = new PatientRequest(
             Guid.NewGuid(),
             "  Ada ",
@@ -45,7 +115,7 @@ public class PatientServiceTests
     public async Task UpdatePatientAsync_ThrowsWhenPatientDoesNotExist()
     {
         var repository = new FakePatientRepository();
-        var service = new PatientService(repository);
+        var service = CreateService(repository);
 
         await Assert.ThrowsAsync<ResourceNotFoundException>(
             () => service.UpdatePatientAsync(CreatePatientRequest(Guid.NewGuid())));
@@ -57,7 +127,7 @@ public class PatientServiceTests
     public async Task UpdatePatientAsync_RejectsInvalidEmailBeforeLookingUpPatient()
     {
         var repository = new FakePatientRepository();
-        var service = new PatientService(repository);
+        var service = CreateService(repository);
 
         var exception = await Assert.ThrowsAsync<DomainValidationException>(
             () => service.UpdatePatientAsync(CreatePatientRequest(Guid.NewGuid()) with { Email = "not-an-email" }));
@@ -81,7 +151,7 @@ public class PatientServiceTests
             ExistingPatient = patient,
             HasDependentRecords = true
         };
-        var service = new PatientService(repository);
+        var service = CreateService(repository);
 
         await Assert.ThrowsAsync<PatientHasRecordsException>(
             () => service.DeletePatientAsync(patient.Id));
@@ -89,8 +159,47 @@ public class PatientServiceTests
         Assert.Null(repository.DeletedPatientId);
     }
 
+    [Fact]
+    public async Task GetAppointmentsByPatientIdAsync_ReturnsPatientAppointments()
+    {
+        var clinic = Clinic.Create(Guid.NewGuid(), "Clinic", null, null);
+        var patient = Patient.Create(
+            Guid.NewGuid(),
+            "Ada",
+            "Lovelace",
+            new DateOnly(1985, 12, 10),
+            "ada@example.com",
+            "555-0100");
+        var provider = Provider.Create(Guid.NewGuid(), "Grace", "Hopper", "Computing", clinic);
+        var appointment = Appointment.Create(
+            Guid.NewGuid(),
+            CurrentTime.AddHours(1),
+            "Checkup",
+            patient,
+            provider,
+            CurrentTime);
+        var appointmentRepository = new FakeAppointmentRepository();
+        appointmentRepository.Appointments.Add(appointment);
+        var service = new PatientService(
+            new FakePatientRepository { ExistingPatient = patient },
+            appointmentRepository);
+
+        var result = await service.GetAppointmentsByPatientIdAsync(patient.Id);
+
+        var response = Assert.Single(result);
+        Assert.Equal(appointment.Id, response.Id);
+        Assert.Equal(patient.Id, response.PatientId);
+        Assert.Equal(provider.Id, response.ProviderId);
+    }
+
     private static PatientRequest CreatePatientRequest(Guid id) =>
         new(id, "Ada", "Lovelace", new DateOnly(1985, 12, 10), "555-0100", "ada@example.com");
+
+    private static readonly DateTimeOffset CurrentTime =
+        new(2030, 1, 1, 9, 0, 0, TimeSpan.Zero);
+
+    private static PatientService CreateService(FakePatientRepository repository) =>
+        new(repository, new FakeAppointmentRepository());
 
     private sealed class FakePatientRepository : IPatientRepository
     {
@@ -100,6 +209,7 @@ public class PatientServiceTests
         public bool HasDependentRecords { get; init; }
         public Guid? DeletedPatientId { get; private set; }
         public int PatientLookupCount { get; private set; }
+        public List<PatientAllergy> PatientAllergies { get; } = [];
 
         public Task<Patient?> GetPatientByIdAsync(Guid patientId)
         {
@@ -125,5 +235,28 @@ public class PatientServiceTests
         }
         public Task<bool> PatientExistsAsync(Guid patientId) => Task.FromResult(false);
         public Task<bool> HasDependentRecordsAsync(Guid patientId) => Task.FromResult(HasDependentRecords);
+        public Task<IEnumerable<PatientAllergy>> GetAllergiesByPatientIdAsync(Guid patientId) =>
+            Task.FromResult<IEnumerable<PatientAllergy>>(PatientAllergies);
+    }
+
+    private sealed class FakeAppointmentRepository : IAppointmentRepository
+    {
+        public List<Appointment> Appointments { get; } = [];
+
+        public Task<Appointment?> GetAppointmentByIdAsync(Guid appointmentId) =>
+            Task.FromResult<Appointment?>(null);
+        public Task<IEnumerable<Appointment>> GetAllAppointmentsAsync() =>
+            Task.FromResult<IEnumerable<Appointment>>(Appointments);
+        public Task<Guid> AddAppointmentAsync(Appointment appointment, Guid patientId, Guid providerId) =>
+            Task.FromResult(appointment.Id);
+        public Task<Guid> UpdateAppointmentAsync(Appointment appointment, Guid patientId, Guid providerId) =>
+            Task.FromResult(appointment.Id);
+        public Task<Guid> DeleteAppointmentAsync(Guid appointmentId) => Task.FromResult(appointmentId);
+        public Task<IEnumerable<Appointment>> GetAppointmentsByProviderIdAsync(Guid providerId) =>
+            Task.FromResult<IEnumerable<Appointment>>(Appointments.Where(a => a.ProviderId == providerId));
+        public Task<IEnumerable<Appointment>> GetAppointmentsByPatientIdAsync(Guid patientId) =>
+            Task.FromResult<IEnumerable<Appointment>>(Appointments.Where(a => a.PatientId == patientId));
+        public Task<IEnumerable<Appointment>> GetAppointmentsByClinicIdAsync(Guid clinicId) =>
+            Task.FromResult<IEnumerable<Appointment>>(Appointments.Where(a => a.Provider.ClinicId == clinicId));
     }
 }

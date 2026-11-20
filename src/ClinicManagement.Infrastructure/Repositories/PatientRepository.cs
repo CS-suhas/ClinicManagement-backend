@@ -83,4 +83,26 @@ public class PatientRepository(IDbConnectionFactory connectionFactory) : IPatien
         var count = await connection.ExecuteScalarAsync<int>(sql, new { Id = patientId.ToString() });
         return count > 0;
     }
+
+    public async Task<IEnumerable<PatientAllergy>> GetAllergiesByPatientIdAsync(Guid patientId)
+    {
+        using var connection = connectionFactory.CreateConnection();
+        const string sql = """
+            SELECT pa.Id, pa.PatientId, pa.AllergyId, pa.Severity, pa.Notes,
+                   a.Id, a.Name
+            FROM PatientAllergies pa
+            INNER JOIN AllergyTypes a ON a.Id = pa.AllergyId
+            WHERE pa.PatientId = :Id
+            ORDER BY a.Name
+            """;
+        return await connection.QueryAsync<PatientAllergy, AllergyType, PatientAllergy>(
+            sql,
+            (patientAllergy, allergyType) =>
+            {
+                patientAllergy.SetAllergyType(allergyType);
+                return patientAllergy;
+            },
+            new { Id = patientId.ToString() },
+            splitOn: "Id");
+    }
 }

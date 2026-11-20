@@ -1,0 +1,15 @@
+using ClinicManagement.Application.Patients.Models;
+using ClinicManagement.Domain.Entities;
+
+namespace ClinicManagement.Application.Patients.Mapping;
+
+public static class PatientAllergyMappings
+{
+    public static PatientAllergyResponse ToResponse(this PatientAllergy allergy) =>
+        new(
+            allergy.Id,
+            allergy.AllergyId,
+            allergy.AllergyType.Name,
+            allergy.Severity.ToString(),
+            allergy.Notes);
+}

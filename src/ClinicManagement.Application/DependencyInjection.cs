@@ -9,6 +9,8 @@ using ClinicManagement.Application.Clinics.Interfaces;
 using ClinicManagement.Application.Clinics.Services;
 using ClinicManagement.Application.Providers.Interfaces;
 using ClinicManagement.Application.Providers.Services;
+using ClinicManagement.Application.Interfaces;
+using ClinicManagement.Application.Services;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace ClinicManagement.Application;
@@ -23,6 +25,7 @@ public static class DependencyInjection
         services.AddScoped<IAllergyTypeService, AllergyTypeService>();
         services.AddScoped<IClinicService, ClinicService>();
         services.AddScoped<IProviderService, ProviderService>();
+        services.AddScoped<IStatusService, StatusService>();
 
         return services;
     }

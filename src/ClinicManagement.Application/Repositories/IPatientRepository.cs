@@ -11,4 +11,5 @@ public interface IPatientRepository
     Task<Guid> DeletePatientAsync(Guid patientId);
     Task<bool> PatientExistsAsync(Guid patientId);
     Task<bool> HasDependentRecordsAsync(Guid patientId);
+    Task<IEnumerable<PatientAllergy>> GetAllergiesByPatientIdAsync(Guid patientId);
 }

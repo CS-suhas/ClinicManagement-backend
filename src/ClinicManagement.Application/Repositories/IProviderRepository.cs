@@ -11,4 +11,5 @@ public interface IProviderRepository
     Task<Guid> UpdateProviderAsync(Provider request, Guid clinicId);
     Task<Guid> DeleteProviderAsync(Guid providerId);
     Task<bool> HasAppointmentsAsync(Guid providerId);
+    Task<IEnumerable<Provider>> GetProvidersByClinicIdAsync(Guid clinicId);
 }

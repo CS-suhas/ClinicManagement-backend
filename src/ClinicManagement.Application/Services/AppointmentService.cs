@@ -7,12 +7,20 @@ using ClinicManagement.Domain.Exceptions;
 using ClinicManagement.Application.Appointments.Models;
 using ClinicManagement.Application.Patients.Interfaces;
 using ClinicManagement.Application.Appointments.Mapping;
+using ClinicManagement.Application.Clinics.Interfaces;
+using ClinicManagement.Application.Clinics.Mapping;
+using ClinicManagement.Application.Clinics.Models;
+using ClinicManagement.Application.Patients.Mapping;
+using ClinicManagement.Application.Patients.Models;
+using ClinicManagement.Application.Providers.Mapping;
+using ClinicManagement.Application.Providers.Models;
 
 namespace ClinicManagement.Application.Appointments.Services;
 
 public class AppointmentService(
     IAppointmentRepository appointmentRepository,
     IPatientRepository patientRepository,
+    IClinicRepository clinicRepository,
     ClinicManagementSettings clinicSettings,
     TimeProvider timeProvider) : IAppointmentService
 {
@@ -64,11 +72,23 @@ public class AppointmentService(
 
     public async Task<AppointmentResponse> GetAppointmentByIdAsync(Guid appointmentId)
     {
-        RequestValidator.EnsureGuid(appointmentId, nameof(appointmentId), "Appointment ID");
-
-        var appointment = await appointmentRepository.GetAppointmentByIdAsync(appointmentId)
-                                ?? throw new ResourceNotFoundException("Appointment", appointmentId);
+        var appointment = await GetRequiredAppointmentAsync(appointmentId);
         return appointment.ToResponse();
+    }
+
+    public async Task<PatientResponse> GetPatientByAppointmentIdAsync(Guid appointmentId) =>
+        (await GetRequiredAppointmentAsync(appointmentId)).Patient.ToResponse();
+
+    public async Task<ProviderResponse> GetProviderByAppointmentIdAsync(Guid appointmentId) =>
+        (await GetRequiredAppointmentAsync(appointmentId)).Provider.ToResponse();
+
+    public async Task<ClinicResponse> GetClinicByAppointmentIdAsync(Guid appointmentId)
+    {
+        var appointment = await GetRequiredAppointmentAsync(appointmentId);
+        var clinicId = appointment.Provider.ClinicId;
+        var clinic = await clinicRepository.GetClinicByIdAsync(clinicId)
+            ?? throw new ResourceNotFoundException("Clinic", clinicId);
+        return clinic.ToResponse();
     }
 
     public async Task<Guid> UpdateAppointmentAsync(AppointmentRequest request)
@@ -112,6 +132,14 @@ public class AppointmentService(
             request.AppointmentDateTime,
             currentTime,
             "appointmentDateTime");
+    }
+
+    private async Task<Appointment> GetRequiredAppointmentAsync(Guid appointmentId)
+    {
+        RequestValidator.EnsureGuid(appointmentId, nameof(appointmentId), "Appointment ID");
+
+        return await appointmentRepository.GetAppointmentByIdAsync(appointmentId)
+            ?? throw new ResourceNotFoundException("Appointment", appointmentId);
     }
 
     private void EnsureAppointmentWithinClinicHours(DateTimeOffset appointmentDateTime)

@@ -1,5 +1,6 @@
 using ClinicManagement.Application.Patients.Interfaces;
 using ClinicManagement.Application.Patients.Models;
+using ClinicManagement.Application.Appointments.Models;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ClinicManagement.Api.Endpoints;
@@ -16,6 +17,20 @@ public static class PatientEndpoints
 
         app.MapGet("/api/patients/{id}", async (Guid id, [FromServices] IPatientService patientService) =>
             Results.Ok(await patientService.GetPatientByIdAsync(id)));
+
+        app.MapGet("/api/patients/{id}/allergies", async (
+            Guid id,
+            [FromServices] IPatientService patientService) =>
+            Results.Ok(await patientService.GetPatientAllergiesAsync(id)));
+
+        app.MapGet("/api/patients/{id}/appointments", async (
+            Guid id,
+            [FromServices] IPatientService patientService) =>
+            Results.Ok(await patientService.GetAppointmentsByPatientIdAsync(id)))
+            .WithName("GetPatientAppointments")
+            .WithSummary("Get appointments for a patient")
+            .Produces<List<AppointmentResponse>>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status404NotFound);
 
         app.MapPost("/api/patients", async (
             [FromBody] PatientRequest request,

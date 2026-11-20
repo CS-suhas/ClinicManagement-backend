@@ -52,6 +52,15 @@ public class AllergyTypeServiceTests
     }
 
     [Fact]
+    public async Task GetPatientsByAllergyTypeIdAsync_ThrowsWhenAllergyTypeDoesNotExist()
+    {
+        var service = new AllergyTypeService(new FakeAllergyTypeRepository());
+
+        await Assert.ThrowsAsync<ResourceNotFoundException>(
+            () => service.GetPatientsByAllergyTypeIdAsync(Guid.NewGuid()));
+    }
+
+    [Fact]
     public async Task DeleteAllergyTypeAsync_ThrowsWhenAllergyIsRecordedForPatients()
     {
         var allergyType = AllergyType.Create(Guid.NewGuid(), "Peanuts");

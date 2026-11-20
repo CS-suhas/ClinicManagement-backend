@@ -57,6 +57,28 @@ public class ProviderRepository(IDbConnectionFactory connectionFactory) : IProvi
             splitOn: "Id");
     }
 
+    public async Task<IEnumerable<Provider>> GetProvidersByClinicIdAsync(Guid clinicId)
+    {
+        using var connection = connectionFactory.CreateConnection();
+        const string sql = """
+            SELECT pr.Id, pr.FirstName, pr.LastName, pr.Specialty, pr.ClinicId,
+                   c.Id, c.Name, c.Address, c.PhoneNumber
+            FROM Providers pr
+            INNER JOIN Clinics c ON c.Id = pr.ClinicId
+            WHERE pr.ClinicId = :ClinicId
+            ORDER BY pr.LastName, pr.FirstName, pr.Id
+            """;
+        return await connection.QueryAsync<Provider, Clinic, Provider>(
+            sql,
+            (provider, clinic) =>
+            {
+                provider.SetClinic(clinic);
+                return provider;
+            },
+            new { ClinicId = clinicId.ToString() },
+            splitOn: "Id");
+    }
+
     public async Task<Guid> UpdateProviderAsync(Provider provider, Guid clinicId)
     {
         using var connection = connectionFactory.CreateConnection();

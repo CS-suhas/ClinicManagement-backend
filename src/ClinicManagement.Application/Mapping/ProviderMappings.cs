@@ -16,7 +16,7 @@ public static class ProviderMappings
     public static ProviderResponse ToResponse(this Provider provider) =>
         new(
             provider.Id,
-            provider.Clinic.Id,
+            provider.ClinicId,
             $"{provider.FirstName} {provider.LastName}",
             provider.Specialty);
 

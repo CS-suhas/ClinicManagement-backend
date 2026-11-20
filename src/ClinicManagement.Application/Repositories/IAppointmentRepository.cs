@@ -10,4 +10,6 @@ public interface IAppointmentRepository
     Task<Guid> UpdateAppointmentAsync(Appointment request, Guid patientId, Guid providerId);
     Task<Guid> DeleteAppointmentAsync(Guid appointmentId);
     Task<IEnumerable<Appointment>> GetAppointmentsByProviderIdAsync(Guid providerId);
+    Task<IEnumerable<Appointment>> GetAppointmentsByPatientIdAsync(Guid patientId);
+    Task<IEnumerable<Appointment>> GetAppointmentsByClinicIdAsync(Guid clinicId);
 }

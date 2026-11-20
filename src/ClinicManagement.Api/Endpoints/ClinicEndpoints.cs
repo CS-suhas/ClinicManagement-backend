@@ -1,5 +1,7 @@
 using ClinicManagement.Application.Clinics.Interfaces;
 using ClinicManagement.Application.Clinics.Models;
+using ClinicManagement.Application.Appointments.Models;
+using ClinicManagement.Application.Providers.Models;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ClinicManagement.Api.Endpoints;
@@ -13,6 +15,24 @@ public static class ClinicEndpoints
 
         app.MapGet("/api/clinics/{id}", async (Guid id, [FromServices] IClinicService service) =>
             Results.Ok(await service.GetClinicByIdAsync(id)));
+
+        app.MapGet("/api/clinics/{id}/providers", async (
+            Guid id,
+            [FromServices] IClinicService service) =>
+            Results.Ok(await service.GetProvidersByClinicIdAsync(id)))
+            .WithName("GetClinicProviders")
+            .WithSummary("Get providers at a clinic")
+            .Produces<List<ProviderResponse>>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status404NotFound);
+
+        app.MapGet("/api/clinics/{id}/appointments", async (
+            Guid id,
+            [FromServices] IClinicService service) =>
+            Results.Ok(await service.GetAppointmentsByClinicIdAsync(id)))
+            .WithName("GetClinicAppointments")
+            .WithSummary("Get appointments for a clinic")
+            .Produces<List<AppointmentResponse>>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status404NotFound);
 
         app.MapPost("/api/clinics", async ([FromBody] ClinicRequest request, [FromServices] IClinicService service) =>
         {

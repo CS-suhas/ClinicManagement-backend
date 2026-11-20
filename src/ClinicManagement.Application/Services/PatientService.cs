@@ -3,11 +3,16 @@ using ClinicManagement.Application.Common;
 using ClinicManagement.Application.Common.Exceptions;
 using ClinicManagement.Application.Patients.Mapping;
 using ClinicManagement.Application.Patients.Models;
+using ClinicManagement.Application.Appointments.Interfaces;
+using ClinicManagement.Application.Appointments.Mapping;
+using ClinicManagement.Application.Appointments.Models;
 using ClinicManagement.Domain.Exceptions;
 
 namespace ClinicManagement.Application.Patients.Services;
 
-public class PatientService(IPatientRepository patientRepository) : IPatientService
+public class PatientService(
+    IPatientRepository patientRepository,
+    IAppointmentRepository appointmentRepository) : IPatientService
 {
     public async Task<PatientResponse> GetPatientByIdAsync(Guid patientId)
     {
@@ -22,6 +27,28 @@ public class PatientService(IPatientRepository patientRepository) : IPatientServ
     {
         var patients = await patientRepository.GetAllPatientsAsync();
         return patients.Select(p => p.ToResponse()).ToList();
+    }
+
+    public async Task<IEnumerable<PatientAllergyResponse>> GetPatientAllergiesAsync(Guid patientId)
+    {
+        RequestValidator.EnsureGuid(patientId, nameof(patientId), "Patient ID");
+
+        _ = await patientRepository.GetPatientByIdAsync(patientId)
+            ?? throw new ResourceNotFoundException("Patient", patientId);
+
+        var allergies = await patientRepository.GetAllergiesByPatientIdAsync(patientId);
+        return allergies.Select(allergy => allergy.ToResponse());
+    }
+
+    public async Task<List<AppointmentResponse>> GetAppointmentsByPatientIdAsync(Guid patientId)
+    {
+        RequestValidator.EnsureGuid(patientId, nameof(patientId), "Patient ID");
+
+        _ = await patientRepository.GetPatientByIdAsync(patientId)
+            ?? throw new ResourceNotFoundException("Patient", patientId);
+
+        var appointments = await appointmentRepository.GetAppointmentsByPatientIdAsync(patientId);
+        return appointments.Select(appointment => appointment.ToResponse()).ToList();
     }
 
     public async Task<Guid> AddPatientAsync(PatientRequest patient)
