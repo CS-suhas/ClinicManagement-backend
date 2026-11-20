@@ -22,6 +22,8 @@ public static class DependencyInjection
                 "Connection string 'DefaultConnection' is not configured.");
 
         SqlMapper.AddTypeHandler<Guid>(new OracleGuidTypeHandler());
+        SqlMapper.AddTypeHandler<DateOnly>(new OracleDateOnlyTypeHandler());
+        SqlMapper.AddTypeHandler<DateTimeOffset>(new OracleDateTimeOffsetTypeHandler());
         services.AddSingleton<IDbConnectionFactory>(new OracleConnectionFactory(connectionString));
         services.AddScoped<IPatientRepository, PatientRepository>();
         services.AddScoped<IClinicRepository, ClinicRepository>();
