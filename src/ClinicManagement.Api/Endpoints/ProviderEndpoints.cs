@@ -12,45 +12,22 @@ public static class ProviderEndpoints
             Results.Ok(await service.GetAllProvidersAsync()));
 
         app.MapGet("/api/providers/{id}", async (Guid id, [FromServices] IProviderService service) =>
-        {
-            var provider = await service.GetProviderByIdAsync(id);
-            return provider is null ? Results.NotFound() : Results.Ok(provider);
-        });
+            Results.Ok(await service.GetProviderByIdAsync(id)));
 
         app.MapPost("/api/providers", async ([FromBody] ProviderRequest request, [FromServices] IProviderService service) =>
         {
-            try
-            {
-                var id = await service.AddProviderAsync(request with { Id = Guid.NewGuid() });
-                return Results.Created($"/api/providers/{id}", new { id });
-            }
-            catch (KeyNotFoundException exception)
-            {
-                return Results.BadRequest(exception.Message);
-            }
+            var id = await service.AddProviderAsync(request with { Id = Guid.NewGuid() });
+            return Results.Created($"/api/providers/{id}", new { id });
         });
 
         app.MapPut("/api/providers/{id}", async (Guid id, [FromBody] ProviderRequest request, [FromServices] IProviderService service) =>
         {
-            if (await service.GetProviderByIdAsync(id) is null)
-                return Results.NotFound();
-
-            try
-            {
-                await service.UpdateProviderAsync(request with { Id = id });
-                return Results.NoContent();
-            }
-            catch (KeyNotFoundException exception)
-            {
-                return Results.BadRequest(exception.Message);
-            }
+            await service.UpdateProviderAsync(request with { Id = id });
+            return Results.NoContent();
         });
 
         app.MapDelete("/api/providers/{id}", async (Guid id, [FromServices] IProviderService service) =>
         {
-            if (await service.GetProviderByIdAsync(id) is null)
-                return Results.NotFound();
-
             await service.DeleteProviderAsync(id);
             return Results.NoContent();
         });

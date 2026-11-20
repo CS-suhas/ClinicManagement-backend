@@ -1,6 +1,5 @@
 using ClinicManagement.Application.Appointments.Interfaces;
 using ClinicManagement.Application.Appointments.Models;
-using ClinicManagement.Domain.Exceptions;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ClinicManagement.Api.Endpoints;
@@ -13,53 +12,22 @@ public static class AppointmentEndpoints
             Results.Ok(await service.GetAllAppointmentsAsync()));
 
         app.MapGet("/api/appointments/{id}", async (Guid id, [FromServices] IAppointmentService service) =>
-        {
-            var appointment = await service.GetAppointmentByIdAsync(id);
-            return appointment is null ? Results.NotFound() : Results.Ok(appointment);
-        });
+            Results.Ok(await service.GetAppointmentByIdAsync(id)));
 
         app.MapPost("/api/appointments", async ([FromBody] AppointmentRequest request, [FromServices] IAppointmentService service) =>
         {
-            try
-            {
-                var id = await service.AddAppointmentAsync(request with { Id = Guid.NewGuid() });
-                return Results.Created($"/api/appointments/{id}", new { id });
-            }
-            catch (KeyNotFoundException exception)
-            {
-                return Results.BadRequest(exception.Message);
-            }
-            catch (ProviderAppointmentOverlapException exception)
-            {
-                return Results.Conflict(exception.Message);
-            }
+            var id = await service.AddAppointmentAsync(request with { Id = Guid.NewGuid() });
+            return Results.Created($"/api/appointments/{id}", new { id });
         });
 
         app.MapPut("/api/appointments/{id}", async (Guid id, [FromBody] AppointmentRequest request, [FromServices] IAppointmentService service) =>
         {
-            if (await service.GetAppointmentByIdAsync(id) is null)
-                return Results.NotFound();
-
-            try
-            {
-                await service.UpdateAppointmentAsync(request with { Id = id });
-                return Results.NoContent();
-            }
-            catch (KeyNotFoundException exception)
-            {
-                return Results.BadRequest(exception.Message);
-            }
-            catch (ProviderAppointmentOverlapException exception)
-            {
-                return Results.Conflict(exception.Message);
-            }
+            await service.UpdateAppointmentAsync(request with { Id = id });
+            return Results.NoContent();
         });
 
         app.MapDelete("/api/appointments/{id}", async (Guid id, [FromServices] IAppointmentService service) =>
         {
-            if (await service.GetAppointmentByIdAsync(id) is null)
-                return Results.NotFound();
-
             await service.DeleteAppointmentAsync(id);
             return Results.NoContent();
         });

@@ -15,14 +15,7 @@ public static class PatientEndpoints
         });
 
         app.MapGet("/api/patients/{id}", async (Guid id, [FromServices] IPatientService patientService) =>
-        {
-            var patient = await patientService.GetPatientByIdAsync(id);
-            if (patient == null)
-            {
-                return Results.NotFound();
-            }
-            return Results.Ok(patient);
-        });
+            Results.Ok(await patientService.GetPatientByIdAsync(id)));
 
         app.MapPost("/api/patients", async (
             [FromBody] PatientRequest request,
@@ -35,24 +28,12 @@ public static class PatientEndpoints
 
         app.MapPut("/api/patients/{id}", async (Guid id, [FromBody] PatientRequest patientRequest, [FromServices] IPatientService patientService) =>
         {
-            var existingPatient = await patientService.GetPatientByIdAsync(id);
-            if (existingPatient == null)
-            {
-                return Results.NotFound();
-            }
-
             await patientService.UpdatePatientAsync(patientRequest with { Id = id });
             return Results.NoContent();
         });
 
         app.MapDelete("/api/patients/{id}", async (Guid id, [FromServices] IPatientService patientService) =>
         {
-            var existingPatient = await patientService.GetPatientByIdAsync(id);
-            if (existingPatient == null)
-            {
-                return Results.NotFound();
-            }
-
             await patientService.DeletePatientAsync(id);
             return Results.NoContent();
         });

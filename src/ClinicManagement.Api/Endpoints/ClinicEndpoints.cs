@@ -12,10 +12,7 @@ public static class ClinicEndpoints
             Results.Ok(await service.GetAllClinicsAsync()));
 
         app.MapGet("/api/clinics/{id}", async (Guid id, [FromServices] IClinicService service) =>
-        {
-            var clinic = await service.GetClinicByIdAsync(id);
-            return clinic is null ? Results.NotFound() : Results.Ok(clinic);
-        });
+            Results.Ok(await service.GetClinicByIdAsync(id)));
 
         app.MapPost("/api/clinics", async ([FromBody] ClinicRequest request, [FromServices] IClinicService service) =>
         {
@@ -25,18 +22,12 @@ public static class ClinicEndpoints
 
         app.MapPut("/api/clinics/{id}", async (Guid id, [FromBody] ClinicRequest request, [FromServices] IClinicService service) =>
         {
-            if (await service.GetClinicByIdAsync(id) is null)
-                return Results.NotFound();
-
             await service.UpdateClinicAsync(request with { Id = id });
             return Results.NoContent();
         });
 
         app.MapDelete("/api/clinics/{id}", async (Guid id, [FromServices] IClinicService service) =>
         {
-            if (await service.GetClinicByIdAsync(id) is null)
-                return Results.NotFound();
-
             await service.DeleteClinicAsync(id);
             return Results.NoContent();
         });

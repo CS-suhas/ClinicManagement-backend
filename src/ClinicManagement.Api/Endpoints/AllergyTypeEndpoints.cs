@@ -12,10 +12,7 @@ public static class AllergyTypeEndpoints
             Results.Ok(await service.GetAllAllergyTypesAsync()));
 
         app.MapGet("/api/allergy-types/{id}", async (Guid id, [FromServices] IAllergyTypeService service) =>
-        {
-            var allergyType = await service.GetAllergyTypeByIdAsync(id);
-            return allergyType is null ? Results.NotFound() : Results.Ok(allergyType);
-        });
+            Results.Ok(await service.GetAllergyTypeByIdAsync(id)));
 
         app.MapPost("/api/allergy-types", async ([FromBody] AllergyTypeRequest request, [FromServices] IAllergyTypeService service) =>
         {
@@ -25,18 +22,12 @@ public static class AllergyTypeEndpoints
 
         app.MapPut("/api/allergy-types/{id}", async (Guid id, [FromBody] AllergyTypeRequest request, [FromServices] IAllergyTypeService service) =>
         {
-            if (await service.GetAllergyTypeByIdAsync(id) is null)
-                return Results.NotFound();
-
             await service.UpdateAllergyTypeAsync(request with { Id = id });
             return Results.NoContent();
         });
 
         app.MapDelete("/api/allergy-types/{id}", async (Guid id, [FromServices] IAllergyTypeService service) =>
         {
-            if (await service.GetAllergyTypeByIdAsync(id) is null)
-                return Results.NotFound();
-
             await service.DeleteAllergyTypeAsync(id);
             return Results.NoContent();
         });
