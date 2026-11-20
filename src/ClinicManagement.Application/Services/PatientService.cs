@@ -3,6 +3,7 @@ using ClinicManagement.Application.Common;
 using ClinicManagement.Application.Common.Exceptions;
 using ClinicManagement.Application.Patients.Mapping;
 using ClinicManagement.Application.Patients.Models;
+using ClinicManagement.Domain.Exceptions;
 
 namespace ClinicManagement.Application.Patients.Services;
 
@@ -51,6 +52,11 @@ public class PatientService(IPatientRepository patientRepository) : IPatientServ
 
         var patient = await patientRepository.GetPatientByIdAsync(patientId)
             ?? throw new ResourceNotFoundException("Patient", patientId);
+
+        if (await patientRepository.HasDependentRecordsAsync(patientId))
+        {
+            throw new PatientHasRecordsException(patientId);
+        }
 
         await patientRepository.DeletePatientAsync(patient.Id);
         return patientId;

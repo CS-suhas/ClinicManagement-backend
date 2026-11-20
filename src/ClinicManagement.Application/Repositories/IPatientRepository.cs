@@ -10,4 +10,5 @@ public interface IPatientRepository
     Task<Guid> UpdatePatientAsync(Patient patient);
     Task<Guid> DeletePatientAsync(Guid patientId);
     Task<bool> PatientExistsAsync(Guid patientId);
+    Task<bool> HasDependentRecordsAsync(Guid patientId);
 }

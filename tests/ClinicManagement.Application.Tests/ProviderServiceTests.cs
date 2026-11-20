@@ -4,6 +4,7 @@ using ClinicManagement.Application.Providers.Interfaces;
 using ClinicManagement.Application.Providers.Models;
 using ClinicManagement.Application.Providers.Services;
 using ClinicManagement.Domain.Entities;
+using ClinicManagement.Domain.Exceptions;
 
 namespace ClinicManagement.Application.Tests;
 
@@ -42,12 +43,38 @@ public class ProviderServiceTests
         Assert.Null(providerRepository.AddedProvider);
     }
 
+    [Fact]
+    public async Task DeleteProviderAsync_ThrowsWhenProviderHasAppointments()
+    {
+        var provider = Provider.Create(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            "Grace",
+            "Hopper",
+            "Computing");
+        var providerRepository = new FakeProviderRepository
+        {
+            ExistingProvider = provider,
+            HasAppointments = true
+        };
+        var service = new ProviderService(providerRepository, new FakeClinicRepository());
+
+        await Assert.ThrowsAsync<ProviderHasAppointmentsException>(
+            () => service.DeleteProviderAsync(provider.Id));
+
+        Assert.Null(providerRepository.DeletedProviderId);
+    }
+
     private sealed class FakeProviderRepository : IProviderRepository
     {
         public Provider? AddedProvider { get; private set; }
         public Guid? AddedClinicId { get; private set; }
+        public Provider? ExistingProvider { get; init; }
+        public bool HasAppointments { get; init; }
+        public Guid? DeletedProviderId { get; private set; }
 
-        public Task<Provider?> GetProviderByIdAsync(Guid providerId) => Task.FromResult<Provider?>(null);
+        public Task<Provider?> GetProviderByIdAsync(Guid providerId) =>
+            Task.FromResult(ExistingProvider?.Id == providerId ? ExistingProvider : null);
         public Task<IEnumerable<Provider>> GetAllProvidersAsync() =>
             Task.FromResult<IEnumerable<Provider>>(Array.Empty<Provider>());
         public Task<Guid> AddProviderAsync(Provider provider, Guid clinicId)
@@ -57,7 +84,12 @@ public class ProviderServiceTests
             return Task.FromResult(provider.Id);
         }
         public Task<Guid> UpdateProviderAsync(Provider provider, Guid clinicId) => Task.FromResult(provider.Id);
-        public Task<Guid> DeleteProviderAsync(Guid providerId) => Task.FromResult(providerId);
+        public Task<Guid> DeleteProviderAsync(Guid providerId)
+        {
+            DeletedProviderId = providerId;
+            return Task.FromResult(providerId);
+        }
+        public Task<bool> HasAppointmentsAsync(Guid providerId) => Task.FromResult(HasAppointments);
     }
 
     private sealed class FakeClinicRepository : IClinicRepository

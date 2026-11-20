@@ -30,6 +30,14 @@ public class ProviderRepository(IDbConnectionFactory connectionFactory) : IProvi
         return providerId;
     }
 
+    public async Task<bool> HasAppointmentsAsync(Guid providerId)
+    {
+        using var connection = connectionFactory.CreateConnection();
+        const string sql = "SELECT COUNT(1) FROM Appointments WHERE ProviderId = :Id";
+        var count = await connection.ExecuteScalarAsync<int>(sql, new { Id = providerId.ToString() });
+        return count > 0;
+    }
+
     public async Task<IEnumerable<Provider>> GetAllProvidersAsync()
     {
         using var connection = connectionFactory.CreateConnection();

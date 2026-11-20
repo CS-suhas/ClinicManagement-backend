@@ -30,6 +30,28 @@ public class AllergyTypeRepository(IDbConnectionFactory connectionFactory) : IAl
         return await connection.QueryAsync<AllergyType>(sql);
     }
 
+    public async Task<IEnumerable<Patient>> GetPatientsByAllergyTypeIdAsync(Guid allergyTypeId)
+    {
+        using var connection = connectionFactory.CreateConnection();
+        const string sql = """
+            SELECT p.Id, p.FirstName, p.LastName, p.DateOfBirth, p.PhoneNumber, p.Email,
+                   p.CreatedAtUtc, p.UpdatedAtUtc
+            FROM Patients p
+            INNER JOIN PatientAllergies pa ON pa.PatientId = p.Id
+            WHERE pa.AllergyId = :Id
+            ORDER BY p.LastName, p.FirstName
+            """;
+        return await connection.QueryAsync<Patient>(sql, new { Id = allergyTypeId.ToString() });
+    }
+
+    public async Task<bool> HasPatientsWithAllergyTypeAsync(Guid allergyTypeId)
+    {
+        using var connection = connectionFactory.CreateConnection();
+        const string sql = "SELECT COUNT(1) FROM PatientAllergies WHERE AllergyId = :Id";
+        var count = await connection.ExecuteScalarAsync<int>(sql, new { Id = allergyTypeId.ToString() });
+        return count > 0;
+    }
+
     public async Task<AllergyType?> GetAllergyTypeByIdAsync(Guid allergyTypeId)
     {
         using var connection = connectionFactory.CreateConnection();

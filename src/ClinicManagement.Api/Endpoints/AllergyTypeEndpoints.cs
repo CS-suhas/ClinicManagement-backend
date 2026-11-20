@@ -14,6 +14,9 @@ public static class AllergyTypeEndpoints
         app.MapGet("/api/allergy-types/{id}", async (Guid id, [FromServices] IAllergyTypeService service) =>
             Results.Ok(await service.GetAllergyTypeByIdAsync(id)));
 
+        app.MapGet("/api/allergy-types/{id}/patients", async (Guid id, [FromServices] IAllergyTypeService service) =>
+            Results.Ok(await service.GetPatientsByAllergyTypeIdAsync(id)));
+
         app.MapPost("/api/allergy-types", async ([FromBody] AllergyTypeRequest request, [FromServices] IAllergyTypeService service) =>
         {
             var id = await service.AddAllergyTypeAsync(request with { Id = Guid.NewGuid() });

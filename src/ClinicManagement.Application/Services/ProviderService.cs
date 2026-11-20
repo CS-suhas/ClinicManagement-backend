@@ -4,6 +4,7 @@ using ClinicManagement.Application.Common.Exceptions;
 using ClinicManagement.Application.Providers.Interfaces;
 using ClinicManagement.Application.Providers.Mapping;
 using ClinicManagement.Application.Providers.Models;
+using ClinicManagement.Domain.Exceptions;
 using Microsoft.EntityFrameworkCore;
 
 namespace ClinicManagement.Application.Providers.Services;
@@ -67,6 +68,12 @@ public class ProviderService(IProviderRepository providerRepository, IClinicRepo
         {
             throw new ResourceNotFoundException("Provider", providerId);
         }
+
+        if (await providerRepository.HasAppointmentsAsync(providerId))
+        {
+            throw new ProviderHasAppointmentsException(providerId);
+        }
+
         await providerRepository.DeleteProviderAsync(provider.Id);
         return providerId;
     }

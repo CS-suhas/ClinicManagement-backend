@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="1.3-restrict-cascade-deletions" author="clinic-management">
+        <dropForeignKeyConstraint
+            baseTableName="PatientAllergies"
+            constraintName="FK_PatientAllergies_AllergyTypes"/>
+        <dropForeignKeyConstraint
+            baseTableName="PatientAllergies"
+            constraintName="FK_PatientAllergies_Patients"/>
+        <dropForeignKeyConstraint
+            baseTableName="Appointments"
+            constraintName="FK_Appointments_Patients"/>
+        <dropForeignKeyConstraint
+            baseTableName="Appointments"
+            constraintName="FK_Appointments_Providers"/>
+        <addForeignKeyConstraint
+            baseTableName="PatientAllergies"
+            baseColumnNames="AllergyId"
+            referencedTableName="AllergyTypes"
+            referencedColumnNames="Id"
+            constraintName="FK_PatientAllergies_AllergyTypes"/>
+        <addForeignKeyConstraint
+            baseTableName="PatientAllergies"
+            baseColumnNames="PatientId"
+            referencedTableName="Patients"
+            referencedColumnNames="Id"
+            constraintName="FK_PatientAllergies_Patients"/>
+        <addForeignKeyConstraint
+            baseTableName="Appointments"
+            baseColumnNames="PatientId"
+            referencedTableName="Patients"
+            referencedColumnNames="Id"
+            constraintName="FK_Appointments_Patients"/>
+        <addForeignKeyConstraint
+            baseTableName="Appointments"
+            baseColumnNames="ProviderId"
+            referencedTableName="Providers"
+            referencedColumnNames="Id"
+            constraintName="FK_Appointments_Providers"/>
+    </changeSet>
+</databaseChangeLog>

@@ -68,4 +68,19 @@ public class PatientRepository(IDbConnectionFactory connectionFactory) : IPatien
         var count = await connection.ExecuteScalarAsync<int>(sql, new { Id = patientId.ToString() });
         return count > 0;
     }
+
+    public async Task<bool> HasDependentRecordsAsync(Guid patientId)
+    {
+        using var connection = connectionFactory.CreateConnection();
+        const string sql = """
+            SELECT COUNT(1)
+            FROM (
+                SELECT PatientId FROM PatientAllergies WHERE PatientId = :Id
+                UNION ALL
+                SELECT PatientId FROM Appointments WHERE PatientId = :Id
+            )
+            """;
+        var count = await connection.ExecuteScalarAsync<int>(sql, new { Id = patientId.ToString() });
+        return count > 0;
+    }
 }

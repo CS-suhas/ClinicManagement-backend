@@ -4,6 +4,9 @@ using ClinicManagement.Application.Common.Exceptions;
 using ClinicManagement.Application.AllergyTypes.Interfaces;
 using ClinicManagement.Application.AllergyTypes.Mapping;
 using ClinicManagement.Application.AllergyTypes.Models;
+using ClinicManagement.Application.Patients.Mapping;
+using ClinicManagement.Application.Patients.Models;
+using ClinicManagement.Domain.Exceptions;
 
 namespace ClinicManagement.Application.AllergyTypes.Services;
 
@@ -23,6 +26,19 @@ public class AllergyTypeService(IAllergyTypeRepository allergyTypeRepository) : 
         var allergyTypes = await allergyTypeRepository.GetAllAllergyTypesAsync();
 
         return allergyTypes.Select(item => item.ToResponse());
+    }
+
+    public async Task<IEnumerable<PatientResponse>> GetPatientsByAllergyTypeIdAsync(Guid allergyTypeId)
+    {
+        RequestValidator.EnsureGuid(allergyTypeId, nameof(allergyTypeId), "Allergy type ID");
+
+        if (await allergyTypeRepository.GetAllergyTypeByIdAsync(allergyTypeId) == null)
+        {
+            throw new ResourceNotFoundException("Allergy type", allergyTypeId);
+        }
+
+        var patients = await allergyTypeRepository.GetPatientsByAllergyTypeIdAsync(allergyTypeId);
+        return patients.Select(patient => patient.ToResponse());
     }
 
     public async Task<Guid> AddAllergyTypeAsync(AllergyTypeRequest request)
@@ -57,6 +73,12 @@ public class AllergyTypeService(IAllergyTypeRepository allergyTypeRepository) : 
         {
             throw new ResourceNotFoundException("Allergy type", allergyTypeId);
         }
+
+        if (await allergyTypeRepository.HasPatientsWithAllergyTypeAsync(allergyTypeId))
+        {
+            throw new AllergyTypeInUseException(allergyTypeId);
+        }
+
         await allergyTypeRepository.DeleteAllergyTypeAsync(allergyType.Id);
         return allergyTypeId;
     }

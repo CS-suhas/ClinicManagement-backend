@@ -3,6 +3,7 @@ using ClinicManagement.Application.Common.Exceptions;
 using ClinicManagement.Application.AllergyTypes.Models;
 using ClinicManagement.Application.AllergyTypes.Services;
 using ClinicManagement.Domain.Entities;
+using ClinicManagement.Domain.Exceptions;
 
 namespace ClinicManagement.Application.Tests;
 
@@ -34,15 +35,56 @@ public class AllergyTypeServiceTests
         Assert.Null(repository.UpdatedAllergyType);
     }
 
+    [Fact]
+    public async Task GetPatientsByAllergyTypeIdAsync_ReturnsPatientsRecordedWithTheAllergy()
+    {
+        var repository = new FakeAllergyTypeRepository();
+        var allergyType = AllergyType.Create(Guid.NewGuid(), "Peanuts");
+        repository.ExistingAllergyType = allergyType;
+        repository.PatientsWithAllergyType.Add(
+            Patient.Create(Guid.NewGuid(), "Ava", "Patient", new DateOnly(1990, 1, 1), "ava@example.com", "555-0100"));
+        var service = new AllergyTypeService(repository);
+
+        var result = await service.GetPatientsByAllergyTypeIdAsync(allergyType.Id);
+
+        var patient = Assert.Single(result);
+        Assert.Equal("Ava Patient", patient.Name);
+    }
+
+    [Fact]
+    public async Task DeleteAllergyTypeAsync_ThrowsWhenAllergyIsRecordedForPatients()
+    {
+        var allergyType = AllergyType.Create(Guid.NewGuid(), "Peanuts");
+        var repository = new FakeAllergyTypeRepository
+        {
+            ExistingAllergyType = allergyType,
+            HasPatientsWithAllergyType = true
+        };
+        var service = new AllergyTypeService(repository);
+
+        await Assert.ThrowsAsync<AllergyTypeInUseException>(
+            () => service.DeleteAllergyTypeAsync(allergyType.Id));
+
+        Assert.Null(repository.DeletedAllergyTypeId);
+    }
+
     private sealed class FakeAllergyTypeRepository : IAllergyTypeRepository
     {
         public AllergyType? AddedAllergyType { get; private set; }
         public AllergyType? UpdatedAllergyType { get; private set; }
+        public AllergyType? ExistingAllergyType { get; set; }
+        public List<Patient> PatientsWithAllergyType { get; } = [];
+        public bool HasPatientsWithAllergyType { get; set; }
+        public Guid? DeletedAllergyTypeId { get; private set; }
 
         public Task<AllergyType?> GetAllergyTypeByIdAsync(Guid allergyTypeId) =>
-            Task.FromResult<AllergyType?>(null);
+            Task.FromResult(ExistingAllergyType?.Id == allergyTypeId ? ExistingAllergyType : null);
         public Task<IEnumerable<AllergyType>> GetAllAllergyTypesAsync() =>
             Task.FromResult<IEnumerable<AllergyType>>(Array.Empty<AllergyType>());
+        public Task<IEnumerable<Patient>> GetPatientsByAllergyTypeIdAsync(Guid allergyTypeId) =>
+            Task.FromResult<IEnumerable<Patient>>(PatientsWithAllergyType);
+        public Task<bool> HasPatientsWithAllergyTypeAsync(Guid allergyTypeId) =>
+            Task.FromResult(HasPatientsWithAllergyType);
         public Task<Guid> AddAllergyTypeAsync(AllergyType allergyType)
         {
             AddedAllergyType = allergyType;
@@ -53,6 +95,10 @@ public class AllergyTypeServiceTests
             UpdatedAllergyType = allergyType;
             return Task.FromResult(allergyType.Id);
         }
-        public Task<Guid> DeleteAllergyTypeAsync(Guid allergyTypeId) => Task.FromResult(allergyTypeId);
+        public Task<Guid> DeleteAllergyTypeAsync(Guid allergyTypeId)
+        {
+            DeletedAllergyTypeId = allergyTypeId;
+            return Task.FromResult(allergyTypeId);
+        }
     }
 }

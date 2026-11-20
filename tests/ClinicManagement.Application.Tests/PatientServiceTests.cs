@@ -66,6 +66,29 @@ public class PatientServiceTests
         Assert.Equal(0, repository.PatientLookupCount);
     }
 
+    [Fact]
+    public async Task DeletePatientAsync_ThrowsWhenPatientHasDependentRecords()
+    {
+        var patient = Patient.Create(
+            Guid.NewGuid(),
+            "Ada",
+            "Lovelace",
+            new DateOnly(1985, 12, 10),
+            "ada@example.com",
+            "555-0100");
+        var repository = new FakePatientRepository
+        {
+            ExistingPatient = patient,
+            HasDependentRecords = true
+        };
+        var service = new PatientService(repository);
+
+        await Assert.ThrowsAsync<PatientHasRecordsException>(
+            () => service.DeletePatientAsync(patient.Id));
+
+        Assert.Null(repository.DeletedPatientId);
+    }
+
     private static PatientRequest CreatePatientRequest(Guid id) =>
         new(id, "Ada", "Lovelace", new DateOnly(1985, 12, 10), "555-0100", "ada@example.com");
 
@@ -73,12 +96,15 @@ public class PatientServiceTests
     {
         public Patient? AddedPatient { get; private set; }
         public Patient? UpdatedPatient { get; private set; }
+        public Patient? ExistingPatient { get; init; }
+        public bool HasDependentRecords { get; init; }
+        public Guid? DeletedPatientId { get; private set; }
         public int PatientLookupCount { get; private set; }
 
         public Task<Patient?> GetPatientByIdAsync(Guid patientId)
         {
             PatientLookupCount++;
-            return Task.FromResult<Patient?>(null);
+            return Task.FromResult(ExistingPatient?.Id == patientId ? ExistingPatient : null);
         }
         public Task<IEnumerable<Patient>> GetAllPatientsAsync() =>
             Task.FromResult<IEnumerable<Patient>>(Array.Empty<Patient>());
@@ -92,7 +118,12 @@ public class PatientServiceTests
             UpdatedPatient = patient;
             return Task.FromResult(patient.Id);
         }
-        public Task<Guid> DeletePatientAsync(Guid patientId) => Task.FromResult(patientId);
+        public Task<Guid> DeletePatientAsync(Guid patientId)
+        {
+            DeletedPatientId = patientId;
+            return Task.FromResult(patientId);
+        }
         public Task<bool> PatientExistsAsync(Guid patientId) => Task.FromResult(false);
+        public Task<bool> HasDependentRecordsAsync(Guid patientId) => Task.FromResult(HasDependentRecords);
     }
 }

@@ -10,4 +10,5 @@ public interface IProviderRepository
     Task<Guid> AddProviderAsync(Provider request, Guid clinicId);
     Task<Guid> UpdateProviderAsync(Provider request, Guid clinicId);
     Task<Guid> DeleteProviderAsync(Guid providerId);
+    Task<bool> HasAppointmentsAsync(Guid providerId);
 }

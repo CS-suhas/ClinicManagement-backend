@@ -268,6 +268,7 @@ public class AppointmentServiceTests
         public Task<Guid> AddPatientAsync(Patient patient) => Task.FromResult(patient.Id);
         public Task<Guid> UpdatePatientAsync(Patient patient) => Task.FromResult(patient.Id);
         public Task<Guid> DeletePatientAsync(Guid patientId) => Task.FromResult(patientId);
+        public Task<bool> HasDependentRecordsAsync(Guid patientId) => Task.FromResult(false);
     }
 
     private sealed class FakeAppointmentRepository : IAppointmentRepository
