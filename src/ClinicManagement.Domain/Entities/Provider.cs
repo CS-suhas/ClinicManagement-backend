@@ -1,4 +1,5 @@
 using ClinicManagement.Domain.Common;
+using ClinicManagement.Domain.Exceptions;
 
 namespace ClinicManagement.Domain.Entities;
 
@@ -24,10 +25,12 @@ public class Provider : BaseEntity
 
     public static Provider Create(Guid id, Guid clinicId, string firstName, string lastName, string specialty)
     {
-        if (string.IsNullOrWhiteSpace(firstName) || string.IsNullOrWhiteSpace(lastName))
-            throw new ArgumentException("First and last names cannot be empty.");
+        if (string.IsNullOrWhiteSpace(firstName))
+            throw new DomainValidationException("First name cannot be empty.", nameof(firstName));
+        if (string.IsNullOrWhiteSpace(lastName))
+            throw new DomainValidationException("Last name cannot be empty.", nameof(lastName));
         if (string.IsNullOrWhiteSpace(specialty))
-            throw new ArgumentException("Specialty cannot be empty.", nameof(specialty));
+            throw new DomainValidationException("Specialty cannot be empty.", nameof(specialty));
 
         return new Provider
         {
@@ -42,7 +45,7 @@ public class Provider : BaseEntity
     public void SetFirstName(string firstName)
     {
         if (string.IsNullOrWhiteSpace(firstName))
-            throw new ArgumentException("First name cannot be empty.", nameof(firstName));
+            throw new DomainValidationException("First name cannot be empty.", nameof(firstName));
         FirstName = firstName.Trim();
         UpdatedAtUtc = DateTime.UtcNow;
     }
@@ -50,7 +53,7 @@ public class Provider : BaseEntity
     public void SetLastName(string lastName)
     {
         if (string.IsNullOrWhiteSpace(lastName))
-            throw new ArgumentException("Last name cannot be empty.", nameof(lastName));
+            throw new DomainValidationException("Last name cannot be empty.", nameof(lastName));
         LastName = lastName.Trim();
         UpdatedAtUtc = DateTime.UtcNow;
     }
@@ -58,7 +61,7 @@ public class Provider : BaseEntity
     public void SetSpecialty(string specialty)
     {
         if (string.IsNullOrWhiteSpace(specialty))
-            throw new ArgumentException("Specialty cannot be empty.", nameof(specialty));
+            throw new DomainValidationException("Specialty cannot be empty.", nameof(specialty));
         Specialty = specialty.Trim();
         UpdatedAtUtc = DateTime.UtcNow;
     }

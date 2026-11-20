@@ -1,4 +1,5 @@
 using ClinicManagement.Domain.Common;
+using ClinicManagement.Domain.Exceptions;
 
 namespace ClinicManagement.Domain.Entities;
 
@@ -18,7 +19,7 @@ public class AllergyType : BaseEntity
     public static AllergyType Create(string name)
     {
         if (string.IsNullOrWhiteSpace(name))
-            throw new ArgumentException("Allergy type name cannot be null or empty.", nameof(name));
+            throw new DomainValidationException("Allergy type name cannot be null or empty.", nameof(name));
 
         return new AllergyType
         {
@@ -29,7 +30,7 @@ public class AllergyType : BaseEntity
     public void SetName(string name)
     {
         if (string.IsNullOrWhiteSpace(name))
-            throw new ArgumentException("Allergy type name cannot be empty.", nameof(name));
+            throw new DomainValidationException("Allergy type name cannot be empty.", nameof(name));
         Name = name.Trim();
         UpdatedAtUtc = DateTime.UtcNow;
     }

@@ -1,4 +1,5 @@
 using ClinicManagement.Domain.Common;
+using ClinicManagement.Domain.Exceptions;
 
 namespace ClinicManagement.Domain.Entities;
 
@@ -22,9 +23,9 @@ public class Clinic : BaseEntity
     public static Clinic Create(string name, string? address, string phoneNumber)
     {
         if (string.IsNullOrWhiteSpace(name))
-            throw new ArgumentException("Clinic name cannot be null or empty.", nameof(name));
+            throw new DomainValidationException("Clinic name cannot be null or empty.", nameof(name));
         if (string.IsNullOrWhiteSpace(phoneNumber))
-            throw new ArgumentException("Clinic phone number cannot be null or empty.", nameof(phoneNumber));
+            throw new DomainValidationException("Clinic phone number cannot be null or empty.", nameof(phoneNumber));
 
         return new Clinic
         {
@@ -37,7 +38,7 @@ public class Clinic : BaseEntity
     public void SetName(string name)
     {
         if (string.IsNullOrWhiteSpace(name))
-            throw new ArgumentException("Clinic name cannot be empty.", nameof(name));
+            throw new DomainValidationException("Clinic name cannot be empty.", nameof(name));
         Name = name.Trim();
         UpdatedAtUtc = DateTime.UtcNow;
     }
@@ -51,7 +52,7 @@ public class Clinic : BaseEntity
     public void SetPhoneNumber(string phoneNumber)
     {
         if (string.IsNullOrWhiteSpace(phoneNumber))
-            throw new ArgumentException("Clinic phone number cannot be empty.", nameof(phoneNumber));
+            throw new DomainValidationException("Clinic phone number cannot be empty.", nameof(phoneNumber));
         PhoneNumber = phoneNumber.Trim();
         UpdatedAtUtc = DateTime.UtcNow;
     }

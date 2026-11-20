@@ -1,4 +1,5 @@
 using ClinicManagement.Domain.Common;
+using ClinicManagement.Domain.Exceptions;
 
 namespace ClinicManagement.Domain.Entities;
 
@@ -67,7 +68,7 @@ public class Appointment : BaseEntity
         DateTimeOffset currentTime)
     {
         if (dateTime <= currentTime)
-            throw new ArgumentException("Appointment date and time must be in the future.", nameof(dateTime));
+            throw new DomainValidationException("Appointment date and time must be in the future.", nameof(dateTime));
 
         return new Appointment
         {
@@ -82,7 +83,7 @@ public class Appointment : BaseEntity
     public void SetAppointmentDateTime(DateTimeOffset dateTime, DateTimeOffset currentTime)
     {
         if (dateTime <= currentTime)
-            throw new ArgumentException("Appointment date and time must be in the future.", nameof(dateTime));
+            throw new DomainValidationException("Appointment date and time must be in the future.", nameof(dateTime));
 
         AppointmentDateTime = dateTime;
         UpdatedAtUtc = currentTime.UtcDateTime;

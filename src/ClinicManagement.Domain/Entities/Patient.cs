@@ -1,6 +1,6 @@
 using ClinicManagement.Domain.Common;
-using ClinicManagement.Domain.Exceptions;
 using ClinicManagement.Domain.Enums;
+using ClinicManagement.Domain.Exceptions;
 
 namespace ClinicManagement.Domain.Entities;
 
@@ -21,17 +21,19 @@ public class Patient : BaseEntity
 
     public static Patient Create(Guid id, string firstName, string lastName, DateOnly dateOfBirth, string email, string phoneNumber)
     {
-        if (string.IsNullOrWhiteSpace(firstName) || string.IsNullOrWhiteSpace(lastName))
-            throw new ArgumentException("First and last names cannot be empty.", nameof(firstName));
+        if (string.IsNullOrWhiteSpace(firstName))
+            throw new DomainValidationException("First name cannot be empty.", nameof(firstName));
+        if (string.IsNullOrWhiteSpace(lastName))
+            throw new DomainValidationException("Last name cannot be empty.", nameof(lastName));
 
         if (dateOfBirth >= DateOnly.FromDateTime(DateTime.UtcNow))
-            throw new ArgumentException("Date of birth cannot be in the future.", nameof(dateOfBirth));
+            throw new DomainValidationException("Date of birth cannot be in the future.", nameof(dateOfBirth));
 
         if (string.IsNullOrWhiteSpace(email))
-            throw new ArgumentException("Email cannot be empty.", nameof(email));
+            throw new DomainValidationException("Email cannot be empty.", nameof(email));
 
         if (string.IsNullOrWhiteSpace(phoneNumber))
-            throw new ArgumentException("Phone number cannot be empty.", nameof(phoneNumber));
+            throw new DomainValidationException("Phone number cannot be empty.", nameof(phoneNumber));
 
         return new Patient
         {
@@ -47,7 +49,7 @@ public class Patient : BaseEntity
     public void SetFirstName(string firstName)
     {
         if (string.IsNullOrWhiteSpace(firstName))
-            throw new ArgumentException("First name cannot be empty.", nameof(firstName));
+            throw new DomainValidationException("First name cannot be empty.", nameof(firstName));
 
         FirstName = firstName.Trim();
         UpdatedAtUtc = DateTime.UtcNow;
@@ -56,7 +58,7 @@ public class Patient : BaseEntity
     public void SetLastName(string lastName)
     {
         if (string.IsNullOrWhiteSpace(lastName))
-            throw new ArgumentException("Last name cannot be empty.", nameof(lastName));
+            throw new DomainValidationException("Last name cannot be empty.", nameof(lastName));
 
         LastName = lastName.Trim();
         UpdatedAtUtc = DateTime.UtcNow;
@@ -65,7 +67,7 @@ public class Patient : BaseEntity
     public void SetDateOfBirth(DateOnly dateOfBirth)
     {
         if (dateOfBirth >= DateOnly.FromDateTime(DateTime.UtcNow))
-            throw new ArgumentException("Date of birth cannot be in the future.", nameof(dateOfBirth));
+            throw new DomainValidationException("Date of birth cannot be in the future.", nameof(dateOfBirth));
 
         DateOfBirth = dateOfBirth;
         UpdatedAtUtc = DateTime.UtcNow;
@@ -74,7 +76,7 @@ public class Patient : BaseEntity
     public void SetEmail(string email)
     {
         if (string.IsNullOrWhiteSpace(email))
-            throw new ArgumentException("Email cannot be empty.", nameof(email));
+            throw new DomainValidationException("Email cannot be empty.", nameof(email));
 
         Email = email.Trim();
         UpdatedAtUtc = DateTime.UtcNow;
@@ -83,7 +85,7 @@ public class Patient : BaseEntity
     public void SetPhoneNumber(string phoneNumber)
     {
         if (string.IsNullOrWhiteSpace(phoneNumber))
-            throw new ArgumentException("Phone number cannot be empty.", nameof(phoneNumber));
+            throw new DomainValidationException("Phone number cannot be empty.", nameof(phoneNumber));
 
         PhoneNumber = phoneNumber.Trim();
         UpdatedAtUtc = DateTime.UtcNow;

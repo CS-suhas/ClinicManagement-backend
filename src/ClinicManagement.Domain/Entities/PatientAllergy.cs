@@ -1,5 +1,6 @@
 using ClinicManagement.Domain.Common;
 using ClinicManagement.Domain.Enums;
+using ClinicManagement.Domain.Exceptions;
 
 namespace ClinicManagement.Domain.Entities;
 
@@ -17,7 +18,7 @@ public class PatientAllergy : BaseEntity
     public static PatientAllergy Create(string name, AllergySeverity severity)
     {
         if (string.IsNullOrWhiteSpace(name))
-            throw new ArgumentException("Allergy name cannot be null or empty.", nameof(name));
+            throw new DomainValidationException("Allergy name cannot be null or empty.", nameof(name));
 
         return new PatientAllergy
         {
