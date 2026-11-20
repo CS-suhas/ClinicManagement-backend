@@ -7,6 +7,7 @@ using ClinicManagement.Application.Providers.Interfaces;
 using ClinicManagement.Application.Appointments.Interfaces;
 using ClinicManagement.Application.Allergies.Interfaces;
 using ClinicManagement.Infrastructure.Repositories;
+using Dapper;
 
 namespace ClinicManagement.Infrastructure;
 
@@ -20,7 +21,7 @@ public static class DependencyInjection
             ?? throw new InvalidOperationException(
                 "Connection string 'DefaultConnection' is not configured.");
 
-
+        SqlMapper.AddTypeHandler<Guid>(new OracleGuidTypeHandler());
         services.AddSingleton<IDbConnectionFactory>(new OracleConnectionFactory(connectionString));
         services.AddScoped<IPatientRepository, PatientRepository>();
         services.AddScoped<IClinicRepository, ClinicRepository>();
