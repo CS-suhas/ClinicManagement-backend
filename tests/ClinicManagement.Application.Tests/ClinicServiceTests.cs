@@ -25,6 +25,35 @@ public class ClinicServiceTests
     }
 
     [Fact]
+    public async Task AddClinicAsync_AllowsMissingPhoneNumber()
+    {
+        var repository = new FakeClinicRepository();
+        var service = new ClinicService(repository);
+        var request = new ClinicRequest(Guid.NewGuid(), "Downtown Clinic", null);
+
+        await service.AddClinicAsync(request);
+
+        Assert.NotNull(repository.AddedClinic);
+        Assert.Null(repository.AddedClinic.PhoneNumber);
+    }
+
+    [Fact]
+    public async Task UpdateClinicAsync_AllowsMissingPhoneNumber()
+    {
+        var clinicId = Guid.NewGuid();
+        var repository = new FakeClinicRepository
+        {
+            ExistingClinic = Clinic.Create(clinicId, "Downtown Clinic", null, "555-0100")
+        };
+        var service = new ClinicService(repository);
+
+        await service.UpdateClinicAsync(new ClinicRequest(clinicId, "Downtown Clinic", null));
+
+        Assert.NotNull(repository.UpdatedClinic);
+        Assert.Null(repository.UpdatedClinic.PhoneNumber);
+    }
+
+    [Fact]
     public async Task DeleteClinicAsync_ThrowsWhenClinicDoesNotExist()
     {
         var repository = new FakeClinicRepository();
@@ -38,9 +67,12 @@ public class ClinicServiceTests
     private sealed class FakeClinicRepository : IClinicRepository
     {
         public Clinic? AddedClinic { get; private set; }
+        public Clinic? ExistingClinic { get; init; }
+        public Clinic? UpdatedClinic { get; private set; }
         public Guid? DeletedClinicId { get; private set; }
 
-        public Task<Clinic?> GetClinicByIdAsync(Guid clinicId) => Task.FromResult<Clinic?>(null);
+        public Task<Clinic?> GetClinicByIdAsync(Guid clinicId) =>
+            Task.FromResult(ExistingClinic?.Id == clinicId ? ExistingClinic : null);
         public Task<IEnumerable<Clinic>> GetAllClinicsAsync() =>
             Task.FromResult<IEnumerable<Clinic>>(Array.Empty<Clinic>());
         public Task<Guid> AddClinicAsync(Clinic clinic)
@@ -48,7 +80,11 @@ public class ClinicServiceTests
             AddedClinic = clinic;
             return Task.FromResult(clinic.Id);
         }
-        public Task<Guid> UpdateClinicAsync(Clinic clinic) => Task.FromResult(clinic.Id);
+        public Task<Guid> UpdateClinicAsync(Clinic clinic)
+        {
+            UpdatedClinic = clinic;
+            return Task.FromResult(clinic.Id);
+        }
         public Task<Guid> DeleteClinicAsync(Guid clinicId)
         {
             DeletedClinicId = clinicId;

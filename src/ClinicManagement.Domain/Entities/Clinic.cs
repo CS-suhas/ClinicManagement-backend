@@ -7,13 +7,13 @@ public class Clinic : BaseEntity
 {
     public string Name { get; private set; } = string.Empty;
     public string? Address { get; private set; } = string.Empty;
-    public string PhoneNumber { get; private set; } = string.Empty;
+    public string? PhoneNumber { get; private set; }
     
     public ICollection<Provider> Providers { get; private set; } = new List<Provider>();
 
     private Clinic() { }
 
-    public static Clinic Create(Guid id, string name, string? address, string phoneNumber)
+    public static Clinic Create(Guid id, string name, string? address, string? phoneNumber)
     {
         if (!DataValidator.IsValidGuid(id))
             throw new DomainValidationException("Clinic ID must be a non-empty GUID.", nameof(id));
@@ -23,18 +23,15 @@ public class Clinic : BaseEntity
         return clinic;
     }
 
-    public static Clinic Create(string name, string? address, string phoneNumber)
+    public static Clinic Create(string name, string? address, string? phoneNumber)
     {
         if (string.IsNullOrWhiteSpace(name))
             throw new DomainValidationException("Clinic name cannot be null or empty.", nameof(name));
-        if (string.IsNullOrWhiteSpace(phoneNumber))
-            throw new DomainValidationException("Clinic phone number cannot be null or empty.", nameof(phoneNumber));
-
         return new Clinic
         {
             Name = name.Trim(),
             Address = address?.Trim(),
-            PhoneNumber = phoneNumber.Trim()
+            PhoneNumber = NormalizePhoneNumber(phoneNumber)
         };
     }
 
@@ -52,11 +49,12 @@ public class Clinic : BaseEntity
         UpdatedAtUtc = DateTime.UtcNow;
     }
 
-    public void SetPhoneNumber(string phoneNumber)
+    public void SetPhoneNumber(string? phoneNumber)
     {
-        if (string.IsNullOrWhiteSpace(phoneNumber))
-            throw new DomainValidationException("Clinic phone number cannot be empty.", nameof(phoneNumber));
-        PhoneNumber = phoneNumber.Trim();
+        PhoneNumber = NormalizePhoneNumber(phoneNumber);
         UpdatedAtUtc = DateTime.UtcNow;
     }
+
+    private static string? NormalizePhoneNumber(string? phoneNumber) =>
+        string.IsNullOrWhiteSpace(phoneNumber) ? null : phoneNumber.Trim();
 }

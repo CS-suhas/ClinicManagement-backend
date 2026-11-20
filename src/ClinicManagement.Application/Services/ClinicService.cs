@@ -63,6 +63,5 @@ public class ClinicService(IClinicRepository clinicRepository) : IClinicService
     {
         RequestValidator.EnsureGuid(request.Id, "id", "Clinic ID");
         RequestValidator.EnsureText(request.Name, "name", "Clinic name");
-        RequestValidator.EnsureText(request.PhoneNumber, "phoneNumber", "Clinic phone number");
     }
 }
