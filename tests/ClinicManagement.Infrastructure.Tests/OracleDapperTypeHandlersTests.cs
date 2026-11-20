@@ -29,4 +29,17 @@ public class OracleDapperTypeHandlersTests
         Assert.Equal(OracleDbType.Date, parameter.OracleDbType);
         Assert.Equal(new DateTime(1985, 12, 10), parameter.Value);
     }
+
+    [Fact]
+    public void DateTimeOffsetHandler_BindsUtcTimestampWithFullDateTimePrecision()
+    {
+        var handler = new OracleDateTimeOffsetTypeHandler();
+        var parameter = new OracleParameter();
+        var value = new DateTimeOffset(2030, 1, 2, 3, 4, 5, TimeSpan.Zero).AddTicks(1234567);
+
+        handler.SetValue(parameter, value);
+
+        Assert.Equal(OracleDbType.TimeStamp, parameter.OracleDbType);
+        Assert.Equal(value.UtcDateTime, parameter.Value);
+    }
 }

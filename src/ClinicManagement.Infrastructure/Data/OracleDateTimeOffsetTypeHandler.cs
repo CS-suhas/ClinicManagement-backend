@@ -1,5 +1,6 @@
 using System.Data;
 using Dapper;
+using Oracle.ManagedDataAccess.Client;
 
 namespace Infrastructure.Data;
 
@@ -18,7 +19,15 @@ public sealed class OracleDateTimeOffsetTypeHandler : SqlMapper.TypeHandler<Date
 
     public override void SetValue(IDbDataParameter parameter, DateTimeOffset value)
     {
-        parameter.DbType = DbType.DateTime2;
+        if (parameter is OracleParameter oracleParameter)
+        {
+            oracleParameter.OracleDbType = OracleDbType.TimeStamp;
+        }
+        else
+        {
+            parameter.DbType = DbType.DateTime2;
+        }
+
         parameter.Value = value.UtcDateTime;
     }
 }
