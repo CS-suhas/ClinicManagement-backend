@@ -26,9 +26,17 @@ builder.Services.AddOpenApi();
 builder.Services.AddHealthChecks();
 builder.Services.AddExceptionHandler<ApiExceptionHandler>();
 builder.Services.AddProblemDetails();
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("LocalhostFrontend", policy =>
+        policy.WithOrigins("http://localhost:3000")
+            .AllowAnyHeader()
+            .AllowAnyMethod());
+});
 
 var app = builder.Build();
 app.UseExceptionHandler();
+app.UseCors("LocalhostFrontend");
 
 if (app.Environment.IsDevelopment())
 {
