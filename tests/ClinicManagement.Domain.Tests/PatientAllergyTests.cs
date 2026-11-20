@@ -44,7 +44,7 @@ public class PatientAllergyTests
             Guid.NewGuid(),
             "Test",
             "Patient",
-            DateOnly.FromDateTime(DateTime.UtcNow).AddDays(1),
+            DateOnly.FromDateTime(DateTime.UtcNow).AddDays(-1),
             "test@example.com",
             "555-0100");
 }
