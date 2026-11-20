@@ -1,4 +1,5 @@
 using ClinicManagement.Domain.Entities;
+using ClinicManagement.Application.Models;
 
 namespace ClinicManagement.Application.Allergies.Interfaces;
 
@@ -11,4 +12,5 @@ public interface IAllergyTypeRepository
     Task<Guid> AddAllergyTypeAsync(AllergyType request);
     Task<Guid> UpdateAllergyTypeAsync(AllergyType request);
     Task<Guid> DeleteAllergyTypeAsync(Guid allergyTypeId);
+    Task<(IReadOnlyList<AllergyType> Items, int TotalCount)> SearchAllergyTypesAsync(PageQuery query, int offset);
 }

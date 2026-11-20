@@ -163,6 +163,9 @@ public class ClinicServiceTests
         }
         public Task<bool> ClinicExistsAsync(Guid clinicId) =>
             Task.FromResult(ExistingClinic?.Id == clinicId);
+        public Task<(IReadOnlyList<Clinic> Items, int TotalCount)> SearchClinicsAsync(
+            ClinicManagement.Application.Models.PageQuery query,
+            int offset) => throw new NotSupportedException();
     }
 
     private sealed class FakeProviderRepository : IProviderRepository
@@ -178,6 +181,10 @@ public class ClinicServiceTests
         public Task<Guid> UpdateProviderAsync(Provider provider, Guid clinicId) => Task.FromResult(provider.Id);
         public Task<Guid> DeleteProviderAsync(Guid providerId) => Task.FromResult(providerId);
         public Task<bool> HasAppointmentsAsync(Guid providerId) => Task.FromResult(false);
+        public Task<(IReadOnlyList<Provider> Items, int TotalCount)> SearchProvidersAsync(
+            ClinicManagement.Application.Models.PageQuery query,
+            int offset,
+            Guid? clinicId) => throw new NotSupportedException();
     }
 
     private sealed class FakeAppointmentRepository : IAppointmentRepository
@@ -199,5 +206,15 @@ public class ClinicServiceTests
             Task.FromResult<IEnumerable<Appointment>>(Appointments.Where(a => a.PatientId == patientId));
         public Task<IEnumerable<Appointment>> GetAppointmentsByClinicIdAsync(Guid clinicId) =>
             Task.FromResult<IEnumerable<Appointment>>(Appointments.Where(a => a.Provider.ClinicId == clinicId));
+        public Task<(IReadOnlyList<ClinicManagement.Application.Models.AppointmentListResponse> Items, int TotalCount)>
+            SearchAppointmentsAsync(ClinicManagement.Application.Models.AppointmentSearchQuery query, int offset) =>
+            throw new NotSupportedException();
+        public Task<IReadOnlyList<ClinicManagement.Application.Models.AppointmentListResponse>>
+            GetUpcomingAppointmentsAsync(DateTimeOffset from, int count) => throw new NotSupportedException();
+        public Task<bool> HasProviderAppointmentOverlapAsync(
+            Guid providerId,
+            DateTimeOffset appointmentStart,
+            DateTimeOffset appointmentEnd,
+            Guid? excludedAppointmentId) => throw new NotSupportedException();
     }
 }

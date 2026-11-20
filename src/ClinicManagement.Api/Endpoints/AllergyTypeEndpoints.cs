@@ -1,6 +1,7 @@
 using ClinicManagement.Application.AllergyTypes.Interfaces;
 using ClinicManagement.Application.AllergyTypes.Models;
 using Microsoft.AspNetCore.Mvc;
+using ClinicManagement.Application.Models;
 
 namespace ClinicManagement.Api.Endpoints;
 
@@ -10,6 +11,14 @@ public static class AllergyTypeEndpoints
     {
         app.MapGet("/api/allergy-types", async ([FromServices] IAllergyTypeService service) =>
             Results.Ok(await service.GetAllAllergyTypesAsync()));
+
+        app.MapGet("/api/allergy-types/search", async (
+            [AsParameters] PageQuery query,
+            [FromServices] IAllergyTypeService service) =>
+            Results.Ok(await service.SearchAllergyTypesAsync(query)))
+            .WithName("SearchAllergyTypes")
+            .WithSummary("Search allergy types")
+            .Produces<PagedResponse<AllergyTypeResponse>>(StatusCodes.Status200OK);
 
         app.MapGet("/api/allergy-types/{id}", async (Guid id, [FromServices] IAllergyTypeService service) =>
             Results.Ok(await service.GetAllergyTypeByIdAsync(id)));

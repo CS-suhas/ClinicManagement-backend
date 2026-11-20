@@ -10,7 +10,8 @@ public class StatusServiceTests
     public async Task GetStatusAsync_ReturnsStatusAndSelectedResourceCounts()
     {
         var service = new StatusService(
-            new FakeStatusRepository(new StatusStatistics(2, 5, 11, 23)));
+            new FakeStatusRepository(new StatusStatistics(2, 5, 11, 23)),
+            TimeProvider.System);
 
         var result = await service.GetStatusAsync();
 
@@ -24,5 +25,7 @@ public class StatusServiceTests
     private sealed class FakeStatusRepository(StatusStatistics statistics) : IStatusRepository
     {
         public Task<StatusStatistics> GetStatisticsAsync() => Task.FromResult(statistics);
+        public Task<DashboardResponse> GetDashboardAsync(DateTimeOffset now) =>
+            throw new NotSupportedException();
     }
 }

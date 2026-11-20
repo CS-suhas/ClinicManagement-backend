@@ -6,6 +6,9 @@ using ClinicManagement.Application.Common.Exceptions;
 using ClinicManagement.Domain.Entities;
 using ClinicManagement.Domain.Enums;
 using ClinicManagement.Domain.Exceptions;
+using ClinicManagement.Application.Allergies.Interfaces;
+using ClinicManagement.Application.AllergyTypes.Models;
+using ClinicManagement.Application.Models;
 
 namespace ClinicManagement.Application.Tests;
 
@@ -182,7 +185,8 @@ public class PatientServiceTests
         appointmentRepository.Appointments.Add(appointment);
         var service = new PatientService(
             new FakePatientRepository { ExistingPatient = patient },
-            appointmentRepository);
+            appointmentRepository,
+            new FakeAllergyTypeRepository());
 
         var result = await service.GetAppointmentsByPatientIdAsync(patient.Id);
 
@@ -199,7 +203,7 @@ public class PatientServiceTests
         new(2030, 1, 1, 9, 0, 0, TimeSpan.Zero);
 
     private static PatientService CreateService(FakePatientRepository repository) =>
-        new(repository, new FakeAppointmentRepository());
+        new(repository, new FakeAppointmentRepository(), new FakeAllergyTypeRepository());
 
     private sealed class FakePatientRepository : IPatientRepository
     {
@@ -237,6 +241,25 @@ public class PatientServiceTests
         public Task<bool> HasDependentRecordsAsync(Guid patientId) => Task.FromResult(HasDependentRecords);
         public Task<IEnumerable<PatientAllergy>> GetAllergiesByPatientIdAsync(Guid patientId) =>
             Task.FromResult<IEnumerable<PatientAllergy>>(PatientAllergies);
+        public Task<(IReadOnlyList<Patient> Items, int TotalCount)> SearchPatientsAsync(PageQuery query, int offset) =>
+            throw new NotSupportedException();
+        public Task<(IReadOnlyList<PatientAllergy> Items, int TotalCount)> SearchPatientAllergiesAsync(
+            Guid patientId,
+            PageQuery query,
+            int offset) => throw new NotSupportedException();
+        public Task<(IReadOnlyList<AllergyType> Items, int TotalCount)> GetSelectableAllergyTypesAsync(
+            Guid patientId,
+            Guid? selectedAllergyId,
+            PageQuery query,
+            int offset) =>
+            throw new NotSupportedException();
+        public Task<Guid> UpsertPatientAllergyAsync(
+            Guid patientId,
+            Guid allergyId,
+            AllergySeverity severity,
+            string? notes) => throw new NotSupportedException();
+        public Task<Guid> DeletePatientAllergyAsync(Guid patientId, Guid allergyId) =>
+            throw new NotSupportedException();
     }
 
     private sealed class FakeAppointmentRepository : IAppointmentRepository
@@ -258,5 +281,32 @@ public class PatientServiceTests
             Task.FromResult<IEnumerable<Appointment>>(Appointments.Where(a => a.PatientId == patientId));
         public Task<IEnumerable<Appointment>> GetAppointmentsByClinicIdAsync(Guid clinicId) =>
             Task.FromResult<IEnumerable<Appointment>>(Appointments.Where(a => a.Provider.ClinicId == clinicId));
+        public Task<(IReadOnlyList<AppointmentListResponse> Items, int TotalCount)> SearchAppointmentsAsync(
+            AppointmentSearchQuery query,
+            int offset) => throw new NotSupportedException();
+        public Task<IReadOnlyList<AppointmentListResponse>> GetUpcomingAppointmentsAsync(
+            DateTimeOffset from,
+            int count) => throw new NotSupportedException();
+        public Task<bool> HasProviderAppointmentOverlapAsync(
+            Guid providerId,
+            DateTimeOffset appointmentStart,
+            DateTimeOffset appointmentEnd,
+            Guid? excludedAppointmentId) => throw new NotSupportedException();
+    }
+
+    private sealed class FakeAllergyTypeRepository : IAllergyTypeRepository
+    {
+        public Task<AllergyType?> GetAllergyTypeByIdAsync(Guid allergyTypeId) => Task.FromResult<AllergyType?>(null);
+        public Task<IEnumerable<AllergyType>> GetAllAllergyTypesAsync() =>
+            Task.FromResult<IEnumerable<AllergyType>>(Array.Empty<AllergyType>());
+        public Task<IEnumerable<Patient>> GetPatientsByAllergyTypeIdAsync(Guid allergyTypeId) =>
+            Task.FromResult<IEnumerable<Patient>>(Array.Empty<Patient>());
+        public Task<bool> HasPatientsWithAllergyTypeAsync(Guid allergyTypeId) => Task.FromResult(false);
+        public Task<Guid> AddAllergyTypeAsync(AllergyType request) => Task.FromResult(request.Id);
+        public Task<Guid> UpdateAllergyTypeAsync(AllergyType request) => Task.FromResult(request.Id);
+        public Task<Guid> DeleteAllergyTypeAsync(Guid allergyTypeId) => Task.FromResult(allergyTypeId);
+        public Task<(IReadOnlyList<AllergyType> Items, int TotalCount)> SearchAllergyTypesAsync(
+            PageQuery query,
+            int offset) => throw new NotSupportedException();
     }
 }

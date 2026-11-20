@@ -109,5 +109,8 @@ public class AllergyTypeServiceTests
             DeletedAllergyTypeId = allergyTypeId;
             return Task.FromResult(allergyTypeId);
         }
+        public Task<(IReadOnlyList<AllergyType> Items, int TotalCount)> SearchAllergyTypesAsync(
+            ClinicManagement.Application.Models.PageQuery query,
+            int offset) => throw new NotSupportedException();
     }
 }

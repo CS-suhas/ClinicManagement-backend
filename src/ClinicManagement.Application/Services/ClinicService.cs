@@ -9,6 +9,7 @@ using ClinicManagement.Application.Appointments.Models;
 using ClinicManagement.Application.Providers.Interfaces;
 using ClinicManagement.Application.Providers.Mapping;
 using ClinicManagement.Application.Providers.Models;
+using ClinicManagement.Application.Models;
 
 namespace ClinicManagement.Application.Clinics.Services;
 
@@ -30,6 +31,17 @@ public class ClinicService(
     {
         var clinics = await clinicRepository.GetAllClinicsAsync();
         return clinics.Select(clinic => clinic.ToResponse());
+    }
+
+    public async Task<PagedResponse<ClinicResponse>> SearchClinicsAsync(PageQuery query)
+    {
+        var offset = query.GetOffset();
+        var (items, totalCount) = await clinicRepository.SearchClinicsAsync(query, offset);
+        return new PagedResponse<ClinicResponse>(
+            items.Select(item => item.ToResponse()).ToArray(),
+            totalCount,
+            query.Page,
+            query.PageSize);
     }
 
     public async Task<List<ProviderResponse>> GetProvidersByClinicIdAsync(Guid clinicId)

@@ -317,6 +317,26 @@ public class AppointmentServiceTests
         public Task<bool> HasDependentRecordsAsync(Guid patientId) => Task.FromResult(false);
         public Task<IEnumerable<PatientAllergy>> GetAllergiesByPatientIdAsync(Guid patientId) =>
             Task.FromResult<IEnumerable<PatientAllergy>>(Array.Empty<PatientAllergy>());
+        public Task<(IReadOnlyList<Patient> Items, int TotalCount)> SearchPatientsAsync(
+            ClinicManagement.Application.Models.PageQuery query,
+            int offset) => throw new NotSupportedException();
+        public Task<(IReadOnlyList<PatientAllergy> Items, int TotalCount)> SearchPatientAllergiesAsync(
+            Guid patientId,
+            ClinicManagement.Application.Models.PageQuery query,
+            int offset) => throw new NotSupportedException();
+        public Task<(IReadOnlyList<AllergyType> Items, int TotalCount)> GetSelectableAllergyTypesAsync(
+            Guid patientId,
+            Guid? selectedAllergyId,
+            ClinicManagement.Application.Models.PageQuery query,
+            int offset) =>
+            throw new NotSupportedException();
+        public Task<Guid> UpsertPatientAllergyAsync(
+            Guid patientId,
+            Guid allergyId,
+            ClinicManagement.Domain.Enums.AllergySeverity severity,
+            string? notes) => throw new NotSupportedException();
+        public Task<Guid> DeletePatientAllergyAsync(Guid patientId, Guid allergyId) =>
+            throw new NotSupportedException();
     }
 
     private sealed class FakeAppointmentRepository : IAppointmentRepository
@@ -326,6 +346,7 @@ public class AppointmentServiceTests
         public Appointment? AddedAppointment { get; private set; }
         public Appointment? UpdatedAppointment { get; private set; }
         public int ProviderAppointmentLookupCount { get; private set; }
+        public int OverlapLookupCount { get; private set; }
 
         public Task<Appointment?> GetAppointmentByIdAsync(Guid appointmentId) =>
             Task.FromResult(AppointmentById?.Id == appointmentId ? AppointmentById : null);
@@ -358,6 +379,24 @@ public class AppointmentServiceTests
 
         public Task<IEnumerable<Appointment>> GetAppointmentsByClinicIdAsync(Guid clinicId) =>
             Task.FromResult<IEnumerable<Appointment>>(Array.Empty<Appointment>());
+        public Task<(IReadOnlyList<ClinicManagement.Application.Models.AppointmentListResponse> Items, int TotalCount)>
+            SearchAppointmentsAsync(ClinicManagement.Application.Models.AppointmentSearchQuery query, int offset) =>
+            throw new NotSupportedException();
+        public Task<IReadOnlyList<ClinicManagement.Application.Models.AppointmentListResponse>>
+            GetUpcomingAppointmentsAsync(DateTimeOffset from, int count) => throw new NotSupportedException();
+        public Task<bool> HasProviderAppointmentOverlapAsync(
+            Guid providerId,
+            DateTimeOffset appointmentStart,
+            DateTimeOffset appointmentEnd,
+            Guid? excludedAppointmentId)
+        {
+            OverlapLookupCount++;
+            return Task.FromResult(ProviderAppointments.Any(appointment =>
+                appointment.ProviderId == providerId
+                && appointment.Id != excludedAppointmentId
+                && appointment.AppointmentDateTime > appointmentStart
+                && appointment.AppointmentDateTime < appointmentEnd));
+        }
     }
 
     private sealed class FakeClinicRepository : IClinicRepository
@@ -373,5 +412,8 @@ public class AppointmentServiceTests
         public Task<Guid> DeleteClinicAsync(Guid clinicId) => Task.FromResult(clinicId);
         public Task<bool> ClinicExistsAsync(Guid clinicId) =>
             Task.FromResult(ExistingClinic?.Id == clinicId);
+        public Task<(IReadOnlyList<Clinic> Items, int TotalCount)> SearchClinicsAsync(
+            ClinicManagement.Application.Models.PageQuery query,
+            int offset) => throw new NotSupportedException();
     }
 }

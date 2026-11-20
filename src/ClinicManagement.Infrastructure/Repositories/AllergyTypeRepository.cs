@@ -2,6 +2,7 @@ using ClinicManagement.Domain.Entities;
 using Infrastructure.Data;
 using Dapper;
 using ClinicManagement.Application.Allergies.Interfaces;
+using ClinicManagement.Application.Models;
 
 namespace ClinicManagement.Infrastructure.Repositories;
 
@@ -65,5 +66,27 @@ public class AllergyTypeRepository(IDbConnectionFactory connectionFactory) : IAl
         const string sql = "UPDATE AllergyTypes SET Name = :Name, UpdatedAtUtc = SYSTIMESTAMP WHERE Id = :Id";
         await connection.ExecuteAsync(sql, new { Id = allergyType.Id.ToString(), allergyType.Name });
         return allergyType.Id;
+    }
+
+    public async Task<(IReadOnlyList<AllergyType> Items, int TotalCount)> SearchAllergyTypesAsync(
+        PageQuery query,
+        int offset)
+    {
+        using var connection = connectionFactory.CreateConnection();
+        const string where = "WHERE (:Search IS NULL OR UPPER(Name) LIKE '%' || UPPER(:Search) || '%')";
+        var parameters = new { Search = query.NormalizedSearch, Offset = offset, query.PageSize };
+        var totalCount = await connection.ExecuteScalarAsync<int>(
+            $"SELECT COUNT(1) FROM AllergyTypes {where}",
+            parameters);
+        var items = (await connection.QueryAsync<AllergyType>(
+            $"""
+            SELECT Id, Name, CreatedAtUtc, UpdatedAtUtc
+            FROM AllergyTypes
+            {where}
+            ORDER BY Name, Id
+            OFFSET :Offset ROWS FETCH NEXT :PageSize ROWS ONLY
+            """,
+            parameters)).AsList();
+        return (items, totalCount);
     }
 }

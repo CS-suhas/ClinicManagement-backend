@@ -3,6 +3,7 @@ using ClinicManagement.Application.Providers.Models;
 using ClinicManagement.Application.Appointments.Models;
 using ClinicManagement.Application.Clinics.Models;
 using Microsoft.AspNetCore.Mvc;
+using ClinicManagement.Application.Models;
 
 namespace ClinicManagement.Api.Endpoints;
 
@@ -12,6 +13,16 @@ public static class ProviderEndpoints
     {
         app.MapGet("/api/providers", async ([FromServices] IProviderService service) =>
             Results.Ok(await service.GetAllProvidersAsync()));
+
+        app.MapGet("/api/providers/search", async (
+            [AsParameters] PageQuery query,
+            Guid? clinicId,
+            [FromServices] IProviderService service) =>
+            Results.Ok(await service.SearchProvidersAsync(query, clinicId)))
+            .WithName("SearchProviders")
+            .WithSummary("Search providers")
+            .WithDescription("Searches providers by name, specialty, and clinic, with optional clinic filtering.")
+            .Produces<PagedResponse<ProviderResponse>>(StatusCodes.Status200OK);
 
         app.MapGet("/api/providers/{id}", async (Guid id, [FromServices] IProviderService service) =>
             Results.Ok(await service.GetProviderByIdAsync(id)));

@@ -2,6 +2,7 @@ using ClinicManagement.Application.Clinics.Interfaces;
 using ClinicManagement.Domain.Entities;
 using Dapper;
 using Infrastructure.Data;
+using ClinicManagement.Application.Models;
 
 namespace ClinicManagement.Infrastructure.Repositories;
 
@@ -63,5 +64,32 @@ public class ClinicRepository(IDbConnectionFactory connectionFactory) : IClinicR
         const string sql = "SELECT COUNT(1) FROM Clinics WHERE Id = :Id";
         var count = await connection.ExecuteScalarAsync<int>(sql, new { Id = clinicId.ToString() });
         return count > 0;
+    }
+
+    public async Task<(IReadOnlyList<Clinic> Items, int TotalCount)> SearchClinicsAsync(
+        PageQuery query,
+        int offset)
+    {
+        using var connection = connectionFactory.CreateConnection();
+        const string where = """
+            WHERE (:Search IS NULL
+                OR UPPER(Name) LIKE '%' || UPPER(:Search) || '%'
+                OR UPPER(Address) LIKE '%' || UPPER(:Search) || '%'
+                OR UPPER(PhoneNumber) LIKE '%' || UPPER(:Search) || '%')
+            """;
+        var parameters = new { Search = query.NormalizedSearch, Offset = offset, query.PageSize };
+        var totalCount = await connection.ExecuteScalarAsync<int>(
+            $"SELECT COUNT(1) FROM Clinics {where}",
+            parameters);
+        var items = (await connection.QueryAsync<Clinic>(
+            $"""
+            SELECT Id, Name, Address, PhoneNumber, CreatedAtUtc, UpdatedAtUtc
+            FROM Clinics
+            {where}
+            ORDER BY Name, Id
+            OFFSET :Offset ROWS FETCH NEXT :PageSize ROWS ONLY
+            """,
+            parameters)).AsList();
+        return (items, totalCount);
     }
 }

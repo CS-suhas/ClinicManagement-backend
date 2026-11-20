@@ -10,7 +10,7 @@ using ClinicManagement.Application.Providers.Interfaces;
 using ClinicManagement.Application.Providers.Mapping;
 using ClinicManagement.Application.Providers.Models;
 using ClinicManagement.Domain.Exceptions;
-using Microsoft.EntityFrameworkCore;
+using ClinicManagement.Application.Models;
 
 namespace ClinicManagement.Application.Providers.Services;
 
@@ -32,6 +32,17 @@ public class ProviderService(
     {
         var providers = await providerRepository.GetAllProvidersAsync();
         return providers.Select(item => item.ToResponse()).ToList();
+    }
+
+    public async Task<PagedResponse<ProviderResponse>> SearchProvidersAsync(PageQuery query, Guid? clinicId)
+    {
+        var offset = query.GetOffset();
+        var (items, totalCount) = await providerRepository.SearchProvidersAsync(query, offset, clinicId);
+        return new PagedResponse<ProviderResponse>(
+            items.Select(item => item.ToResponse()).ToArray(),
+            totalCount,
+            query.Page,
+            query.PageSize);
     }
 
     public async Task<ClinicResponse> GetClinicByProviderIdAsync(Guid providerId)

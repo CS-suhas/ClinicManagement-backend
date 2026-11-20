@@ -14,6 +14,7 @@ using ClinicManagement.Application.Patients.Mapping;
 using ClinicManagement.Application.Patients.Models;
 using ClinicManagement.Application.Providers.Mapping;
 using ClinicManagement.Application.Providers.Models;
+using ClinicManagement.Application.Models;
 
 namespace ClinicManagement.Application.Appointments.Services;
 
@@ -37,16 +38,10 @@ public class AppointmentService(
             throw new ResourceNotFoundException("Patient", request.PatientId);
         }
 
-        var providerAppointment = await appointmentRepository.GetAppointmentsByProviderIdAsync(request.ProviderId);
-
-        foreach (var existingAppointment in providerAppointment)
-        {
-            EnsureNoProviderAppointmentOverlap(
-                request.ProviderId,
-                request.AppointmentDateTime,
-                existingAppointment,
-                clinicSettings.DefaultAppointmentDurationMinutes);
-        }
+        await EnsureNoProviderAppointmentOverlapAsync(
+            request.ProviderId,
+            request.AppointmentDateTime,
+            null);
 
         var newAppointment = request.ToEntity(currentTime);
         await appointmentRepository.AddAppointmentAsync(newAppointment, request.PatientId, request.ProviderId);
@@ -68,6 +63,14 @@ public class AppointmentService(
         return (await appointmentRepository.GetAllAppointmentsAsync())
             .Select(appointment => appointment.ToResponse())
             .ToList();
+    }
+
+    public async Task<PagedResponse<AppointmentListResponse>> SearchAppointmentsAsync(
+        AppointmentSearchQuery query)
+    {
+        var offset = query.GetOffset();
+        var (items, totalCount) = await appointmentRepository.SearchAppointmentsAsync(query, offset);
+        return new PagedResponse<AppointmentListResponse>(items, totalCount, query.Page, query.PageSize);
     }
 
     public async Task<AppointmentResponse> GetAppointmentByIdAsync(Guid appointmentId)
@@ -103,19 +106,10 @@ public class AppointmentService(
         if (existingAppointment.AppointmentDateTime != request.AppointmentDateTime
             || existingAppointment.ProviderId != request.ProviderId)
         {
-            var providerAppointments = await appointmentRepository.GetAppointmentsByProviderIdAsync(request.ProviderId);
-
-            foreach (var appointment in providerAppointments)
-            {
-                if (appointment.Id != request.Id)
-                {
-                    EnsureNoProviderAppointmentOverlap(
-                        request.ProviderId,
-                        request.AppointmentDateTime,
-                        appointment,
-                        clinicSettings.DefaultAppointmentDurationMinutes);
-                }
-            }
+            await EnsureNoProviderAppointmentOverlapAsync(
+                request.ProviderId,
+                request.AppointmentDateTime,
+                request.Id);
         }
         return await appointmentRepository.UpdateAppointmentAsync(
             request.ToEntity(currentTime),
@@ -158,16 +152,18 @@ public class AppointmentService(
         }
     }
 
-    private static void EnsureNoProviderAppointmentOverlap(
+    private async Task EnsureNoProviderAppointmentOverlapAsync(
         Guid providerId,
         DateTimeOffset requestedAppointmentDateTime,
-        Appointment existingAppointment,
-        double appointmentDurationMinutes)
+        Guid? excludedAppointmentId)
     {
-        var timeDifference = Math.Abs(
-            (existingAppointment.AppointmentDateTime - requestedAppointmentDateTime).TotalMinutes);
-
-        if (timeDifference < appointmentDurationMinutes)
+        var duration = TimeSpan.FromMinutes(clinicSettings.DefaultAppointmentDurationMinutes);
+        var hasOverlap = await appointmentRepository.HasProviderAppointmentOverlapAsync(
+            providerId,
+            requestedAppointmentDateTime - duration,
+            requestedAppointmentDateTime + duration,
+            excludedAppointmentId);
+        if (hasOverlap)
         {
             throw new ProviderAppointmentOverlapException(providerId);
         }

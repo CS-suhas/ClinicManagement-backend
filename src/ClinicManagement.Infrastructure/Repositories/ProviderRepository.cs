@@ -2,6 +2,7 @@ using ClinicManagement.Domain.Entities;
 using ClinicManagement.Application.Providers.Interfaces;
 using Infrastructure.Data;
 using Dapper;
+using ClinicManagement.Application.Models;
 
 namespace ClinicManagement.Infrastructure.Repositories;
 
@@ -116,5 +117,47 @@ public class ProviderRepository(IDbConnectionFactory connectionFactory) : IProvi
         return providers.SingleOrDefault();
     }
 
-    
+    public async Task<(IReadOnlyList<Provider> Items, int TotalCount)> SearchProvidersAsync(
+        PageQuery query,
+        int offset,
+        Guid? clinicId)
+    {
+        using var connection = connectionFactory.CreateConnection();
+        const string where = """
+            WHERE (:ClinicId IS NULL OR pr.ClinicId = :ClinicId)
+              AND (:Search IS NULL
+                OR UPPER(pr.FirstName) LIKE '%' || UPPER(:Search) || '%'
+                OR UPPER(pr.LastName) LIKE '%' || UPPER(:Search) || '%'
+                OR UPPER(pr.Specialty) LIKE '%' || UPPER(:Search) || '%'
+                OR UPPER(c.Name) LIKE '%' || UPPER(:Search) || '%')
+            """;
+        var parameters = new
+        {
+            ClinicId = clinicId?.ToString(),
+            Search = query.NormalizedSearch,
+            Offset = offset,
+            query.PageSize
+        };
+        var totalCount = await connection.ExecuteScalarAsync<int>(
+            $"SELECT COUNT(1) FROM Providers pr INNER JOIN Clinics c ON c.Id = pr.ClinicId {where}",
+            parameters);
+        var providers = (await connection.QueryAsync<Provider, Clinic, Provider>(
+            $"""
+            SELECT pr.Id, pr.FirstName, pr.LastName, pr.Specialty, pr.ClinicId,
+                   c.Id, c.Name, c.Address, c.PhoneNumber
+            FROM Providers pr
+            INNER JOIN Clinics c ON c.Id = pr.ClinicId
+            {where}
+            ORDER BY pr.LastName, pr.FirstName, pr.Id
+            OFFSET :Offset ROWS FETCH NEXT :PageSize ROWS ONLY
+            """,
+            (provider, clinic) =>
+            {
+                provider.SetClinic(clinic);
+                return provider;
+            },
+            parameters,
+            splitOn: "Id")).AsList();
+        return (providers, totalCount);
+    }
 }

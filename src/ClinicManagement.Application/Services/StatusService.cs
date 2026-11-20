@@ -4,7 +4,9 @@ using ClinicManagement.Application.Repositories;
 
 namespace ClinicManagement.Application.Services;
 
-public sealed class StatusService(IStatusRepository statusRepository) : IStatusService
+public sealed class StatusService(
+    IStatusRepository statusRepository,
+    TimeProvider timeProvider) : IStatusService
 {
     public async Task<StatusResponse> GetStatusAsync()
     {
@@ -16,4 +18,7 @@ public sealed class StatusService(IStatusRepository statusRepository) : IStatusS
             statistics.Patients,
             statistics.Appointments);
     }
+
+    public Task<DashboardResponse> GetDashboardAsync() =>
+        statusRepository.GetDashboardAsync(timeProvider.GetUtcNow());
 }

@@ -7,6 +7,7 @@ using ClinicManagement.Application.AllergyTypes.Models;
 using ClinicManagement.Application.Patients.Mapping;
 using ClinicManagement.Application.Patients.Models;
 using ClinicManagement.Domain.Exceptions;
+using ClinicManagement.Application.Models;
 
 namespace ClinicManagement.Application.AllergyTypes.Services;
 
@@ -26,6 +27,17 @@ public class AllergyTypeService(IAllergyTypeRepository allergyTypeRepository) : 
         var allergyTypes = await allergyTypeRepository.GetAllAllergyTypesAsync();
 
         return allergyTypes.Select(item => item.ToResponse());
+    }
+
+    public async Task<PagedResponse<AllergyTypeResponse>> SearchAllergyTypesAsync(PageQuery query)
+    {
+        var offset = query.GetOffset();
+        var (items, totalCount) = await allergyTypeRepository.SearchAllergyTypesAsync(query, offset);
+        return new PagedResponse<AllergyTypeResponse>(
+            items.Select(item => item.ToResponse()).ToArray(),
+            totalCount,
+            query.Page,
+            query.PageSize);
     }
 
     public async Task<IEnumerable<PatientResponse>> GetPatientsByAllergyTypeIdAsync(Guid allergyTypeId)

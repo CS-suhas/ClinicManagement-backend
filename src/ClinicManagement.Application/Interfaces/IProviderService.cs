@@ -1,5 +1,6 @@
 using ClinicManagement.Application.Providers.Models;
 using ClinicManagement.Application.Appointments.Models;
+using ClinicManagement.Application.Models;
 using ClinicManagement.Application.Clinics.Models;
 
 namespace ClinicManagement.Application.Providers.Interfaces;
@@ -13,4 +14,5 @@ public interface IProviderService
     Task<Guid> AddProviderAsync(ProviderRequest request);
     Task<Guid> UpdateProviderAsync(ProviderRequest request);
     Task<Guid> DeleteProviderAsync(Guid providerId);
+    Task<PagedResponse<ProviderResponse>> SearchProvidersAsync(PageQuery query, Guid? clinicId);
 }

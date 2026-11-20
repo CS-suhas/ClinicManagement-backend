@@ -1,4 +1,5 @@
 using ClinicManagement.Domain.Entities;
+using ClinicManagement.Application.Models;
 
 namespace ClinicManagement.Application.Appointments.Interfaces;
 
@@ -12,4 +13,13 @@ public interface IAppointmentRepository
     Task<IEnumerable<Appointment>> GetAppointmentsByProviderIdAsync(Guid providerId);
     Task<IEnumerable<Appointment>> GetAppointmentsByPatientIdAsync(Guid patientId);
     Task<IEnumerable<Appointment>> GetAppointmentsByClinicIdAsync(Guid clinicId);
+    Task<(IReadOnlyList<AppointmentListResponse> Items, int TotalCount)> SearchAppointmentsAsync(
+        AppointmentSearchQuery query,
+        int offset);
+    Task<IReadOnlyList<AppointmentListResponse>> GetUpcomingAppointmentsAsync(DateTimeOffset from, int count);
+    Task<bool> HasProviderAppointmentOverlapAsync(
+        Guid providerId,
+        DateTimeOffset appointmentStart,
+        DateTimeOffset appointmentEnd,
+        Guid? excludedAppointmentId);
 }
