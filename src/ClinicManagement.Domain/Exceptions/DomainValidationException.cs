@@ -1,0 +1,6 @@
+namespace ClinicManagement.Domain.Exceptions;
+
+public sealed class DomainValidationException(string message, string? propertyName = null) : Exception(message)
+{
+    public string? PropertyName { get; } = propertyName;
+}
