@@ -33,14 +33,26 @@ public class ProviderRepository(IDbConnectionFactory connectionFactory) : IProvi
     public async Task<IEnumerable<Provider>> GetAllProvidersAsync()
     {
         using var connection = connectionFactory.CreateConnection();
-        const string sql = "SELECT * FROM Providers";
-        return await connection.QueryAsync<Provider>(sql);
+        const string sql = """
+            SELECT pr.Id, pr.FirstName, pr.LastName, pr.Specialty, pr.ClinicId,
+                   c.Id, c.Name, c.Address, c.PhoneNumber
+            FROM Providers pr
+            INNER JOIN Clinics c ON c.Id = pr.ClinicId
+            """;
+        return await connection.QueryAsync<Provider, Clinic, Provider>(
+            sql,
+            (provider, clinic) =>
+            {
+                provider.SetClinic(clinic);
+                return provider;
+            },
+            splitOn: "Id");
     }
 
     public async Task<Guid> UpdateProviderAsync(Provider provider, Guid clinicId)
     {
         using var connection = connectionFactory.CreateConnection();
-        const string sql = "UPDATE Providers SET FirstName = :FirstName, LastName = :LastName, Specialty = :Specialty, ClinicId = :ClinicId WHERE Id = :Id";
+        const string sql = "UPDATE Providers SET FirstName = :FirstName, LastName = :LastName, Specialty = :Specialty, ClinicId = :ClinicId, UpdatedAtUtc = SYSTIMESTAMP WHERE Id = :Id";
         await connection.ExecuteAsync(sql, new
         {
             Id = provider.Id.ToString(),
@@ -55,8 +67,23 @@ public class ProviderRepository(IDbConnectionFactory connectionFactory) : IProvi
     public async Task<Provider?> GetProviderByIdAsync(Guid providerId)
     {
         using var connection = connectionFactory.CreateConnection();
-        const string sql = "SELECT * FROM Providers WHERE Id = :Id";
-        return await connection.QuerySingleOrDefaultAsync<Provider>(sql, new { Id = providerId.ToString() });
+        const string sql = """
+            SELECT pr.Id, pr.FirstName, pr.LastName, pr.Specialty, pr.ClinicId,
+                   c.Id, c.Name, c.Address, c.PhoneNumber
+            FROM Providers pr
+            INNER JOIN Clinics c ON c.Id = pr.ClinicId
+            WHERE pr.Id = :Id
+            """;
+        var providers = await connection.QueryAsync<Provider, Clinic, Provider>(
+            sql,
+            (provider, clinic) =>
+            {
+                provider.SetClinic(clinic);
+                return provider;
+            },
+            new { Id = providerId.ToString() },
+            splitOn: "Id");
+        return providers.SingleOrDefault();
     }
 
     

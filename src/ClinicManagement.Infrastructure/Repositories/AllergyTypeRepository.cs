@@ -26,21 +26,21 @@ public class AllergyTypeRepository(IDbConnectionFactory connectionFactory) : IAl
     public async Task<IEnumerable<AllergyType>> GetAllAllergyTypesAsync()
     {
         using var connection = connectionFactory.CreateConnection();
-        const string sql = "SELECT * FROM AllergyTypes";
+        const string sql = "SELECT Id, Name, CreatedAtUtc, UpdatedAtUtc FROM AllergyTypes";
         return await connection.QueryAsync<AllergyType>(sql);
     }
 
     public async Task<AllergyType?> GetAllergyTypeByIdAsync(Guid allergyTypeId)
     {
         using var connection = connectionFactory.CreateConnection();
-        const string sql = "SELECT * FROM AllergyTypes WHERE Id = :Id";
+        const string sql = "SELECT Id, Name, CreatedAtUtc, UpdatedAtUtc FROM AllergyTypes WHERE Id = :Id";
         return await connection.QuerySingleOrDefaultAsync<AllergyType>(sql, new { Id = allergyTypeId.ToString() });
     }
 
     public async Task<Guid> UpdateAllergyTypeAsync(AllergyType allergyType)
     {
         using var connection = connectionFactory.CreateConnection();
-        const string sql = "UPDATE AllergyTypes SET Name = :Name WHERE Id = :Id";
+        const string sql = "UPDATE AllergyTypes SET Name = :Name, UpdatedAtUtc = SYSTIMESTAMP WHERE Id = :Id";
         await connection.ExecuteAsync(sql, new { Id = allergyType.Id.ToString(), allergyType.Name });
         return allergyType.Id;
     }

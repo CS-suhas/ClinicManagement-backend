@@ -10,14 +10,14 @@ public class PatientRepository(IDbConnectionFactory connectionFactory) : IPatien
     public async Task<Patient?> GetPatientByIdAsync(Guid patientId)
     {
         using var connection = connectionFactory.CreateConnection();
-        const string sql = "SELECT * FROM Patients WHERE Id = :Id";
+        const string sql = "SELECT Id, FirstName, LastName, DateOfBirth, PhoneNumber, Email, CreatedAtUtc, UpdatedAtUtc FROM Patients WHERE Id = :Id";
         return await connection.QuerySingleOrDefaultAsync<Patient>(sql, new { Id = patientId.ToString() });
     }
 
     public async Task<IEnumerable<Patient>> GetAllPatientsAsync()
     {
         using var connection = connectionFactory.CreateConnection();
-        const string sql = "SELECT * FROM Patients";
+        const string sql = "SELECT Id, FirstName, LastName, DateOfBirth, PhoneNumber, Email, CreatedAtUtc, UpdatedAtUtc FROM Patients";
         return await connection.QueryAsync<Patient>(sql);
     }
 
@@ -40,7 +40,7 @@ public class PatientRepository(IDbConnectionFactory connectionFactory) : IPatien
     public async Task<Guid> UpdatePatientAsync(Patient patient)
     {
         using var connection = connectionFactory.CreateConnection();
-        const string sql = "UPDATE Patients SET FirstName = :FirstName, LastName = :LastName, DateOfBirth = :DateOfBirth, PhoneNumber = :PhoneNumber, Email = :Email WHERE Id = :Id";
+        const string sql = "UPDATE Patients SET FirstName = :FirstName, LastName = :LastName, DateOfBirth = :DateOfBirth, PhoneNumber = :PhoneNumber, Email = :Email, UpdatedAtUtc = SYSTIMESTAMP WHERE Id = :Id";
         await connection.ExecuteAsync(sql, new
         {
             Id = patient.Id.ToString(),
@@ -64,8 +64,8 @@ public class PatientRepository(IDbConnectionFactory connectionFactory) : IPatien
     public async Task<bool> PatientExistsAsync(Guid patientId)
     {
         using var connection = connectionFactory.CreateConnection();
-        const string sql = "SELECT CASE WHEN EXISTS (SELECT 1 FROM Patients WHERE Id = :Id) THEN 1 ELSE 0 END FROM DUAL";
-        var exists = await connection.ExecuteScalarAsync<bool>(sql, new { Id = patientId.ToString() });
-        return exists;
+        const string sql = "SELECT COUNT(1) FROM Patients WHERE Id = :Id";
+        var count = await connection.ExecuteScalarAsync<int>(sql, new { Id = patientId.ToString() });
+        return count > 0;
     }
 }

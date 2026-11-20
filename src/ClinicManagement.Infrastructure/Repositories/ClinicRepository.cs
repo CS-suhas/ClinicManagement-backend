@@ -10,14 +10,14 @@ public class ClinicRepository(IDbConnectionFactory connectionFactory) : IClinicR
     public async Task<Clinic?> GetClinicByIdAsync(Guid clinicId)
     {
         using var connection = connectionFactory.CreateConnection();
-        const string sql = "SELECT * FROM Clinics WHERE Id = :Id";
+        const string sql = "SELECT Id, Name, Address, PhoneNumber, CreatedAtUtc, UpdatedAtUtc FROM Clinics WHERE Id = :Id";
         return await connection.QuerySingleOrDefaultAsync<Clinic>(sql, new { Id = clinicId.ToString() });
     }
 
     public async Task<IEnumerable<Clinic>> GetAllClinicsAsync()
     {
         using var connection = connectionFactory.CreateConnection();
-        const string sql = "SELECT * FROM Clinics";
+        const string sql = "SELECT Id, Name, Address, PhoneNumber, CreatedAtUtc, UpdatedAtUtc FROM Clinics";
         return await connection.QueryAsync<Clinic>(sql);
     }
 
@@ -38,7 +38,7 @@ public class ClinicRepository(IDbConnectionFactory connectionFactory) : IClinicR
     public async Task<Guid> UpdateClinicAsync(Clinic clinic)
     {
         using var connection = connectionFactory.CreateConnection();
-        const string sql = "UPDATE Clinics SET Name = :Name, Address = :Address, PhoneNumber = :PhoneNumber WHERE Id = :Id";
+        const string sql = "UPDATE Clinics SET Name = :Name, Address = :Address, PhoneNumber = :PhoneNumber, UpdatedAtUtc = SYSTIMESTAMP WHERE Id = :Id";
         await connection.ExecuteAsync(sql, new
         {
             Id = clinic.Id.ToString(),
@@ -60,8 +60,8 @@ public class ClinicRepository(IDbConnectionFactory connectionFactory) : IClinicR
     public async Task<bool> ClinicExistsAsync(Guid clinicId)
     {
         using var connection = connectionFactory.CreateConnection();
-        const string sql = "SELECT CASE WHEN EXISTS (SELECT 1 FROM Clinics WHERE Id = :Id) THEN 1 ELSE 0 END FROM DUAL";
-        var exists = await connection.ExecuteScalarAsync<bool>(sql, new { Id = clinicId.ToString() });
-        return exists;
+        const string sql = "SELECT COUNT(1) FROM Clinics WHERE Id = :Id";
+        var count = await connection.ExecuteScalarAsync<int>(sql, new { Id = clinicId.ToString() });
+        return count > 0;
     }
 }

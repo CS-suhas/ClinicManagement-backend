@@ -13,7 +13,7 @@ public class AppointmentRepository(IDbConnectionFactory connectionFactory) : IAp
         const string sql = """
             SELECT a.Id, a.AppointmentDateTime, a.ReasonForVisit,
                    p.Id, p.FirstName, p.LastName, p.DateOfBirth, p.PhoneNumber, p.Email,
-                   pr.Id, pr.FirstName, pr.LastName, pr.Specialty
+                   pr.Id, pr.FirstName, pr.LastName, pr.Specialty, pr.ClinicId
             FROM Appointments a
             INNER JOIN Patients p ON p.Id = a.PatientId
             INNER JOIN Providers pr ON pr.Id = a.ProviderId
@@ -40,7 +40,7 @@ public class AppointmentRepository(IDbConnectionFactory connectionFactory) : IAp
         const string sql = """
             SELECT a.Id, a.AppointmentDateTime, a.ReasonForVisit,
                    p.Id, p.FirstName, p.LastName, p.DateOfBirth, p.PhoneNumber, p.Email,
-                   pr.Id, pr.FirstName, pr.LastName, pr.Specialty
+                   pr.Id, pr.FirstName, pr.LastName, pr.Specialty, pr.ClinicId
             FROM Appointments a
             INNER JOIN Patients p ON p.Id = a.PatientId
             INNER JOIN Providers pr ON pr.Id = a.ProviderId
@@ -83,7 +83,8 @@ public class AppointmentRepository(IDbConnectionFactory connectionFactory) : IAp
             SET PatientId = :PatientId,
                 ProviderId = :ProviderId,
                 AppointmentDateTime = :AppointmentDateTime,
-                ReasonForVisit = :ReasonForVisit
+                ReasonForVisit = :ReasonForVisit,
+                UpdatedAtUtc = SYSTIMESTAMP
             WHERE Id = :Id
             """;
         await connection.ExecuteAsync(sql, new
@@ -111,7 +112,7 @@ public class AppointmentRepository(IDbConnectionFactory connectionFactory) : IAp
         const string sql = """
             SELECT a.Id, a.AppointmentDateTime, a.ReasonForVisit,
                    p.Id, p.FirstName, p.LastName, p.DateOfBirth, p.PhoneNumber, p.Email,
-                   pr.Id, pr.FirstName, pr.LastName, pr.Specialty
+                   pr.Id, pr.FirstName, pr.LastName, pr.Specialty, pr.ClinicId
             FROM Appointments a
             INNER JOIN Patients p ON p.Id = a.PatientId
             INNER JOIN Providers pr ON pr.Id = a.ProviderId
