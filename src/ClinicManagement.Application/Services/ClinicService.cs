@@ -1,4 +1,5 @@
 using ClinicManagement.Application.Clinics.Interfaces;
+using ClinicManagement.Application.Common;
 using ClinicManagement.Application.Common.Exceptions;
 using ClinicManagement.Application.Clinics.Mapping;
 using ClinicManagement.Application.Clinics.Models;
@@ -9,6 +10,8 @@ public class ClinicService(IClinicRepository clinicRepository) : IClinicService
 {
     public async Task<ClinicResponse> GetClinicByIdAsync(Guid clinicId)
     {
+        RequestValidator.EnsureGuid(clinicId, nameof(clinicId), "Clinic ID");
+
         var clinic = await clinicRepository.GetClinicByIdAsync(clinicId)
             ?? throw new ResourceNotFoundException("Clinic", clinicId);
         return clinic.ToResponse();
@@ -22,6 +25,8 @@ public class ClinicService(IClinicRepository clinicRepository) : IClinicService
 
     public async Task<Guid> AddClinicAsync(ClinicRequest request)
     {
+        ValidateRequest(request);
+
         var clinic = request.ToEntity();
         await clinicRepository.AddClinicAsync(clinic);
         return clinic.Id;
@@ -29,6 +34,8 @@ public class ClinicService(IClinicRepository clinicRepository) : IClinicService
 
     public async Task<Guid> UpdateClinicAsync(ClinicRequest request)
     {
+        ValidateRequest(request);
+
         var clinic = await clinicRepository.GetClinicByIdAsync(request.Id);
         if (clinic == null)
         {
@@ -41,6 +48,8 @@ public class ClinicService(IClinicRepository clinicRepository) : IClinicService
 
     public async Task<Guid> DeleteClinicAsync(Guid clinicId)
     {
+        RequestValidator.EnsureGuid(clinicId, nameof(clinicId), "Clinic ID");
+
         var clinic = await clinicRepository.GetClinicByIdAsync(clinicId);
         if (clinic == null)
         {
@@ -48,5 +57,12 @@ public class ClinicService(IClinicRepository clinicRepository) : IClinicService
         }
         await clinicRepository.DeleteClinicAsync(clinic.Id);
         return clinicId;
+    }
+
+    private static void ValidateRequest(ClinicRequest request)
+    {
+        RequestValidator.EnsureGuid(request.Id, "id", "Clinic ID");
+        RequestValidator.EnsureText(request.Name, "name", "Clinic name");
+        RequestValidator.EnsureText(request.PhoneNumber, "phoneNumber", "Clinic phone number");
     }
 }

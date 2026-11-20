@@ -15,6 +15,9 @@ public class Clinic : BaseEntity
 
     public static Clinic Create(Guid id, string name, string? address, string phoneNumber)
     {
+        if (!DataValidator.IsValidGuid(id))
+            throw new DomainValidationException("Clinic ID must be a non-empty GUID.", nameof(id));
+
         var clinic = Create(name, address, phoneNumber);
         clinic.Id = id;
         return clinic;

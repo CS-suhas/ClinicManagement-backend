@@ -1,4 +1,5 @@
 using ClinicManagement.Application.Clinics.Interfaces;
+using ClinicManagement.Application.Common;
 using ClinicManagement.Application.Common.Exceptions;
 using ClinicManagement.Application.Providers.Interfaces;
 using ClinicManagement.Application.Providers.Mapping;
@@ -11,6 +12,8 @@ public class ProviderService(IProviderRepository providerRepository, IClinicRepo
 {
     public async Task<ProviderResponse> GetProviderByIdAsync(Guid providerId)
     {
+        RequestValidator.EnsureGuid(providerId, nameof(providerId), "Provider ID");
+
         var provider = await providerRepository.GetProviderByIdAsync(providerId)
             ?? throw new ResourceNotFoundException("Provider", providerId);
         return provider.ToResponse();
@@ -24,6 +27,8 @@ public class ProviderService(IProviderRepository providerRepository, IClinicRepo
 
     public async Task<Guid> AddProviderAsync(ProviderRequest request)
     {
+        ValidateRequest(request);
+
         var clinicExists = await clinicRepository.ClinicExistsAsync(request.ClinicId);
         if (!clinicExists)
         {
@@ -36,6 +41,8 @@ public class ProviderService(IProviderRepository providerRepository, IClinicRepo
 
     public async Task<Guid> UpdateProviderAsync(ProviderRequest request)
     {
+        ValidateRequest(request);
+
         var provider = await providerRepository.GetProviderByIdAsync(request.Id);
         if (provider == null)
         {
@@ -53,6 +60,8 @@ public class ProviderService(IProviderRepository providerRepository, IClinicRepo
 
     public async Task<Guid> DeleteProviderAsync(Guid providerId)
     {
+        RequestValidator.EnsureGuid(providerId, nameof(providerId), "Provider ID");
+
         var provider = await providerRepository.GetProviderByIdAsync(providerId);
         if (provider == null)
         {
@@ -60,5 +69,14 @@ public class ProviderService(IProviderRepository providerRepository, IClinicRepo
         }
         await providerRepository.DeleteProviderAsync(provider.Id);
         return providerId;
+    }
+
+    private static void ValidateRequest(ProviderRequest request)
+    {
+        RequestValidator.EnsureGuid(request.Id, "id", "Provider ID");
+        RequestValidator.EnsureGuid(request.ClinicId, "clinicId", "Clinic ID");
+        RequestValidator.EnsureText(request.FirstName, "firstName", "First name");
+        RequestValidator.EnsureText(request.LastName, "lastName", "Last name");
+        RequestValidator.EnsureText(request.Specialty, "specialty", "Specialty");
     }
 }

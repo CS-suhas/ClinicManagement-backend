@@ -11,6 +11,9 @@ public class AllergyType : BaseEntity
 
     public static AllergyType Create(Guid id, string name)
     {
+        if (!DataValidator.IsValidGuid(id))
+            throw new DomainValidationException("Allergy type ID must be a non-empty GUID.", nameof(id));
+
         var allergyType = Create(name);
         allergyType.Id = id;
         return allergyType;

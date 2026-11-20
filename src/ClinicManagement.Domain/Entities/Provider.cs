@@ -25,6 +25,10 @@ public class Provider : BaseEntity
 
     public static Provider Create(Guid id, Guid clinicId, string firstName, string lastName, string specialty)
     {
+        if (!DataValidator.IsValidGuid(id))
+            throw new DomainValidationException("Provider ID must be a non-empty GUID.", nameof(id));
+        if (!DataValidator.IsValidGuid(clinicId))
+            throw new DomainValidationException("Clinic ID must be a non-empty GUID.", nameof(clinicId));
         if (string.IsNullOrWhiteSpace(firstName))
             throw new DomainValidationException("First name cannot be empty.", nameof(firstName));
         if (string.IsNullOrWhiteSpace(lastName))

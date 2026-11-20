@@ -1,4 +1,5 @@
 using ClinicManagement.Application.Patients.Interfaces;
+using ClinicManagement.Application.Common;
 using ClinicManagement.Application.Common.Exceptions;
 using ClinicManagement.Application.Patients.Mapping;
 using ClinicManagement.Application.Patients.Models;
@@ -9,6 +10,8 @@ public class PatientService(IPatientRepository patientRepository) : IPatientServ
 {
     public async Task<PatientResponse> GetPatientByIdAsync(Guid patientId)
     {
+        RequestValidator.EnsureGuid(patientId, nameof(patientId), "Patient ID");
+
         var patient = await patientRepository.GetPatientByIdAsync(patientId)
             ?? throw new ResourceNotFoundException("Patient", patientId);
         return patient.ToResponse();
@@ -22,6 +25,8 @@ public class PatientService(IPatientRepository patientRepository) : IPatientServ
 
     public async Task<Guid> AddPatientAsync(PatientRequest patient)
     {
+        ValidateRequest(patient);
+
         var newPatient = patient.ToEntity();
 
         await patientRepository.AddPatientAsync(newPatient);
@@ -30,6 +35,8 @@ public class PatientService(IPatientRepository patientRepository) : IPatientServ
 
     public async Task<Guid> UpdatePatientAsync(PatientRequest request)
     {
+        ValidateRequest(request);
+
         var patient = await patientRepository.GetPatientByIdAsync(request.Id)
             ?? throw new ResourceNotFoundException("Patient", request.Id);
 
@@ -40,10 +47,22 @@ public class PatientService(IPatientRepository patientRepository) : IPatientServ
 
     public async Task<Guid> DeletePatientAsync(Guid patientId)
     {
+        RequestValidator.EnsureGuid(patientId, nameof(patientId), "Patient ID");
+
         var patient = await patientRepository.GetPatientByIdAsync(patientId)
             ?? throw new ResourceNotFoundException("Patient", patientId);
 
         await patientRepository.DeletePatientAsync(patient.Id);
         return patientId;
+    }
+
+    private static void ValidateRequest(PatientRequest request)
+    {
+        RequestValidator.EnsureGuid(request.Id, "id", "Patient ID");
+        RequestValidator.EnsureText(request.FirstName, "firstName", "First name");
+        RequestValidator.EnsureText(request.LastName, "lastName", "Last name");
+        RequestValidator.EnsureDateOfBirth(request.DateOfBirth);
+        RequestValidator.EnsureText(request.PhoneNumber, "phoneNumber", "Phone number");
+        RequestValidator.EnsureEmail(request.Email);
     }
 }

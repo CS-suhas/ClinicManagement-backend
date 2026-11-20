@@ -3,6 +3,7 @@ using ClinicManagement.Application.Patients.Models;
 using ClinicManagement.Application.Patients.Services;
 using ClinicManagement.Application.Common.Exceptions;
 using ClinicManagement.Domain.Entities;
+using ClinicManagement.Domain.Exceptions;
 
 namespace ClinicManagement.Application.Tests;
 
@@ -52,6 +53,19 @@ public class PatientServiceTests
         Assert.Null(repository.UpdatedPatient);
     }
 
+    [Fact]
+    public async Task UpdatePatientAsync_RejectsInvalidEmailBeforeLookingUpPatient()
+    {
+        var repository = new FakePatientRepository();
+        var service = new PatientService(repository);
+
+        var exception = await Assert.ThrowsAsync<DomainValidationException>(
+            () => service.UpdatePatientAsync(CreatePatientRequest(Guid.NewGuid()) with { Email = "not-an-email" }));
+
+        Assert.Equal("email", exception.PropertyName);
+        Assert.Equal(0, repository.PatientLookupCount);
+    }
+
     private static PatientRequest CreatePatientRequest(Guid id) =>
         new(id, "Ada", "Lovelace", new DateOnly(1985, 12, 10), "555-0100", "ada@example.com");
 
@@ -59,8 +73,13 @@ public class PatientServiceTests
     {
         public Patient? AddedPatient { get; private set; }
         public Patient? UpdatedPatient { get; private set; }
+        public int PatientLookupCount { get; private set; }
 
-        public Task<Patient?> GetPatientByIdAsync(Guid patientId) => Task.FromResult<Patient?>(null);
+        public Task<Patient?> GetPatientByIdAsync(Guid patientId)
+        {
+            PatientLookupCount++;
+            return Task.FromResult<Patient?>(null);
+        }
         public Task<IEnumerable<Patient>> GetAllPatientsAsync() =>
             Task.FromResult<IEnumerable<Patient>>(Array.Empty<Patient>());
         public Task<Guid> AddPatientAsync(Patient patient)

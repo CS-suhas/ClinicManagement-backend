@@ -1,4 +1,5 @@
 using ClinicManagement.Application.Appointments.Interfaces;
+using ClinicManagement.Application.Common;
 using ClinicManagement.Application.Common.Exceptions;
 using ClinicManagement.Application.Common.Settings;
 using ClinicManagement.Domain.Entities;
@@ -17,6 +18,8 @@ public class AppointmentService(
 {
     public async Task<Guid> AddAppointmentAsync(AppointmentRequest request)
     {
+        var currentTime = timeProvider.GetUtcNow();
+        ValidateRequest(request, currentTime);
         EnsureAppointmentWithinClinicHours(request.AppointmentDateTime);
 
         var patientExists = await patientRepository.PatientExistsAsync(request.PatientId);
@@ -37,13 +40,15 @@ public class AppointmentService(
                 clinicSettings.DefaultAppointmentDurationMinutes);
         }
 
-        var newAppointment = request.ToEntity(timeProvider.GetUtcNow());
+        var newAppointment = request.ToEntity(currentTime);
         await appointmentRepository.AddAppointmentAsync(newAppointment, request.PatientId, request.ProviderId);
         return request.Id;
     }
 
     public async Task<Guid> DeleteAppointmentAsync(Guid appointmentId)
     {
+        RequestValidator.EnsureGuid(appointmentId, nameof(appointmentId), "Appointment ID");
+
         if (await appointmentRepository.GetAppointmentByIdAsync(appointmentId) is null)
             throw new ResourceNotFoundException("Appointment", appointmentId);
 
@@ -59,6 +64,8 @@ public class AppointmentService(
 
     public async Task<AppointmentResponse> GetAppointmentByIdAsync(Guid appointmentId)
     {
+        RequestValidator.EnsureGuid(appointmentId, nameof(appointmentId), "Appointment ID");
+
         var appointment = await appointmentRepository.GetAppointmentByIdAsync(appointmentId)
                                 ?? throw new ResourceNotFoundException("Appointment", appointmentId);
         return appointment.ToResponse();
@@ -66,6 +73,8 @@ public class AppointmentService(
 
     public async Task<Guid> UpdateAppointmentAsync(AppointmentRequest request)
     {
+        var currentTime = timeProvider.GetUtcNow();
+        ValidateRequest(request, currentTime);
         EnsureAppointmentWithinClinicHours(request.AppointmentDateTime);
 
         var existingAppointment = await appointmentRepository.GetAppointmentByIdAsync(request.Id)
@@ -89,9 +98,20 @@ public class AppointmentService(
             }
         }
         return await appointmentRepository.UpdateAppointmentAsync(
-            request.ToEntity(timeProvider.GetUtcNow()),
+            request.ToEntity(currentTime),
             request.PatientId,
             request.ProviderId);
+    }
+
+    private static void ValidateRequest(AppointmentRequest request, DateTimeOffset currentTime)
+    {
+        RequestValidator.EnsureGuid(request.Id, "id", "Appointment ID");
+        RequestValidator.EnsureGuid(request.PatientId, "patientId", "Patient ID");
+        RequestValidator.EnsureGuid(request.ProviderId, "providerId", "Provider ID");
+        RequestValidator.EnsureFutureDateTime(
+            request.AppointmentDateTime,
+            currentTime,
+            "appointmentDateTime");
     }
 
     private void EnsureAppointmentWithinClinicHours(DateTimeOffset appointmentDateTime)

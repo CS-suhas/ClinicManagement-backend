@@ -19,6 +19,8 @@ public class PatientAllergy : BaseEntity
     {
         if (string.IsNullOrWhiteSpace(name))
             throw new DomainValidationException("Allergy name cannot be null or empty.", nameof(name));
+        if (!DataValidator.IsValidSeverity(severity))
+            throw new DomainValidationException("Allergy severity is invalid.", nameof(severity));
 
         return new PatientAllergy
         {
@@ -29,10 +31,18 @@ public class PatientAllergy : BaseEntity
 
     public static PatientAllergy Create(Guid id, Patient patient, AllergyType allergyType, AllergySeverity severity, string? notes)
     {
+        if (!DataValidator.IsValidGuid(id))
+            throw new DomainValidationException("Patient allergy ID must be a non-empty GUID.", nameof(id));
         if (patient == null)
             throw new ArgumentNullException(nameof(patient), "Patient cannot be null.");
         if (allergyType == null)
             throw new ArgumentNullException(nameof(allergyType), "Allergy type cannot be null.");
+        if (!DataValidator.IsValidGuid(patient.Id))
+            throw new DomainValidationException("Patient ID must be a non-empty GUID.", nameof(patient));
+        if (!DataValidator.IsValidGuid(allergyType.Id))
+            throw new DomainValidationException("Allergy type ID must be a non-empty GUID.", nameof(allergyType));
+        if (!DataValidator.IsValidSeverity(severity))
+            throw new DomainValidationException("Allergy severity is invalid.", nameof(severity));
 
         return new PatientAllergy
         {
@@ -48,6 +58,9 @@ public class PatientAllergy : BaseEntity
 
     public void SetSeverity(AllergySeverity severity)
     {
+        if (!DataValidator.IsValidSeverity(severity))
+            throw new DomainValidationException("Allergy severity is invalid.", nameof(severity));
+
         Severity = severity;
         UpdatedAtUtc = DateTime.UtcNow;
     }

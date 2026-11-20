@@ -34,12 +34,30 @@ public class AppointmentServiceTests
     public async Task AddAppointmentAsync_RejectsAppointmentAtCurrentTime()
     {
         var repository = new FakeAppointmentRepository();
-        var service = CreateService(repository, new FakePatientRepository { Exists = true });
+        var patientRepository = new FakePatientRepository { Exists = true };
+        var service = CreateService(repository, patientRepository);
 
-        await Assert.ThrowsAsync<DomainValidationException>(
+        var exception = await Assert.ThrowsAsync<DomainValidationException>(
             () => service.AddAppointmentAsync(CreateRequest(CurrentTime)));
 
+        Assert.Equal("appointmentDateTime", exception.PropertyName);
+        Assert.Equal(0, patientRepository.PatientLookupCount);
         Assert.Null(repository.AddedAppointment);
+    }
+
+    [Fact]
+    public async Task AddAppointmentAsync_RejectsEmptyGuidBeforeRepositoryCalls()
+    {
+        var repository = new FakeAppointmentRepository();
+        var patientRepository = new FakePatientRepository { Exists = true };
+        var service = CreateService(repository, patientRepository);
+
+        var exception = await Assert.ThrowsAsync<DomainValidationException>(
+            () => service.AddAppointmentAsync(CreateRequest(CurrentTime.AddHours(1)) with { ProviderId = Guid.Empty }));
+
+        Assert.Equal("providerId", exception.PropertyName);
+        Assert.Equal(0, patientRepository.PatientLookupCount);
+        Assert.Equal(0, repository.ProviderAppointmentLookupCount);
     }
 
     [Theory]
@@ -237,8 +255,13 @@ public class AppointmentServiceTests
     private sealed class FakePatientRepository : IPatientRepository
     {
         public bool Exists { get; init; }
+        public int PatientLookupCount { get; private set; }
 
-        public Task<bool> PatientExistsAsync(Guid patientId) => Task.FromResult(Exists);
+        public Task<bool> PatientExistsAsync(Guid patientId)
+        {
+            PatientLookupCount++;
+            return Task.FromResult(Exists);
+        }
         public Task<Patient?> GetPatientByIdAsync(Guid patientId) => Task.FromResult<Patient?>(null);
         public Task<IEnumerable<Patient>> GetAllPatientsAsync() =>
             Task.FromResult<IEnumerable<Patient>>(Array.Empty<Patient>());
@@ -253,6 +276,7 @@ public class AppointmentServiceTests
         public Appointment? AppointmentById { get; init; }
         public Appointment? AddedAppointment { get; private set; }
         public Appointment? UpdatedAppointment { get; private set; }
+        public int ProviderAppointmentLookupCount { get; private set; }
 
         public Task<Appointment?> GetAppointmentByIdAsync(Guid appointmentId) =>
             Task.FromResult(AppointmentById?.Id == appointmentId ? AppointmentById : null);
@@ -274,7 +298,10 @@ public class AppointmentServiceTests
 
         public Task<Guid> DeleteAppointmentAsync(Guid appointmentId) => Task.FromResult(appointmentId);
 
-        public Task<IEnumerable<Appointment>> GetAppointmentsByProviderIdAsync(Guid providerId) =>
-            Task.FromResult<IEnumerable<Appointment>>(ProviderAppointments);
+        public Task<IEnumerable<Appointment>> GetAppointmentsByProviderIdAsync(Guid providerId)
+        {
+            ProviderAppointmentLookupCount++;
+            return Task.FromResult<IEnumerable<Appointment>>(ProviderAppointments);
+        }
     }
 }

@@ -21,16 +21,18 @@ public class Patient : BaseEntity
 
     public static Patient Create(Guid id, string firstName, string lastName, DateOnly dateOfBirth, string email, string phoneNumber)
     {
+        if (!DataValidator.IsValidGuid(id))
+            throw new DomainValidationException("Patient ID must be a non-empty GUID.", nameof(id));
         if (string.IsNullOrWhiteSpace(firstName))
             throw new DomainValidationException("First name cannot be empty.", nameof(firstName));
         if (string.IsNullOrWhiteSpace(lastName))
             throw new DomainValidationException("Last name cannot be empty.", nameof(lastName));
 
-        if (dateOfBirth >= DateOnly.FromDateTime(DateTime.UtcNow))
+        if (!DataValidator.IsValidDateOfBirth(dateOfBirth))
             throw new DomainValidationException("Date of birth cannot be in the future.", nameof(dateOfBirth));
 
-        if (string.IsNullOrWhiteSpace(email))
-            throw new DomainValidationException("Email cannot be empty.", nameof(email));
+        if (!DataValidator.IsValidEmail(email))
+            throw new DomainValidationException("Email is invalid.", nameof(email));
 
         if (string.IsNullOrWhiteSpace(phoneNumber))
             throw new DomainValidationException("Phone number cannot be empty.", nameof(phoneNumber));
@@ -66,7 +68,7 @@ public class Patient : BaseEntity
 
     public void SetDateOfBirth(DateOnly dateOfBirth)
     {
-        if (dateOfBirth >= DateOnly.FromDateTime(DateTime.UtcNow))
+        if (!DataValidator.IsValidDateOfBirth(dateOfBirth))
             throw new DomainValidationException("Date of birth cannot be in the future.", nameof(dateOfBirth));
 
         DateOfBirth = dateOfBirth;
@@ -75,8 +77,8 @@ public class Patient : BaseEntity
 
     public void SetEmail(string email)
     {
-        if (string.IsNullOrWhiteSpace(email))
-            throw new DomainValidationException("Email cannot be empty.", nameof(email));
+        if (!DataValidator.IsValidEmail(email))
+            throw new DomainValidationException("Email is invalid.", nameof(email));
 
         Email = email.Trim();
         UpdatedAtUtc = DateTime.UtcNow;

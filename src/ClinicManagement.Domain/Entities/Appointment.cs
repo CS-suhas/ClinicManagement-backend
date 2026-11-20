@@ -67,7 +67,13 @@ public class Appointment : BaseEntity
         string? reasonForVisit,
         DateTimeOffset currentTime)
     {
-        if (dateTime <= currentTime)
+        if (!DataValidator.IsValidGuid(id))
+            throw new DomainValidationException("Appointment ID must be a non-empty GUID.", nameof(id));
+        if (!DataValidator.IsValidGuid(patientId))
+            throw new DomainValidationException("Patient ID must be a non-empty GUID.", nameof(patientId));
+        if (!DataValidator.IsValidGuid(providerId))
+            throw new DomainValidationException("Provider ID must be a non-empty GUID.", nameof(providerId));
+        if (!DataValidator.IsFutureDateTime(dateTime, currentTime))
             throw new DomainValidationException("Appointment date and time must be in the future.", nameof(dateTime));
 
         return new Appointment
@@ -82,7 +88,7 @@ public class Appointment : BaseEntity
 
     public void SetAppointmentDateTime(DateTimeOffset dateTime, DateTimeOffset currentTime)
     {
-        if (dateTime <= currentTime)
+        if (!DataValidator.IsFutureDateTime(dateTime, currentTime))
             throw new DomainValidationException("Appointment date and time must be in the future.", nameof(dateTime));
 
         AppointmentDateTime = dateTime;
