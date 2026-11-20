@@ -12,6 +12,26 @@ namespace ClinicManagement.Application.Tests;
 public class ProviderServiceTests
 {
     [Fact]
+    public async Task GetProviderByIdAsync_ReturnsFirstAndLastNameSeparately()
+    {
+        var provider = Provider.Create(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            "Grace",
+            "Hopper",
+            "Computing");
+        var service = new ProviderService(
+            new FakeProviderRepository { ExistingProvider = provider },
+            new FakeClinicRepository(),
+            new FakeAppointmentRepository());
+
+        var result = await service.GetProviderByIdAsync(provider.Id);
+
+        Assert.Equal("Grace", result.FirstName);
+        Assert.Equal("Hopper", result.LastName);
+    }
+
+    [Fact]
     public async Task AddProviderAsync_PersistsProviderForExistingClinic()
     {
         var clinicId = Guid.NewGuid();

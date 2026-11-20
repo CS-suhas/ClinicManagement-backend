@@ -17,7 +17,8 @@ public static class PatientMappings
     public static PatientResponse ToResponse(this Patient patient) =>
         new(
             patient.Id,
-            $"{patient.FirstName} {patient.LastName}",
+            patient.FirstName,
+            patient.LastName,
             patient.DateOfBirth,
             patient.PhoneNumber,
             patient.Email);

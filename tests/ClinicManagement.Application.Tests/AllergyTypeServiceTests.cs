@@ -48,7 +48,8 @@ public class AllergyTypeServiceTests
         var result = await service.GetPatientsByAllergyTypeIdAsync(allergyType.Id);
 
         var patient = Assert.Single(result);
-        Assert.Equal("Ava Patient", patient.Name);
+        Assert.Equal("Ava", patient.FirstName);
+        Assert.Equal("Patient", patient.LastName);
     }
 
     [Fact]

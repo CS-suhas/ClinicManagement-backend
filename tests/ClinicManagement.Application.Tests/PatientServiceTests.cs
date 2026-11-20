@@ -24,6 +24,24 @@ public class PatientServiceTests
     }
 
     [Fact]
+    public async Task GetPatientByIdAsync_ReturnsFirstAndLastNameSeparately()
+    {
+        var patient = Patient.Create(
+            Guid.NewGuid(),
+            "Ada",
+            "Lovelace",
+            new DateOnly(1985, 12, 10),
+            "ada@example.com",
+            "555-0100");
+        var service = CreateService(new FakePatientRepository { ExistingPatient = patient });
+
+        var result = await service.GetPatientByIdAsync(patient.Id);
+
+        Assert.Equal("Ada", result.FirstName);
+        Assert.Equal("Lovelace", result.LastName);
+    }
+
+    [Fact]
     public async Task GetPatientAllergiesAsync_ReturnsAllergyDetailsForThePatient()
     {
         var patient = Patient.Create(

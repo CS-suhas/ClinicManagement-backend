@@ -17,7 +17,8 @@ public static class ProviderMappings
         new(
             provider.Id,
             provider.ClinicId,
-            $"{provider.FirstName} {provider.LastName}",
+            provider.FirstName,
+            provider.LastName,
             provider.Specialty);
 
     public static void ApplyTo(this ProviderRequest request, Provider provider)
