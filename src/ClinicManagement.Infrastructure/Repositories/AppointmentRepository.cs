@@ -158,13 +158,13 @@ public class AppointmentRepository(IDbConnectionFactory connectionFactory) : IAp
         }
         if (query.From is { } from)
         {
-            conditions.Add("a.AppointmentDateTime >= :From");
-            parameters.Add("From", from);
+            conditions.Add("a.AppointmentDateTime >= :StartDateTime");
+            parameters.Add("StartDateTime", from);
         }
         if (query.To is { } to)
         {
-            conditions.Add("a.AppointmentDateTime <= :To");
-            parameters.Add("To", to);
+            conditions.Add("a.AppointmentDateTime <= :EndDateTime");
+            parameters.Add("EndDateTime", to);
         }
         if (query.ClinicId is { } clinicId)
         {
@@ -236,13 +236,13 @@ public class AppointmentRepository(IDbConnectionFactory connectionFactory) : IAp
             INNER JOIN Patients p ON p.Id = a.PatientId
             INNER JOIN Providers pr ON pr.Id = a.ProviderId
             INNER JOIN Clinics c ON c.Id = pr.ClinicId
-            WHERE a.AppointmentDateTime >= :From
+            WHERE a.AppointmentDateTime >= :StartDateTime
             ORDER BY a.AppointmentDateTime, a.Id
             FETCH FIRST :Count ROWS ONLY
             """;
         var appointments = await connection.QueryAsync<AppointmentListResponse>(
             sql,
-            new { From = from, Count = count });
+            new { StartDateTime = from, Count = count });
         return appointments.AsList();
     }
 

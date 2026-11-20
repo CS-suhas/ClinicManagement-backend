@@ -1,3 +1,4 @@
+using ClinicManagement.Application.Models;
 using ClinicManagement.Domain.Entities;
 using ClinicManagement.Infrastructure.Repositories;
 using Dapper;
@@ -66,6 +67,18 @@ public class AppointmentRepositoryIntegrationTests
             Assert.Contains(
                 await repository.GetAppointmentsByProviderIdAsync(providerId),
                 result => result.Id == appointmentId);
+
+            var (searchResults, totalCount) = await repository.SearchAppointmentsAsync(
+                new AppointmentSearchQuery(
+                    Search: "Ada",
+                    From: now.AddHours(-1),
+                    To: appointmentDateTime.AddHours(1),
+                    ClinicId: clinicId,
+                    ProviderId: providerId,
+                    PatientId: patientId),
+                offset: 0);
+            Assert.Equal(1, totalCount);
+            Assert.Collection(searchResults, result => Assert.Equal(appointmentId, result.Id));
 
             var updatedAppointmentDateTime = now.AddDays(2);
             appointment.SetAppointmentDateTime(updatedAppointmentDateTime, DateTimeOffset.UtcNow);
