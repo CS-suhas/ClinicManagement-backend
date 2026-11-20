@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      oracle:
+        image: gvenzl/oracle-free:23-slim-faststart
+        env:
+          ORACLE_PASSWORD: test_system_password
+          APP_USER: clinic_test
+          APP_USER_PASSWORD: clinic_test_password
+        ports:
+          - 1521:1521
+        options: >-
+          --health-cmd "healthcheck.sh"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-start-period 30s
+          --health-retries 30
+    env:
+      TEST_DATABASE_CONNECTION_STRING: "User Id=clinic_test;Password=clinic_test_password;Data Source=localhost:1521/FREEPDB1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Apply database migrations
+        run: |
+          docker build --tag clinic-management-liquibase ./liquibase
+          docker run --rm --network host \
+            --volume "$GITHUB_WORKSPACE/liquibase/changelog:/liquibase/changelog:ro" \
+            --env LIQUIBASE_COMMAND_URL=jdbc:oracle:thin:@localhost:1521/FREEPDB1 \
+            --env LIQUIBASE_SEARCH_PATH=/liquibase/changelog \
+            --env LIQUIBASE_COMMAND_USERNAME=clinic_test \
+            --env LIQUIBASE_COMMAND_PASSWORD=clinic_test_password \
+            --env LIQUIBASE_COMMAND_CHANGELOG_FILE=db.changelog-master.xml \
+            clinic-management-liquibase update
+      - name: Run tests
+        run: dotnet test ClinicManagement.slnx --configuration Release
