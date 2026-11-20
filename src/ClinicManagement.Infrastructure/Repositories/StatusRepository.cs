@@ -19,7 +19,12 @@ public sealed class StatusRepository(IDbConnectionFactory connectionFactory) : I
                 (SELECT COUNT(1) FROM Appointments) AS Appointments
             FROM DUAL
             """;
-        return await connection.QuerySingleAsync<StatusStatistics>(sql);
+        var counts = await connection.QuerySingleAsync<StatisticsCounts>(sql);
+        return new StatusStatistics(
+            checked((int)counts.Clinics),
+            checked((int)counts.Providers),
+            checked((int)counts.Patients),
+            checked((int)counts.Appointments));
     }
 
     public async Task<DashboardResponse> GetDashboardAsync(DateTimeOffset now)
@@ -58,18 +63,24 @@ public sealed class StatusRepository(IDbConnectionFactory connectionFactory) : I
             appointmentsSql,
             new { Now = now })).AsList();
         return new DashboardResponse(
-            counts.Clinics,
-            counts.Providers,
-            counts.Patients,
-            counts.AllergyTypes,
-            counts.Appointments,
+            checked((int)counts.Clinics),
+            checked((int)counts.Providers),
+            checked((int)counts.Patients),
+            checked((int)counts.AllergyTypes),
+            checked((int)counts.Appointments),
             upcomingAppointments);
     }
 
+    private sealed record StatisticsCounts(
+        decimal Clinics,
+        decimal Providers,
+        decimal Patients,
+        decimal Appointments);
+
     private sealed record DashboardCounts(
-        int Clinics,
-        int Providers,
-        int Patients,
-        int AllergyTypes,
-        int Appointments);
+        decimal Clinics,
+        decimal Providers,
+        decimal Patients,
+        decimal AllergyTypes,
+        decimal Appointments);
 }
