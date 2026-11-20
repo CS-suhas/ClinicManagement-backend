@@ -1,6 +1,7 @@
 using ClinicManagement.Infrastructure;
 using ClinicManagement.Application;
 using ClinicManagement.Api.Endpoints;
+using ClinicManagement.Api.Middleware;
 using ClinicManagement.Application.Common.Settings;
 using Microsoft.Extensions.Options;
 
@@ -23,8 +24,11 @@ builder.Services.AddSingleton(
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 builder.Services.AddHealthChecks();
+builder.Services.AddExceptionHandler<ApiExceptionHandler>();
+builder.Services.AddProblemDetails();
 
 var app = builder.Build();
+app.UseExceptionHandler();
 
 if (app.Environment.IsDevelopment())
 {
