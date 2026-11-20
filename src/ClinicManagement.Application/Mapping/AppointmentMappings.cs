@@ -5,8 +5,14 @@ namespace ClinicManagement.Application.Appointments.Mapping;
 
 public static class AppointmentMappings
 {
-    public static Appointment ToEntity(this AppointmentRequest request) =>
-        Appointment.Create(request.Id, request.AppointmentDateTime, request.ReasonForVisit);
+    public static Appointment ToEntity(this AppointmentRequest request, DateTimeOffset currentTime) =>
+        Appointment.Create(
+            request.Id,
+            request.PatientId,
+            request.ProviderId,
+            request.AppointmentDateTime,
+            request.ReasonForVisit,
+            currentTime);
 
     public static AppointmentResponse ToResponse(this Appointment appointment) =>
         new(
@@ -19,9 +25,9 @@ public static class AppointmentMappings
             appointment.AppointmentDateTime,
             appointment.ReasonForVisit);
 
-    public static void ApplyTo(this AppointmentRequest request, Appointment appointment)
+    public static void ApplyTo(this AppointmentRequest request, Appointment appointment, DateTimeOffset currentTime)
     {
-        appointment.SetAppointmentDateTime(request.AppointmentDateTime);
-        appointment.SetReasonForVisit(request.ReasonForVisit);
+        appointment.SetAppointmentDateTime(request.AppointmentDateTime, currentTime);
+        appointment.SetReasonForVisit(request.ReasonForVisit, currentTime);
     }
 }

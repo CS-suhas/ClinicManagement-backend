@@ -6,64 +6,104 @@ public class Appointment : BaseEntity
 {
     public Patient Patient { get; private set; } = null!;
     public Provider Provider { get; private set; } = null!;
+    public Guid PatientId { get; private set; }
+    public Guid ProviderId { get; private set; }
     public DateTimeOffset AppointmentDateTime { get; private set; }
     public string? ReasonForVisit { get; private set; } = null;
     
     private Appointment() { }
 
-    public static Appointment Create(DateTimeOffset dateTime, string? reasonForVisit, Patient patient = null!, Provider provider = null!)
+    public static Appointment Create(
+        DateTimeOffset dateTime,
+        string? reasonForVisit,
+        Patient patient,
+        Provider provider,
+        DateTimeOffset currentTime)
     {
-        if (patient == null)
-            throw new ArgumentNullException(nameof(patient), "Patient cannot be null.");
-        
-        if (provider == null)
-            throw new ArgumentNullException(nameof(provider), "Provider cannot be null.");
+        ArgumentNullException.ThrowIfNull(patient);
+        ArgumentNullException.ThrowIfNull(provider);
 
-        if (dateTime <= DateTimeOffset.UtcNow)
+        var appointment = Create(
+            Guid.NewGuid(),
+            patient.Id,
+            provider.Id,
+            dateTime,
+            reasonForVisit,
+            currentTime);
+        appointment.Patient = patient;
+        appointment.Provider = provider;
+        return appointment;
+    }
+
+    public static Appointment Create(
+        Guid id,
+        DateTimeOffset dateTime,
+        string? reasonForVisit,
+        Patient patient,
+        Provider provider,
+        DateTimeOffset currentTime)
+    {
+        ArgumentNullException.ThrowIfNull(patient);
+        ArgumentNullException.ThrowIfNull(provider);
+
+        var appointment = Create(
+            id,
+            patient.Id,
+            provider.Id,
+            dateTime,
+            reasonForVisit,
+            currentTime);
+        appointment.Patient = patient;
+        appointment.Provider = provider;
+        return appointment;
+    }
+
+    public static Appointment Create(
+        Guid id,
+        Guid patientId,
+        Guid providerId,
+        DateTimeOffset dateTime,
+        string? reasonForVisit,
+        DateTimeOffset currentTime)
+    {
+        if (dateTime <= currentTime)
             throw new ArgumentException("Appointment date and time must be in the future.", nameof(dateTime));
 
-        
         return new Appointment
         {
-            Patient = patient,
-            Provider = provider,
+            Id = id,
+            PatientId = patientId,
+            ProviderId = providerId,
             AppointmentDateTime = dateTime,
             ReasonForVisit = reasonForVisit
         };
     }
 
-    public static Appointment Create(Guid id, DateTimeOffset dateTime, string? reasonForVisit, Patient patient = null!, Provider provider = null!)
+    public void SetAppointmentDateTime(DateTimeOffset dateTime, DateTimeOffset currentTime)
     {
-        var appointment = Create(dateTime, reasonForVisit, patient, provider);
-        appointment.Id = id;
-        return appointment;
-    }
-
-    public void SetAppointmentDateTime(DateTimeOffset dateTime)
-    {
-        if (dateTime <= DateTimeOffset.UtcNow)
+        if (dateTime <= currentTime)
             throw new ArgumentException("Appointment date and time must be in the future.", nameof(dateTime));
 
         AppointmentDateTime = dateTime;
-        UpdatedAtUtc = DateTime.UtcNow;
+        UpdatedAtUtc = currentTime.UtcDateTime;
     }
 
-    public void SetReasonForVisit(string? reasonForVisit)
+    public void SetReasonForVisit(string? reasonForVisit, DateTimeOffset currentTime)
     {
         ReasonForVisit = reasonForVisit?.Trim();
-        UpdatedAtUtc = DateTime.UtcNow;
+        UpdatedAtUtc = currentTime.UtcDateTime;
     }
 
     public void SetPatient(Patient patient)
     {
         Patient = patient ?? throw new ArgumentNullException(nameof(patient), "Patient cannot be null.");
-        UpdatedAtUtc = DateTime.UtcNow;
+        PatientId = patient.Id;
     }
 
     public void SetProvider(Provider provider)
     {
         Provider = provider ?? throw new ArgumentNullException(nameof(provider), "Provider cannot be null.");
-        UpdatedAtUtc = DateTime.UtcNow;
+        ProviderId = provider.Id;
     }
 
     public static TimeSpan operator -(Appointment a1, Appointment a2)

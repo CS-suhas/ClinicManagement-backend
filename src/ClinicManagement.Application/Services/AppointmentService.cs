@@ -8,7 +8,11 @@ using ClinicManagement.Application.Appointments.Mapping;
 
 namespace ClinicManagement.Application.Appointments.Services;
 
-public class AppointmentService(IAppointmentRepository appointmentRepository, IPatientRepository patientRepository, ClinicManagementSettings clinicSettings) : IAppointmentService
+public class AppointmentService(
+    IAppointmentRepository appointmentRepository,
+    IPatientRepository patientRepository,
+    ClinicManagementSettings clinicSettings,
+    TimeProvider timeProvider) : IAppointmentService
 {
     public async Task<Guid> AddAppointmentAsync(AppointmentRequest request)
     {
@@ -21,13 +25,16 @@ public class AppointmentService(IAppointmentRepository appointmentRepository, IP
 
         var providerAppointment = await appointmentRepository.GetAppointmentsByProviderIdAsync(request.ProviderId);
 
-        var newAppointment = request.ToEntity();
-
         foreach (var existingAppointment in providerAppointment)
         {
-            await EnsureNoProviderAppointmentOverlapAsync(existingAppointment, newAppointment, clinicSettings.DefaultAppointmentDurationMinutes);
+            EnsureNoProviderAppointmentOverlap(
+                request.ProviderId,
+                request.AppointmentDateTime,
+                existingAppointment,
+                clinicSettings.DefaultAppointmentDurationMinutes);
         }
 
+        var newAppointment = request.ToEntity(timeProvider.GetUtcNow());
         await appointmentRepository.AddAppointmentAsync(newAppointment, request.PatientId, request.ProviderId);
         return request.Id;
     }
@@ -56,7 +63,8 @@ public class AppointmentService(IAppointmentRepository appointmentRepository, IP
         var existingAppointment = await appointmentRepository.GetAppointmentByIdAsync(request.Id)
             ?? throw new KeyNotFoundException($"Appointment '{request.Id}' was not found.");
 
-        if (existingAppointment.AppointmentDateTime != request.AppointmentDateTime)
+        if (existingAppointment.AppointmentDateTime != request.AppointmentDateTime
+            || existingAppointment.ProviderId != request.ProviderId)
         {
             var providerAppointments = await appointmentRepository.GetAppointmentsByProviderIdAsync(request.ProviderId);
 
@@ -64,21 +72,32 @@ public class AppointmentService(IAppointmentRepository appointmentRepository, IP
             {
                 if (appointment.Id != request.Id)
                 {
-                    await EnsureNoProviderAppointmentOverlapAsync(existingAppointment, appointment, clinicSettings.DefaultAppointmentDurationMinutes);
+                    EnsureNoProviderAppointmentOverlap(
+                        request.ProviderId,
+                        request.AppointmentDateTime,
+                        appointment,
+                        clinicSettings.DefaultAppointmentDurationMinutes);
                 }
             }
         }
-        return await appointmentRepository.UpdateAppointmentAsync(request.ToEntity(), request.PatientId, request.ProviderId);
+        return await appointmentRepository.UpdateAppointmentAsync(
+            request.ToEntity(timeProvider.GetUtcNow()),
+            request.PatientId,
+            request.ProviderId);
     }
 
-    private async Task EnsureNoProviderAppointmentOverlapAsync(
-        Appointment appointment1, Appointment appointment2, Double appointmentDurationMinutes)
+    private static void EnsureNoProviderAppointmentOverlap(
+        Guid providerId,
+        DateTimeOffset requestedAppointmentDateTime,
+        Appointment existingAppointment,
+        double appointmentDurationMinutes)
     {
-        var timediff = Math.Abs((appointment2 - appointment1).TotalMinutes);
+        var timeDifference = Math.Abs(
+            (existingAppointment.AppointmentDateTime - requestedAppointmentDateTime).TotalMinutes);
 
-        if (timediff < appointmentDurationMinutes)
+        if (timeDifference < appointmentDurationMinutes)
         {
-            throw new ProviderAppointmentOverlapException(appointment1.Provider.Id);
+            throw new ProviderAppointmentOverlapException(providerId);
         }
     }
 }
