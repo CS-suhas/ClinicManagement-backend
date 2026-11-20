@@ -17,6 +17,8 @@ public class AppointmentService(
 {
     public async Task<Guid> AddAppointmentAsync(AppointmentRequest request)
     {
+        EnsureAppointmentWithinClinicHours(request.AppointmentDateTime);
+
         var patientExists = await patientRepository.PatientExistsAsync(request.PatientId);
 
         if (!patientExists)
@@ -64,6 +66,8 @@ public class AppointmentService(
 
     public async Task<Guid> UpdateAppointmentAsync(AppointmentRequest request)
     {
+        EnsureAppointmentWithinClinicHours(request.AppointmentDateTime);
+
         var existingAppointment = await appointmentRepository.GetAppointmentByIdAsync(request.Id)
             ?? throw new ResourceNotFoundException("Appointment", request.Id);
 
@@ -88,6 +92,22 @@ public class AppointmentService(
             request.ToEntity(timeProvider.GetUtcNow()),
             request.PatientId,
             request.ProviderId);
+    }
+
+    private void EnsureAppointmentWithinClinicHours(DateTimeOffset appointmentDateTime)
+    {
+        var appointmentEnd = appointmentDateTime.AddMinutes(clinicSettings.DefaultAppointmentDurationMinutes);
+        var appointmentStartTime = TimeOnly.FromDateTime(appointmentDateTime.DateTime);
+        var appointmentEndTime = TimeOnly.FromDateTime(appointmentEnd.DateTime);
+
+        if (appointmentStartTime <= clinicSettings.DefaultClinicStartTime
+            || appointmentEnd.Date != appointmentDateTime.Date
+            || appointmentEndTime >= clinicSettings.DefaultClinicEndTime)
+        {
+            throw new AppointmentOutsideClinicHoursException(
+                clinicSettings.DefaultClinicStartTime,
+                clinicSettings.DefaultClinicEndTime);
+        }
     }
 
     private static void EnsureNoProviderAppointmentOverlap(
