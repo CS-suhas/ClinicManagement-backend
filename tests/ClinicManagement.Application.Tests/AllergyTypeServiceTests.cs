@@ -1,4 +1,5 @@
 using ClinicManagement.Application.Allergies.Interfaces;
+using ClinicManagement.Application.Common.Exceptions;
 using ClinicManagement.Application.AllergyTypes.Models;
 using ClinicManagement.Application.AllergyTypes.Services;
 using ClinicManagement.Domain.Entities;
@@ -27,7 +28,7 @@ public class AllergyTypeServiceTests
         var repository = new FakeAllergyTypeRepository();
         var service = new AllergyTypeService(repository);
 
-        await Assert.ThrowsAsync<KeyNotFoundException>(
+        await Assert.ThrowsAsync<ResourceNotFoundException>(
             () => service.UpdateAllergyTypeAsync(new AllergyTypeRequest(Guid.NewGuid(), "Peanuts")));
 
         Assert.Null(repository.UpdatedAllergyType);

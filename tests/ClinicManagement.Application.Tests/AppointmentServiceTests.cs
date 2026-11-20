@@ -1,5 +1,6 @@
 using ClinicManagement.Application.Appointments.Models;
 using ClinicManagement.Application.Appointments.Services;
+using ClinicManagement.Application.Common.Exceptions;
 using ClinicManagement.Application.Common.Settings;
 using ClinicManagement.Application.Appointments.Interfaces;
 using ClinicManagement.Application.Patients.Interfaces;
@@ -35,7 +36,7 @@ public class AppointmentServiceTests
         var repository = new FakeAppointmentRepository();
         var service = CreateService(repository, new FakePatientRepository { Exists = true });
 
-        await Assert.ThrowsAsync<ArgumentException>(
+        await Assert.ThrowsAsync<DomainValidationException>(
             () => service.AddAppointmentAsync(CreateRequest(CurrentTime)));
 
         Assert.Null(repository.AddedAppointment);
@@ -77,7 +78,7 @@ public class AppointmentServiceTests
         var repository = new FakeAppointmentRepository();
         var service = CreateService(repository, new FakePatientRepository { Exists = false });
 
-        await Assert.ThrowsAsync<KeyNotFoundException>(
+        await Assert.ThrowsAsync<ResourceNotFoundException>(
             () => service.AddAppointmentAsync(CreateRequest(CurrentTime.AddHours(1))));
 
         Assert.Null(repository.AddedAppointment);

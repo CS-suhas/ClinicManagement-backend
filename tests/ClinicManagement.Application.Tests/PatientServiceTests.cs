@@ -1,12 +1,22 @@
 using ClinicManagement.Application.Patients.Interfaces;
 using ClinicManagement.Application.Patients.Models;
 using ClinicManagement.Application.Patients.Services;
+using ClinicManagement.Application.Common.Exceptions;
 using ClinicManagement.Domain.Entities;
 
 namespace ClinicManagement.Application.Tests;
 
 public class PatientServiceTests
 {
+    [Fact]
+    public async Task GetPatientByIdAsync_ThrowsWhenPatientDoesNotExist()
+    {
+        var service = new PatientService(new FakePatientRepository());
+
+        await Assert.ThrowsAsync<ResourceNotFoundException>(
+            () => service.GetPatientByIdAsync(Guid.NewGuid()));
+    }
+
     [Fact]
     public async Task AddPatientAsync_PersistsTrimmedPatientAndReturnsItsId()
     {
@@ -36,7 +46,7 @@ public class PatientServiceTests
         var repository = new FakePatientRepository();
         var service = new PatientService(repository);
 
-        await Assert.ThrowsAsync<KeyNotFoundException>(
+        await Assert.ThrowsAsync<ResourceNotFoundException>(
             () => service.UpdatePatientAsync(CreatePatientRequest(Guid.NewGuid())));
 
         Assert.Null(repository.UpdatedPatient);

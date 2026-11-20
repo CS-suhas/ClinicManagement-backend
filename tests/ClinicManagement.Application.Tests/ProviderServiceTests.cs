@@ -1,4 +1,5 @@
 using ClinicManagement.Application.Clinics.Interfaces;
+using ClinicManagement.Application.Common.Exceptions;
 using ClinicManagement.Application.Providers.Interfaces;
 using ClinicManagement.Application.Providers.Models;
 using ClinicManagement.Application.Providers.Services;
@@ -34,7 +35,7 @@ public class ProviderServiceTests
         var providerRepository = new FakeProviderRepository();
         var service = new ProviderService(providerRepository, new FakeClinicRepository { Exists = false });
 
-        await Assert.ThrowsAsync<KeyNotFoundException>(
+        await Assert.ThrowsAsync<ResourceNotFoundException>(
             () => service.AddProviderAsync(
                 new ProviderRequest(Guid.NewGuid(), Guid.NewGuid(), "Grace", "Hopper", "Computing")));
 

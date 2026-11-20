@@ -1,6 +1,7 @@
 using ClinicManagement.Application.Clinics.Interfaces;
 using ClinicManagement.Application.Clinics.Models;
 using ClinicManagement.Application.Clinics.Services;
+using ClinicManagement.Application.Common.Exceptions;
 using ClinicManagement.Domain.Entities;
 
 namespace ClinicManagement.Application.Tests;
@@ -29,7 +30,7 @@ public class ClinicServiceTests
         var repository = new FakeClinicRepository();
         var service = new ClinicService(repository);
 
-        await Assert.ThrowsAsync<KeyNotFoundException>(() => service.DeleteClinicAsync(Guid.NewGuid()));
+        await Assert.ThrowsAsync<ResourceNotFoundException>(() => service.DeleteClinicAsync(Guid.NewGuid()));
 
         Assert.Null(repository.DeletedClinicId);
     }
