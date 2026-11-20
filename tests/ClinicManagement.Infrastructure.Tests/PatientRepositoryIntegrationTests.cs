@@ -15,9 +15,7 @@ public class PatientRepositoryIntegrationTests
             string.IsNullOrWhiteSpace(connectionString),
             "Set TEST_DATABASE_CONNECTION_STRING to an Oracle test database.");
 
-        SqlMapper.AddTypeHandler<Guid>(new OracleGuidTypeHandler());
-        SqlMapper.AddTypeHandler<DateOnly>(new OracleDateOnlyTypeHandler());
-        SqlMapper.AddTypeHandler<DateTimeOffset>(new OracleDateTimeOffsetTypeHandler());
+        OracleDapperTypeHandlers.Register();
 
         var connectionFactory = new OracleConnectionFactory(connectionString!);
         var repository = new PatientRepository(connectionFactory);
