@@ -4,7 +4,7 @@ namespace ClinicManagement.Application.Providers.Interfaces;
 
 public interface IProviderService
 {
-    Task<ProviderResponse?> GetProviderByIdAsync(Guid providerId);
+    Task<ProviderResponse> GetProviderByIdAsync(Guid providerId);
     Task<List<ProviderResponse>> GetAllProvidersAsync();
     Task<Guid> AddProviderAsync(ProviderRequest request);
     Task<Guid> UpdateProviderAsync(ProviderRequest request);

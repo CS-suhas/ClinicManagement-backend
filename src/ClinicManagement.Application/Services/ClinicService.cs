@@ -1,4 +1,5 @@
 using ClinicManagement.Application.Clinics.Interfaces;
+using ClinicManagement.Application.Common.Exceptions;
 using ClinicManagement.Application.Clinics.Mapping;
 using ClinicManagement.Application.Clinics.Models;
 
@@ -6,10 +7,11 @@ namespace ClinicManagement.Application.Clinics.Services;
 
 public class ClinicService(IClinicRepository clinicRepository) : IClinicService
 {
-    public async Task<ClinicResponse?> GetClinicByIdAsync(Guid clinicId)
+    public async Task<ClinicResponse> GetClinicByIdAsync(Guid clinicId)
     {
-        var clinic = await clinicRepository.GetClinicByIdAsync(clinicId);
-        return clinic?.ToResponse();
+        var clinic = await clinicRepository.GetClinicByIdAsync(clinicId)
+            ?? throw new ResourceNotFoundException("Clinic", clinicId);
+        return clinic.ToResponse();
     }
 
     public async Task<IEnumerable<ClinicResponse>> GetAllClinicsAsync()
@@ -30,7 +32,7 @@ public class ClinicService(IClinicRepository clinicRepository) : IClinicService
         var clinic = await clinicRepository.GetClinicByIdAsync(request.Id);
         if (clinic == null)
         {
-            throw new KeyNotFoundException($"Clinic '{request.Id}' was not found.");
+            throw new ResourceNotFoundException("Clinic", request.Id);
         }
         request.ApplyTo(clinic);
         await clinicRepository.UpdateClinicAsync(clinic);
@@ -42,7 +44,7 @@ public class ClinicService(IClinicRepository clinicRepository) : IClinicService
         var clinic = await clinicRepository.GetClinicByIdAsync(clinicId);
         if (clinic == null)
         {
-            throw new KeyNotFoundException($"Clinic '{clinicId}' was not found.");
+            throw new ResourceNotFoundException("Clinic", clinicId);
         }
         await clinicRepository.DeleteClinicAsync(clinic.Id);
         return clinicId;

@@ -1,4 +1,5 @@
 using ClinicManagement.Application.Allergies.Interfaces;
+using ClinicManagement.Application.Common.Exceptions;
 using ClinicManagement.Application.AllergyTypes.Interfaces;
 using ClinicManagement.Application.AllergyTypes.Mapping;
 using ClinicManagement.Application.AllergyTypes.Models;
@@ -7,10 +8,11 @@ namespace ClinicManagement.Application.AllergyTypes.Services;
 
 public class AllergyTypeService(IAllergyTypeRepository allergyTypeRepository) : IAllergyTypeService
 {
-    public async Task<AllergyTypeResponse?> GetAllergyTypeByIdAsync(Guid allergyTypeId)
+    public async Task<AllergyTypeResponse> GetAllergyTypeByIdAsync(Guid allergyTypeId)
     {
-        var allergyType = await allergyTypeRepository.GetAllergyTypeByIdAsync(allergyTypeId);
-        return allergyType?.ToResponse();
+        var allergyType = await allergyTypeRepository.GetAllergyTypeByIdAsync(allergyTypeId)
+            ?? throw new ResourceNotFoundException("Allergy type", allergyTypeId);
+        return allergyType.ToResponse();
     }
 
     public async Task<IEnumerable<AllergyTypeResponse>> GetAllAllergyTypesAsync()
@@ -32,7 +34,7 @@ public class AllergyTypeService(IAllergyTypeRepository allergyTypeRepository) : 
         var allergyType = await allergyTypeRepository.GetAllergyTypeByIdAsync(request.Id);
         if (allergyType == null)
         {
-            throw new KeyNotFoundException($"Allergy type '{request.Id}' was not found.");
+            throw new ResourceNotFoundException("Allergy type", request.Id);
         }
         request.ApplyTo(allergyType);
         await allergyTypeRepository.UpdateAllergyTypeAsync(allergyType);
@@ -44,7 +46,7 @@ public class AllergyTypeService(IAllergyTypeRepository allergyTypeRepository) : 
         var allergyType = await allergyTypeRepository.GetAllergyTypeByIdAsync(allergyTypeId);
         if (allergyType == null)
         {
-            throw new KeyNotFoundException($"Allergy type '{allergyTypeId}' was not found.");
+            throw new ResourceNotFoundException("Allergy type", allergyTypeId);
         }
         await allergyTypeRepository.DeleteAllergyTypeAsync(allergyType.Id);
         return allergyTypeId;

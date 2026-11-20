@@ -4,7 +4,7 @@ namespace ClinicManagement.Application.AllergyTypes.Interfaces;
 
 public interface IAllergyTypeService
 {
-    Task<AllergyTypeResponse?> GetAllergyTypeByIdAsync(Guid allergyTypeId);
+    Task<AllergyTypeResponse> GetAllergyTypeByIdAsync(Guid allergyTypeId);
     Task<IEnumerable<AllergyTypeResponse>> GetAllAllergyTypesAsync();
     Task<Guid> AddAllergyTypeAsync(AllergyTypeRequest request);
     Task<Guid> UpdateAllergyTypeAsync(AllergyTypeRequest request);

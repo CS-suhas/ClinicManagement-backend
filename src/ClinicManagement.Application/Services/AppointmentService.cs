@@ -1,4 +1,5 @@
 using ClinicManagement.Application.Appointments.Interfaces;
+using ClinicManagement.Application.Common.Exceptions;
 using ClinicManagement.Application.Common.Settings;
 using ClinicManagement.Domain.Entities;
 using ClinicManagement.Domain.Exceptions;
@@ -20,7 +21,7 @@ public class AppointmentService(
 
         if (!patientExists)
         {
-            throw new KeyNotFoundException($"Patient '{request.PatientId}' was not found.");
+            throw new ResourceNotFoundException("Patient", request.PatientId);
         }
 
         var providerAppointment = await appointmentRepository.GetAppointmentsByProviderIdAsync(request.ProviderId);
@@ -41,6 +42,9 @@ public class AppointmentService(
 
     public async Task<Guid> DeleteAppointmentAsync(Guid appointmentId)
     {
+        if (await appointmentRepository.GetAppointmentByIdAsync(appointmentId) is null)
+            throw new ResourceNotFoundException("Appointment", appointmentId);
+
         return await appointmentRepository.DeleteAppointmentAsync(appointmentId);
     }
 
@@ -51,17 +55,17 @@ public class AppointmentService(
             .ToList();
     }
 
-    public async Task<AppointmentResponse?> GetAppointmentByIdAsync(Guid appointmentId)
+    public async Task<AppointmentResponse> GetAppointmentByIdAsync(Guid appointmentId)
     {
         var appointment = await appointmentRepository.GetAppointmentByIdAsync(appointmentId)
-                                ?? throw new KeyNotFoundException($"Appointment '{appointmentId}' was not found.");
+                                ?? throw new ResourceNotFoundException("Appointment", appointmentId);
         return appointment.ToResponse();
     }
 
     public async Task<Guid> UpdateAppointmentAsync(AppointmentRequest request)
     {
         var existingAppointment = await appointmentRepository.GetAppointmentByIdAsync(request.Id)
-            ?? throw new KeyNotFoundException($"Appointment '{request.Id}' was not found.");
+            ?? throw new ResourceNotFoundException("Appointment", request.Id);
 
         if (existingAppointment.AppointmentDateTime != request.AppointmentDateTime
             || existingAppointment.ProviderId != request.ProviderId)
