@@ -192,6 +192,16 @@ public class ProviderRepository(IDbConnectionFactory connectionFactory) : IProvi
         return (providers, totalCount);
     }
 
+    public async Task<Provider?> GetByIdentitySubjectAsync(string identitySubject)
+    {
+        using var connection = connectionFactory.CreateConnection();
+        var providers = await QueryProvidersAsync(
+            connection,
+            $"{SelectProviderWithClinic} WHERE pr.IdentitySubject = :IdentitySubject",
+            new { IdentitySubject = identitySubject });
+        return providers.SingleOrDefault();
+    }
+
     private static Task<IEnumerable<Provider>> QueryProvidersAsync(
         System.Data.IDbConnection connection,
         string sql,

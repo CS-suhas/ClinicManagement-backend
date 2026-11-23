@@ -31,6 +31,8 @@ public static class DependencyInjection
         services.AddScoped<IClinicJoinRequestRepository, ClinicJoinRequestRepository>();
         services.AddScoped<IAllergyTypeRepository, AllergyTypeRepository>();
         services.AddScoped<IStatusRepository, StatusRepository>();
+        services.AddScoped<IClinicAdminRepository, ClinicAdminRepository>();
+        services.AddScoped<IPlatformAdminRepository, PlatformAdminRepository>();
 
         return services;
     }

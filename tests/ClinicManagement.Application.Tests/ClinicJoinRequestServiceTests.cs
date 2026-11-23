@@ -200,6 +200,7 @@ public class ClinicJoinRequestServiceTests
 
     private sealed class FakeProviderRepository(Provider? provider) : IProviderRepository
     {
+        public Task<Provider?> GetByIdentitySubjectAsync(string identitySubject) => Task.FromResult<Provider?>(null);
         public Task<Provider?> GetProviderByIdAsync(Guid providerId) =>
             Task.FromResult(provider?.Id == providerId ? provider : null);
         public Task<IEnumerable<Provider>> GetAllProvidersAsync() => throw new NotSupportedException();

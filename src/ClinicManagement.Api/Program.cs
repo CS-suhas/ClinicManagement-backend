@@ -2,6 +2,7 @@ using ClinicManagement.Infrastructure;
 using ClinicManagement.Application;
 using ClinicManagement.Api.Endpoints;
 using ClinicManagement.Api.Middleware;
+using ClinicManagement.Api.Security;
 using ClinicManagement.Application.Common.Settings;
 using Microsoft.Extensions.Options;
 
@@ -26,6 +27,7 @@ builder.Services.AddOpenApi();
 builder.Services.AddHealthChecks();
 builder.Services.AddExceptionHandler<ApiExceptionHandler>();
 builder.Services.AddProblemDetails();
+builder.Services.AddClinicAuthentication(builder.Configuration);
 var corsAllowedOrigins = builder.Configuration["CORS_ALLOWED_ORIGINS"]?
     .Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries) ?? [];
 builder.Services.AddCors(options =>
@@ -39,6 +41,8 @@ builder.Services.AddCors(options =>
 var app = builder.Build();
 app.UseExceptionHandler();
 app.UseCors("Frontend");
+app.UseAuthentication();
+app.UseAuthorization();
 
 if (app.Environment.IsDevelopment())
 {

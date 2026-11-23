@@ -244,6 +244,7 @@ public class ProviderServiceTests
 
     private sealed class FakeProviderRepository : IProviderRepository
     {
+        public Task<Provider?> GetByIdentitySubjectAsync(string identitySubject) => Task.FromResult<Provider?>(null);
         public Task<(IReadOnlyList<Provider> Items, int TotalCount)> SearchPublicProvidersAsync(
             ClinicManagement.Application.Models.PageQuery query,
             int offset,

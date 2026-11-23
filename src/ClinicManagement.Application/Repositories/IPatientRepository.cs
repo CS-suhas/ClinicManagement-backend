@@ -30,4 +30,5 @@ public interface IPatientRepository
         AllergySeverity severity,
         string? notes);
     Task<Guid> DeletePatientAllergyAsync(Guid patientId, Guid allergyId);
+    Task<Patient?> GetByIdentitySubjectAsync(string identitySubject);
 }

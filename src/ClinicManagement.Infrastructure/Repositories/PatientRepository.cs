@@ -274,4 +274,11 @@ public class PatientRepository(IDbConnectionFactory connectionFactory) : IPatien
         });
         return rowsAffected == 0 ? Guid.Empty : allergyId;
     }
+
+    public async Task<Patient?> GetByIdentitySubjectAsync(string identitySubject)
+    {
+        using var connection = connectionFactory.CreateConnection();
+        const string sql = "SELECT Id, FirstName, LastName, DateOfBirth, PhoneNumber, Email, IdentitySubject, CreatedAtUtc, UpdatedAtUtc FROM Patients WHERE IdentitySubject = :IdentitySubject";
+        return await connection.QuerySingleOrDefaultAsync<Patient>(sql, new { IdentitySubject = identitySubject });
+    }
 }

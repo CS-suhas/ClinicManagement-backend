@@ -438,6 +438,7 @@ public class AppointmentServiceTests
 
     private sealed class FakePatientRepository : IPatientRepository
     {
+        public Task<Patient?> GetByIdentitySubjectAsync(string identitySubject) => Task.FromResult<Patient?>(null);
         public bool Exists { get; init; }
         public int PatientLookupCount { get; private set; }
 
@@ -557,6 +558,7 @@ public class AppointmentServiceTests
     /// <summary>Unless configured otherwise, any requested provider exists and accepts appointments.</summary>
     private sealed class FakeProviderRepository : IProviderRepository
     {
+        public Task<Provider?> GetByIdentitySubjectAsync(string identitySubject) => Task.FromResult<Provider?>(null);
         public Provider? ConfiguredProvider { get; init; }
         public bool ProviderMissing { get; init; }
 

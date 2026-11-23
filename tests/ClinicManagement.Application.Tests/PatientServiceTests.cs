@@ -225,6 +225,7 @@ public class PatientServiceTests
 
     private sealed class FakePatientRepository : IPatientRepository
     {
+        public Task<Patient?> GetByIdentitySubjectAsync(string identitySubject) => Task.FromResult<Patient?>(null);
         public Patient? AddedPatient { get; private set; }
         public Patient? UpdatedPatient { get; private set; }
         public Patient? ExistingPatient { get; init; }
