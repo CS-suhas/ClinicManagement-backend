@@ -345,7 +345,20 @@ internal sealed class InMemoryClinicJoinRequestRepository(InMemoryStore store) :
 
     public Task<IReadOnlyList<ClinicJoinRequestResponse>> GetByClinicIdAsync(
         Guid clinicId,
-        ClinicJoinRequestStatus? status) => throw new NotSupportedException();
+        ClinicJoinRequestStatus? status) =>
+        Task.FromResult<IReadOnlyList<ClinicJoinRequestResponse>>(store.JoinRequests
+            .Where(request => request.ClinicId == clinicId && (status is null || request.Status == status))
+            .Select(request => new ClinicJoinRequestResponse(
+                request.Id,
+                request.ProviderId,
+                string.Empty,
+                string.Empty,
+                request.ClinicId,
+                string.Empty,
+                request.Status.ToString(),
+                request.CreatedAtUtc,
+                request.DecidedAtUtc))
+            .ToList());
 
     public Task<bool> HasPendingAsync(Guid providerId) =>
         Task.FromResult(store.JoinRequests.Any(request =>

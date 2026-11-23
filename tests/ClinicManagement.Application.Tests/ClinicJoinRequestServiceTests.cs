@@ -257,6 +257,33 @@ public class ClinicJoinRequestServiceTests
         await Assert.ThrowsAsync<ResourceNotFoundException>(() => service.ApproveAsync(Guid.NewGuid()));
     }
 
+    [Fact]
+    public async Task ApproveAsync_AllowsPlatformAdministrator()
+    {
+        var request = ClinicJoinRequest.Create(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
+        var (service, requests) = CreateService(
+            requests: new FakeRequestRepository { Existing = request },
+            currentUser: new TestCurrentUser { Roles = ["admin"] });
+
+        await service.ApproveAsync(request.Id);
+
+        Assert.Same(request, requests.Approved);
+        Assert.Equal(ClinicJoinRequestStatus.APPROVED, request.Status);
+    }
+
+    [Fact]
+    public async Task RejectAsync_AllowsPlatformAdministrator()
+    {
+        var request = ClinicJoinRequest.Create(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
+        var (service, requests) = CreateService(
+            requests: new FakeRequestRepository { Existing = request },
+            currentUser: new TestCurrentUser { Roles = ["admin"] });
+
+        await service.RejectAsync(request.Id);
+
+        Assert.Equal(ClinicJoinRequestStatus.REJECTED, requests.Decided?.Status);
+    }
+
     private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider
     {
         public override DateTimeOffset GetUtcNow() => now;

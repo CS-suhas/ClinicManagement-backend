@@ -7,6 +7,7 @@ public static class AuthorizationPolicies
     public const string DoctorOnly = "DoctorOnly";
     public const string AdminOnly = "AdminOnly";
     public const string ClinicAdminOnly = "ClinicAdminOnly";
+    public const string ClinicAdminOrAdministratorOnly = "ClinicAdminOrAdministratorOnly";
 
     public const string PatientRole = "patient";
     public const string DoctorRole = "doctor";

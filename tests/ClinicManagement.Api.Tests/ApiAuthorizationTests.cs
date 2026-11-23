@@ -220,21 +220,6 @@ public sealed class ApiAuthorizationTests(ClinicApiFactory factory)
     }
 
     [Fact]
-    public async Task JoinRequestDecisions_ForbidPlatformAdministrator()
-    {
-        var world = SeedWorld();
-        var subject = world.SubjectFor("admin");
-
-        using var approve = await SendAsync(HttpMethod.Post, $"/api/clinic-join-requests/{world.JoinRequest.Id}/approve", subject);
-        using var reject = await SendAsync(HttpMethod.Post, $"/api/clinic-join-requests/{world.JoinRequest.Id}/reject", subject);
-        using var list = await SendAsync(HttpMethod.Get, $"/api/clinics/{world.Clinic.Id}/join-requests", subject);
-
-        Assert.Equal(HttpStatusCode.Forbidden, approve.StatusCode);
-        Assert.Equal(HttpStatusCode.Forbidden, reject.StatusCode);
-        Assert.Equal(HttpStatusCode.Forbidden, list.StatusCode);
-    }
-
-    [Fact]
     public async Task JoinRequestApproval_AllowsClinicAdminOfThatClinic()
     {
         var world = SeedWorld();
@@ -1465,5 +1450,65 @@ public sealed class ApiAuthorizationTests(ClinicApiFactory factory)
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal(world.Doctor.Id, document.RootElement.GetProperty("id").GetGuid());
         Assert.Equal("Riverside Clinic", document.RootElement.GetProperty("clinicName").GetString());
+    }
+    [Fact]
+    public async Task JoinRequestDecisions_AllowPlatformAdministrator()
+    {
+        var world = SeedWorld();
+        var subject = world.SubjectFor("admin");
+        var toApprove = AddPendingJoinRequest(world);
+        var toReject = AddPendingJoinRequest(world);
+
+        using var approve = await SendAsync(HttpMethod.Post, $"/api/clinic-join-requests/{toApprove.Id}/approve", subject);
+        using var reject = await SendAsync(HttpMethod.Post, $"/api/clinic-join-requests/{toReject.Id}/reject", subject);
+
+        Assert.Equal(HttpStatusCode.NoContent, approve.StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, reject.StatusCode);
+        Assert.Equal(ClinicJoinRequestStatus.APPROVED, toApprove.Status);
+        Assert.Equal(ClinicJoinRequestStatus.REJECTED, toReject.Status);
+    }
+
+    [Fact]
+    public async Task JoinRequestList_AllowsPlatformAdministratorAndClinicAdminOfThatClinic()
+    {
+        var world = SeedWorld();
+
+        using var admin = await SendAsync(HttpMethod.Get, $"/api/clinics/{world.Clinic.Id}/join-requests", world.SubjectFor("admin"));
+        using var clinicAdmin = await SendAsync(HttpMethod.Get, $"/api/clinics/{world.Clinic.Id}/join-requests", world.ClinicAdminSubject);
+        using var document = System.Text.Json.JsonDocument.Parse(await admin.Content.ReadAsStringAsync());
+        var ids = document.RootElement.EnumerateArray().Select(item => item.GetProperty("id").GetGuid()).ToList();
+
+        Assert.Equal(HttpStatusCode.OK, admin.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, clinicAdmin.StatusCode);
+        Assert.Contains(world.JoinRequest.Id, ids);
+    }
+
+    [Fact]
+    public async Task JoinRequestList_ForbidsClinicAdminOfAnotherClinic()
+    {
+        var world = SeedWorld();
+
+        using var response = await SendAsync(HttpMethod.Get, $"/api/clinics/{world.Clinic.Id}/join-requests", world.OtherClinicAdminSubject);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Theory]
+    [InlineData("patient")]
+    [InlineData("doctor")]
+    public async Task JoinRequestList_ForbidsPatientsAndDoctors(string role)
+    {
+        var world = SeedWorld();
+
+        using var response = await SendAsync(HttpMethod.Get, $"/api/clinics/{world.Clinic.Id}/join-requests", world.SubjectFor(role));
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    private ClinicJoinRequest AddPendingJoinRequest(World world)
+    {
+        var request = ClinicJoinRequest.Create(Guid.NewGuid(), Guid.NewGuid(), world.Clinic.Id);
+        Factory.Store.JoinRequests.Add(request);
+        return request;
     }
 }

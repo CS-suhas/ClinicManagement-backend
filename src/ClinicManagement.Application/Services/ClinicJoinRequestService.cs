@@ -93,7 +93,7 @@ public class ClinicJoinRequestService(
     private async Task<ClinicJoinRequest> GetManagedRequestAsync(Guid requestId)
     {
         var request = await GetRequiredAsync(requestId);
-        await CurrentUserGuard.RequireClinicAdminAsync(currentUser, request.ClinicId);
+        await CurrentUserGuard.RequireClinicAdminOrAdministratorAsync(currentUser, request.ClinicId);
         return request;
     }
 
