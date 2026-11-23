@@ -15,6 +15,11 @@ public static class CurrentUserGuard
             throw new UnauthorizedAccessException("A signed-in user is required.");
     }
 
+    public static string RequireSubject(ICurrentUser currentUser) =>
+        string.IsNullOrWhiteSpace(currentUser.Subject)
+            ? throw new UnauthorizedAccessException("A signed-in user is required.")
+            : currentUser.Subject;
+
     public static bool IsAdministrator(ICurrentUser currentUser) => currentUser.IsInRole(AdminRole);
 
     public static async Task<Provider> RequireProviderAsync(ICurrentUser currentUser, Guid providerId)

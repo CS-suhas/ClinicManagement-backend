@@ -12,7 +12,7 @@ public class ProviderRepository(IDbConnectionFactory connectionFactory) : IProvi
     // Providers without a clinic (self-registered, not yet approved anywhere) must still be returned,
     // so the clinic is a LEFT JOIN and may map to null.
     private const string SelectProviderWithClinic = """
-        SELECT pr.Id, pr.FirstName, pr.LastName, pr.Specialty, pr.ClinicId, pr.VerificationStatus,
+        SELECT pr.Id, pr.FirstName, pr.LastName, pr.Specialty, pr.ClinicId, pr.VerificationStatus, pr.IdentitySubject,
                c.Id, c.Name, c.Address, c.PhoneNumber
         FROM Providers pr
         LEFT JOIN Clinics c ON c.Id = pr.ClinicId
@@ -22,8 +22,8 @@ public class ProviderRepository(IDbConnectionFactory connectionFactory) : IProvi
     {
         using var connection = connectionFactory.CreateConnection();
         const string sql = """
-            INSERT INTO Providers (Id, FirstName, LastName, Specialty, ClinicId, VerificationStatus)
-            VALUES (:Id, :FirstName, :LastName, :Specialty, :ClinicId, :VerificationStatus)
+            INSERT INTO Providers (Id, FirstName, LastName, Specialty, ClinicId, VerificationStatus, IdentitySubject)
+            VALUES (:Id, :FirstName, :LastName, :Specialty, :ClinicId, :VerificationStatus, :IdentitySubject)
             """;
         await connection.ExecuteAsync(sql, new
         {
@@ -32,7 +32,8 @@ public class ProviderRepository(IDbConnectionFactory connectionFactory) : IProvi
             provider.LastName,
             provider.Specialty,
             ClinicId = clinicId.ToString(),
-            VerificationStatus = provider.VerificationStatus.ToString()
+            VerificationStatus = provider.VerificationStatus.ToString(),
+            provider.IdentitySubject
         });
         return provider.Id;
     }
@@ -41,8 +42,8 @@ public class ProviderRepository(IDbConnectionFactory connectionFactory) : IProvi
     {
         using var connection = connectionFactory.CreateConnection();
         const string sql = """
-            INSERT INTO Providers (Id, FirstName, LastName, Specialty, ClinicId, VerificationStatus)
-            VALUES (:Id, :FirstName, :LastName, :Specialty, NULL, :VerificationStatus)
+            INSERT INTO Providers (Id, FirstName, LastName, Specialty, ClinicId, VerificationStatus, IdentitySubject)
+            VALUES (:Id, :FirstName, :LastName, :Specialty, NULL, :VerificationStatus, :IdentitySubject)
             """;
         await connection.ExecuteAsync(sql, new
         {
@@ -50,7 +51,8 @@ public class ProviderRepository(IDbConnectionFactory connectionFactory) : IProvi
             provider.FirstName,
             provider.LastName,
             provider.Specialty,
-            VerificationStatus = provider.VerificationStatus.ToString()
+            VerificationStatus = provider.VerificationStatus.ToString(),
+            provider.IdentitySubject
         });
         return provider.Id;
     }

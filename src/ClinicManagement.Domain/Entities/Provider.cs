@@ -120,6 +120,15 @@ public class Provider : BaseEntity
         UpdatedAtUtc = DateTime.UtcNow;
     }
 
+    public void AssignIdentitySubject(string identitySubject)
+    {
+        if (string.IsNullOrWhiteSpace(identitySubject))
+            throw new DomainValidationException("Identity subject cannot be empty.", nameof(identitySubject));
+
+        IdentitySubject = identitySubject.Trim();
+        UpdatedAtUtc = DateTime.UtcNow;
+    }
+
     public void SetClinic(Clinic clinic)
     {
         Clinic = clinic ?? throw new ArgumentNullException(nameof(clinic), "Clinic cannot be null.");

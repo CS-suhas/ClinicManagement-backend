@@ -26,7 +26,7 @@ public class PatientRepository(IDbConnectionFactory connectionFactory) : IPatien
     public async Task<Guid> AddPatientAsync(Patient patient)
     {
         using var connection = connectionFactory.CreateConnection();
-        const string sql = "INSERT INTO Patients (Id, FirstName, LastName, DateOfBirth, PhoneNumber, Email) VALUES (:Id, :FirstName, :LastName, :DateOfBirth, :PhoneNumber, :Email)";
+        const string sql = "INSERT INTO Patients (Id, FirstName, LastName, DateOfBirth, PhoneNumber, Email, IdentitySubject) VALUES (:Id, :FirstName, :LastName, :DateOfBirth, :PhoneNumber, :Email, :IdentitySubject)";
         await connection.ExecuteAsync(sql, new
         {
             Id = patient.Id.ToString(),
@@ -34,7 +34,8 @@ public class PatientRepository(IDbConnectionFactory connectionFactory) : IPatien
             patient.LastName,
             patient.DateOfBirth,
             patient.PhoneNumber,
-            patient.Email
+            patient.Email,
+            patient.IdentitySubject
         });
         return patient.Id;
     }

@@ -20,6 +20,7 @@ public static class AuthenticationExtensions
         var audience = keycloak["Audience"]
             ?? throw new InvalidOperationException($"'{ConfigSection}:Audience' is not configured.");
         var requireHttpsMetadata = keycloak.GetValue("RequireHttpsMetadata", true);
+        var validIssuer = keycloak["ValidIssuer"];
 
         services.AddHttpContextAccessor();
         services.AddScoped<ICurrentUser, CurrentUser>();
@@ -35,6 +36,7 @@ public static class AuthenticationExtensions
                 options.TokenValidationParameters = new TokenValidationParameters
                 {
                     ValidateIssuer = true,
+                    ValidIssuer = validIssuer,
                     ValidateAudience = true,
                     ValidateLifetime = true,
                     ValidateIssuerSigningKey = true,

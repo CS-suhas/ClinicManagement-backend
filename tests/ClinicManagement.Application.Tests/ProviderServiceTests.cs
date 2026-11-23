@@ -45,6 +45,7 @@ public class ProviderServiceTests
     public async Task VerifyProviderAsync_MovesPendingProviderToVerified()
     {
         var pending = Provider.Register(Guid.NewGuid(), "Grace", "Hopper", "Computing");
+        pending.AssignIdentitySubject("kc-user-0");
         var providerRepository = new FakeProviderRepository { ExistingProvider = pending };
         var service = new ProviderService(providerRepository, new FakeClinicRepository(), new FakeAppointmentRepository(), new TestCurrentUser());
 
@@ -71,6 +72,7 @@ public class ProviderServiceTests
     public async Task VerifyProviderAsync_ThrowsConflictWhenStatusChangedConcurrently()
     {
         var pending = Provider.Register(Guid.NewGuid(), "Grace", "Hopper", "Computing");
+        pending.AssignIdentitySubject("kc-user-0");
         var providerRepository = new FakeProviderRepository
         {
             ExistingProvider = pending,
@@ -245,9 +247,43 @@ public class ProviderServiceTests
         Assert.Equal(provider.Id, response.ProviderId);
     }
 
+    [Fact]
+    public async Task RegisterProviderAsync_LinksProviderToSignedInSubject()
+    {
+        var providerRepository = new FakeProviderRepository();
+        var service = new ProviderService(
+            providerRepository,
+            new FakeClinicRepository(),
+            new FakeAppointmentRepository(),
+            new TestCurrentUser { Subject = "kc-user-1" });
+
+        await service.RegisterProviderAsync(new ProviderRegistrationRequest(Guid.NewGuid(), "Grace", "Hopper", "Computing"));
+
+        Assert.Equal("kc-user-1", providerRepository.Registered?.IdentitySubject);
+    }
+
+    [Fact]
+    public async Task RegisterProviderAsync_RejectsSubjectThatAlreadyHasAProvider()
+    {
+        var existing = Provider.Register(Guid.NewGuid(), "Grace", "Hopper", "Computing");
+        existing.AssignIdentitySubject("kc-user-1");
+        var providerRepository = new FakeProviderRepository { ExistingByIdentitySubject = existing };
+        var service = new ProviderService(
+            providerRepository,
+            new FakeClinicRepository(),
+            new FakeAppointmentRepository(),
+            new TestCurrentUser { Subject = "kc-user-1" });
+
+        await Assert.ThrowsAsync<IdentityAlreadyLinkedException>(
+            () => service.RegisterProviderAsync(new ProviderRegistrationRequest(Guid.NewGuid(), "Grace", "Hopper", "Computing")));
+
+        Assert.Null(providerRepository.Registered);
+    }
+
     private sealed class FakeProviderRepository : IProviderRepository
     {
-        public Task<Provider?> GetByIdentitySubjectAsync(string identitySubject) => Task.FromResult<Provider?>(null);
+        public Provider? ExistingByIdentitySubject { get; init; }
+        public Task<Provider?> GetByIdentitySubjectAsync(string identitySubject) => Task.FromResult(ExistingByIdentitySubject);
         public Task<(IReadOnlyList<Provider> Items, int TotalCount)> SearchPublicProvidersAsync(
             ClinicManagement.Application.Models.PageQuery query,
             int offset,

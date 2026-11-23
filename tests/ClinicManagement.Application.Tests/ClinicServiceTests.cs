@@ -193,6 +193,8 @@ public class ClinicServiceTests
         public Task<bool> IsAdminOfClinicAsync(string identitySubject, Guid clinicId) =>
             Task.FromResult(AlreadyAdmin);
 
+        public Task<bool> IsAnyAdminAsync(string identitySubject) => Task.FromResult(AlreadyAdmin);
+
         public Task AddAsync(ClinicAdmin clinicAdmin)
         {
             Added = clinicAdmin;

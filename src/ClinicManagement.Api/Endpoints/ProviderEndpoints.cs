@@ -46,9 +46,11 @@ public static class ProviderEndpoints
             return Results.Created($"/api/providers/{id}", new { id });
         })
             .WithName("RegisterProvider")
+            .RequireAuthorization(AuthorizationPolicies.Authenticated)
             .WithSummary("Self-register as a provider")
-            .WithDescription("Creates a provider with no clinic and PENDING verification. They stay out of the directory until an admin verifies them.")
-            .Produces(StatusCodes.Status201Created);
+            .WithDescription("Creates a provider with no clinic and PENDING verification, linked to the signed-in identity. They stay out of the directory until an admin verifies them. Returns 409 when the identity already has a provider.")
+            .Produces(StatusCodes.Status201Created)
+            .Produces(StatusCodes.Status409Conflict);
 
         app.MapPost("/api/providers/{id}/verify", async (Guid id, [FromServices] IProviderService service) =>
         {

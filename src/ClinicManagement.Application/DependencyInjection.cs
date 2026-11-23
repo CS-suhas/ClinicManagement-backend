@@ -29,6 +29,7 @@ public static class DependencyInjection
         services.AddScoped<IProviderService, ProviderService>();
         services.AddScoped<IClinicJoinRequestService, ClinicJoinRequestService>();
         services.AddScoped<IStatusService, StatusService>();
+        services.AddScoped<IMeService, MeService>();
 
         return services;
     }

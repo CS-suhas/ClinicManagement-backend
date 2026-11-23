@@ -94,6 +94,15 @@ public class Patient : BaseEntity
         UpdatedAtUtc = DateTime.UtcNow;
     }
 
+    public void AssignIdentitySubject(string identitySubject)
+    {
+        if (string.IsNullOrWhiteSpace(identitySubject))
+            throw new DomainValidationException("Identity subject cannot be empty.", nameof(identitySubject));
+
+        IdentitySubject = identitySubject.Trim();
+        UpdatedAtUtc = DateTime.UtcNow;
+    }
+
     public void AddAllergy(AllergyType type, AllergySeverity severity, string? notes)
     {
         ArgumentNullException.ThrowIfNull(type);
