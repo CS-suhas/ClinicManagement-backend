@@ -197,6 +197,11 @@ public class AppointmentRepository(IDbConnectionFactory connectionFactory) : IAp
             conditions.Add("a.ProviderId = :ProviderId");
             parameters.Add("ProviderId", providerId.ToString());
         }
+        if (query.ProviderIds is { Length: > 0 } providerIds)
+        {
+            conditions.Add("a.ProviderId IN :ProviderIds");
+            parameters.Add("ProviderIds", providerIds.Select(id => id.ToString()).ToArray());
+        }
         if (query.PatientId is { } patientId)
         {
             conditions.Add("a.PatientId = :PatientId");

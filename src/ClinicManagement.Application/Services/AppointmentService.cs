@@ -196,7 +196,11 @@ public class AppointmentService(
         if (query.ClinicId is { } clinicId && await currentUser.IsClinicAdminOfAsync(clinicId))
             return query;
         if (await currentUser.GetProviderAsync() is { } provider)
-            return query with { ProviderId = ScopeTo(query.ProviderId, provider.Id) };
+            return query with
+            {
+                ProviderId = ScopeTo(query.ProviderId, provider.Id),
+                ProviderIds = ScopeToAll(query.ProviderIds, provider.Id)
+            };
 
         throw new ForbiddenException("Appointment search requires a patient, a provider, or a clinic administrator.");
     }
@@ -206,6 +210,13 @@ public class AppointmentService(
         if (requested is { } value && value != owned)
             throw new ForbiddenException("Appointments of other patients or providers cannot be searched.");
         return owned;
+    }
+
+    private static Guid[]? ScopeToAll(Guid[]? requested, Guid owned)
+    {
+        if (requested is not null && requested.Any(value => value != owned))
+            throw new ForbiddenException("Appointments of other patients or providers cannot be searched.");
+        return requested;
     }
 
     private async Task<Appointment> GetViewableAppointmentAsync(Guid appointmentId)

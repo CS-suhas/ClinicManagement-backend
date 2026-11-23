@@ -9,6 +9,7 @@ using ClinicManagement.Application.Providers.Interfaces;
 using ClinicManagement.Domain.Entities;
 using ClinicManagement.Domain.Enums;
 using ClinicManagement.Domain.Exceptions;
+using AppointmentSearchQuery = ClinicManagement.Application.Models.AppointmentSearchQuery;
 
 namespace ClinicManagement.Application.Tests;
 
@@ -589,6 +590,50 @@ public class AppointmentServiceTests
         Assert.NotNull(repository.StatusChange);
     }
 
+    [Fact]
+    public async Task SearchAppointmentsAsync_PassesProviderIdsToTheRepository()
+    {
+        var repository = new FakeAppointmentRepository();
+        var service = CreateService(repository, new FakePatientRepository(), currentUser: new TestCurrentUser { Roles = ["admin"] });
+        var providerIds = new[] { Guid.NewGuid(), Guid.NewGuid() };
+
+        await service.SearchAppointmentsAsync(new AppointmentSearchQuery(ProviderIds: providerIds));
+
+        Assert.Equal(providerIds, repository.SearchedQuery?.ProviderIds);
+    }
+
+    [Fact]
+    public async Task SearchAppointmentsAsync_ForbidsProviderSearchingOtherProviders()
+    {
+        var self = Provider.Create(Guid.NewGuid(), Guid.NewGuid(), "Test", "Provider", "General");
+        var repository = new FakeAppointmentRepository();
+        var service = CreateService(
+            repository,
+            new FakePatientRepository(),
+            currentUser: new TestCurrentUser { Roles = ["doctor"], Provider = self });
+
+        await Assert.ThrowsAsync<ForbiddenException>(
+            () => service.SearchAppointmentsAsync(new AppointmentSearchQuery(ProviderIds: [self.Id, Guid.NewGuid()])));
+
+        Assert.Null(repository.SearchedQuery);
+    }
+
+    [Fact]
+    public async Task SearchAppointmentsAsync_ProviderMayFilterByOwnIdOnly()
+    {
+        var self = Provider.Create(Guid.NewGuid(), Guid.NewGuid(), "Test", "Provider", "General");
+        var repository = new FakeAppointmentRepository();
+        var service = CreateService(
+            repository,
+            new FakePatientRepository(),
+            currentUser: new TestCurrentUser { Roles = ["doctor"], Provider = self });
+
+        await service.SearchAppointmentsAsync(new AppointmentSearchQuery(ProviderIds: [self.Id]));
+
+        Assert.Equal(self.Id, repository.SearchedQuery?.ProviderId);
+        Assert.Equal(new[] { self.Id }, repository.SearchedQuery?.ProviderIds ?? Array.Empty<Guid>());
+    }
+
     private static AppointmentRequest CreateRequest(DateTimeOffset appointmentDateTime) =>
         new(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), appointmentDateTime, "Checkup");
 
@@ -721,9 +766,15 @@ public class AppointmentServiceTests
 
         public Task<IEnumerable<Appointment>> GetAppointmentsByClinicIdAsync(Guid clinicId) =>
             Task.FromResult<IEnumerable<Appointment>>(Array.Empty<Appointment>());
+        public ClinicManagement.Application.Models.AppointmentSearchQuery? SearchedQuery { get; private set; }
+
         public Task<(IReadOnlyList<ClinicManagement.Application.Models.AppointmentListResponse> Items, int TotalCount)>
-            SearchAppointmentsAsync(ClinicManagement.Application.Models.AppointmentSearchQuery query, int offset) =>
-            throw new NotSupportedException();
+            SearchAppointmentsAsync(ClinicManagement.Application.Models.AppointmentSearchQuery query, int offset)
+        {
+            SearchedQuery = query;
+            return Task.FromResult<(IReadOnlyList<ClinicManagement.Application.Models.AppointmentListResponse>, int)>(
+                ([], 0));
+        }
         public Task<IReadOnlyList<ClinicManagement.Application.Models.AppointmentListResponse>>
             GetUpcomingAppointmentsAsync(DateTimeOffset from, int count) => throw new NotSupportedException();
         public Task<bool> HasProviderAppointmentOverlapAsync(

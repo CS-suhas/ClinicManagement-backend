@@ -24,8 +24,10 @@ public static class AppointmentEndpoints
             .WithName("SearchAppointments")
             .RequireAuthorization(AuthorizationPolicies.Authenticated)
             .WithSummary("Search and filter appointments")
-            .WithDescription("Filters appointments by text, date range, clinic, provider, or patient, and returns a page.")
-            .Produces<PagedResponse<AppointmentListResponse>>(StatusCodes.Status200OK);
+            .WithDescription("Filters appointments by text, date range (from < to when both are given), clinic, provider, providerIds (repeatable, up to 100), or patient, and returns a page. Patients see only their own appointments and providers only their own; clinic administrators are limited to their clinic.")
+            .Produces<PagedResponse<AppointmentListResponse>>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status400BadRequest)
+            .Produces(StatusCodes.Status403Forbidden);
 
         app.MapGet("/api/appointments/{id}", async (Guid id, [FromServices] IAppointmentService service) =>
             Results.Ok(await service.GetAppointmentByIdAsync(id)))

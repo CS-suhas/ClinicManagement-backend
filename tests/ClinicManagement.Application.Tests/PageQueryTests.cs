@@ -34,4 +34,30 @@ public class PageQueryTests
 
         Assert.Throws<DomainValidationException>(() => query.GetOffset());
     }
+
+    [Fact]
+    public void AppointmentSearchQuery_RejectsDateRangeWhereFromEqualsTo()
+    {
+        var instant = new DateTimeOffset(2030, 1, 2, 0, 0, 0, TimeSpan.Zero);
+
+        Assert.Throws<DomainValidationException>(() => new AppointmentSearchQuery(From: instant, To: instant).GetOffset());
+    }
+
+    [Fact]
+    public void AppointmentSearchQuery_AcceptsOpenEndedOrOrderedDateRange()
+    {
+        var from = new DateTimeOffset(2030, 1, 1, 0, 0, 0, TimeSpan.Zero);
+
+        new AppointmentSearchQuery(From: from).GetOffset();
+        new AppointmentSearchQuery(From: from, To: from.AddSeconds(1)).GetOffset();
+    }
+
+    [Fact]
+    public void AppointmentSearchQuery_RejectsEmptyOrTooManyProviderIds()
+    {
+        Assert.Throws<DomainValidationException>(
+            () => new AppointmentSearchQuery(ProviderIds: [Guid.Empty]).GetOffset());
+        Assert.Throws<DomainValidationException>(
+            () => new AppointmentSearchQuery(ProviderIds: Enumerable.Range(0, 101).Select(_ => Guid.NewGuid()).ToArray()).GetOffset());
+    }
 }

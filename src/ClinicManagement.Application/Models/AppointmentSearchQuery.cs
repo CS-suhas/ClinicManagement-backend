@@ -13,8 +13,11 @@ public sealed record AppointmentSearchQuery(
     Guid? PatientId = null,
     int Page = 1,
     int PageSize = 20,
-    AppointmentStatus? Status = null)
+    AppointmentStatus? Status = null,
+    Guid[]? ProviderIds = null)
 {
+    public const int MaxProviderIds = 100;
+
     public int GetOffset()
     {
         if (Page < 1)
@@ -30,8 +33,14 @@ public sealed record AppointmentSearchQuery(
             throw new DomainValidationException("Provider ID cannot be empty.", nameof(ProviderId));
         if (PatientId == Guid.Empty)
             throw new DomainValidationException("Patient ID cannot be empty.", nameof(PatientId));
-        if (From.HasValue && To.HasValue && From > To)
-            throw new DomainValidationException("'from' must be earlier than or equal to 'to'.", nameof(From));
+        if (From.HasValue && To.HasValue && From >= To)
+            throw new DomainValidationException("'from' must be earlier than 'to'.", nameof(From));
+        if (ProviderIds is not null && ProviderIds.Length > MaxProviderIds)
+            throw new DomainValidationException(
+                $"At most {MaxProviderIds} provider IDs can be searched at once.",
+                nameof(ProviderIds));
+        if (ProviderIds?.Contains(Guid.Empty) == true)
+            throw new DomainValidationException("Provider IDs cannot be empty.", nameof(ProviderIds));
         return (int)offset;
     }
 

@@ -828,6 +828,119 @@ public sealed class ApiAuthorizationTests(ClinicApiFactory factory)
     }
 
     [Fact]
+    public async Task CalendarSearch_RequiresSignIn()
+    {
+        using var response = await SendAsync(HttpMethod.Get, "/api/appointments/search?pageSize=100", subject: null);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task CalendarSearch_ForbidsUsersWithoutPatientProviderOrClinicRole()
+    {
+        using var response = await SendAsync(HttpMethod.Get, "/api/appointments/search?pageSize=100", Subject("fresh"));
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task CalendarSearch_FiltersByRepeatedProviderIds()
+    {
+        var world = SeedWorld();
+        var otherAppointment = Appointment.Create(
+            DateTimeOffset.UtcNow.AddDays(31),
+            "Other visit",
+            world.OtherPatient,
+            world.OtherDoctor,
+            DateTimeOffset.UtcNow);
+        Factory.Store.Appointments.Add(otherAppointment);
+
+        using var response = await SendAsync(
+            HttpMethod.Get,
+            $"/api/appointments/search?pageSize=100&providerIds={world.Doctor.Id}&providerIds={Guid.NewGuid()}",
+            world.SubjectFor("admin"));
+        using var document = System.Text.Json.JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var ids = document.RootElement.GetProperty("items")
+            .EnumerateArray()
+            .Select(item => item.GetProperty("id").GetGuid())
+            .ToList();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains(world.Appointment.Id, ids);
+        Assert.DoesNotContain(otherAppointment.Id, ids);
+    }
+
+    [Fact]
+    public async Task CalendarSearch_ItemsCarryPatientProviderSpecialtyAndStatus()
+    {
+        var world = SeedWorld();
+
+        using var response = await SendAsync(
+            HttpMethod.Get,
+            $"/api/appointments/search?pageSize=100&providerIds={world.Doctor.Id}",
+            world.SubjectFor("admin"));
+        using var document = System.Text.Json.JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var item = document.RootElement.GetProperty("items")
+            .EnumerateArray()
+            .Single(element => element.GetProperty("id").GetGuid() == world.Appointment.Id);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("Ada Lovelace", item.GetProperty("patientName").GetString());
+        Assert.Equal("Alan Turing", item.GetProperty("providerName").GetString());
+        Assert.Equal("Computing", item.GetProperty("providerSpecialty").GetString());
+        Assert.Equal("REQUESTED", item.GetProperty("status").GetString());
+    }
+
+    [Fact]
+    public async Task CalendarSearch_RejectsFromThatIsNotBeforeTo()
+    {
+        using var response = await SendAsync(
+            HttpMethod.Get,
+            "/api/appointments/search?pageSize=100&from=2030-01-01T00:00:00Z&to=2030-01-01T00:00:00Z",
+            ClinicApiFactory.PlatformAdminSubject);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task CalendarSearch_DoctorMayOnlyRequestOwnProviderId()
+    {
+        var world = SeedWorld();
+
+        using var own = await SendAsync(
+            HttpMethod.Get,
+            $"/api/appointments/search?pageSize=100&providerIds={world.Doctor.Id}",
+            world.DoctorSubject);
+        using var other = await SendAsync(
+            HttpMethod.Get,
+            $"/api/appointments/search?pageSize=100&providerIds={world.OtherDoctor.Id}",
+            world.DoctorSubject);
+
+        Assert.Equal(HttpStatusCode.OK, own.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, other.StatusCode);
+    }
+
+    [Fact]
+    public async Task CalendarSearch_PatientSeesOnlyOwnAppointmentsWhateverProviderIdsAreAsked()
+    {
+        var world = SeedWorld();
+
+        using var response = await SendAsync(
+            HttpMethod.Get,
+            $"/api/appointments/search?pageSize=100&providerIds={world.Doctor.Id}",
+            world.PatientSubject);
+        using var document = System.Text.Json.JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var patientIds = document.RootElement.GetProperty("items")
+            .EnumerateArray()
+            .Select(item => item.GetProperty("patientId").GetGuid())
+            .Distinct()
+            .ToList();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal([world.Patient.Id], patientIds);
+    }
+
+    [Fact]
     public async Task Me_ClinicAdminOfIsEmptyForDoctors()
     {
         var world = SeedWorld();

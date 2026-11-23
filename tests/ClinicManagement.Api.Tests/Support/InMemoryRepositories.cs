@@ -231,7 +231,43 @@ internal sealed class InMemoryAppointmentRepository(InMemoryStore store) : IAppo
 
     public Task<(IReadOnlyList<AppointmentListResponse> Items, int TotalCount)> SearchAppointmentsAsync(
         AppointmentSearchQuery query,
-        int offset) => throw new NotSupportedException();
+        int offset)
+    {
+        IEnumerable<Appointment> matches = store.Appointments;
+        if (query.From is { } from)
+            matches = matches.Where(appointment => appointment.AppointmentDateTime >= from);
+        if (query.To is { } to)
+            matches = matches.Where(appointment => appointment.AppointmentDateTime <= to);
+        if (query.ClinicId is { } clinicId)
+            matches = matches.Where(appointment => appointment.Provider.ClinicId == clinicId);
+        if (query.ProviderId is { } providerId)
+            matches = matches.Where(appointment => appointment.ProviderId == providerId);
+        if (query.ProviderIds is { Length: > 0 } providerIds)
+            matches = matches.Where(appointment => providerIds.Contains(appointment.ProviderId));
+        if (query.PatientId is { } patientId)
+            matches = matches.Where(appointment => appointment.PatientId == patientId);
+        if (query.Status is { } status)
+            matches = matches.Where(appointment => appointment.Status == status);
+
+        var ordered = matches.OrderBy(appointment => appointment.AppointmentDateTime).ThenBy(appointment => appointment.Id).ToList();
+        var items = ordered
+            .Skip(offset)
+            .Take(query.PageSize)
+            .Select(appointment => new AppointmentListResponse(
+                appointment.Id,
+                appointment.PatientId,
+                $"{appointment.Patient.FirstName} {appointment.Patient.LastName}",
+                appointment.ProviderId,
+                $"{appointment.Provider.FirstName} {appointment.Provider.LastName}",
+                appointment.Provider.Specialty,
+                appointment.Provider.ClinicId ?? Guid.Empty,
+                store.Clinics.FirstOrDefault(clinic => clinic.Id == appointment.Provider.ClinicId)?.Name ?? string.Empty,
+                appointment.AppointmentDateTime,
+                appointment.ReasonForVisit,
+                appointment.Status.ToString()))
+            .ToList();
+        return Task.FromResult<(IReadOnlyList<AppointmentListResponse>, int)>((items, ordered.Count));
+    }
 
     public Task<IReadOnlyList<AppointmentListResponse>> GetUpcomingAppointmentsAsync(DateTimeOffset from, int count) =>
         throw new NotSupportedException();
