@@ -12,14 +12,18 @@ public static class ClinicEndpoints
 {
     public static IEndpointRouteBuilder MapClinicEndpoints(this WebApplication app)
     {
-        var clinics = app.MapGroup("/api/clinics").RequireAuthorization(AuthorizationPolicies.Authenticated);
-
-        clinics.MapGet("", async ([FromServices] IClinicService service) =>
+        // Outside the group: the group's sign-in requirement would apply on top of the toggle.
+        // The list carries only clinic contact details and a count, no patient or user data.
+        app.MapGet("/api/clinics", async ([FromServices] IClinicService service) =>
             Results.Ok(await service.GetAllClinicsAsync()))
             .WithName("GetClinics")
+            .RequireAuthorization(AuthorizationPolicies.PublicDoctors)
             .WithSummary("List clinics")
-            .WithDescription("Every clinic, each with providerCount: the number of verified providers at the clinic.")
-            .Produces<List<ClinicListItemResponse>>(StatusCodes.Status200OK);
+            .WithDescription("Every clinic (id, name, address, phoneNumber), each with providerCount: the number of verified providers at the clinic. Public while PublicAccess:Doctors is true (the default), for the doctor directory; otherwise signed-in users only.")
+            .Produces<List<ClinicListItemResponse>>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status401Unauthorized);
+
+        var clinics = app.MapGroup("/api/clinics").RequireAuthorization(AuthorizationPolicies.Authenticated);
 
         clinics.MapGet("/search", async (
             [AsParameters] PageQuery query,

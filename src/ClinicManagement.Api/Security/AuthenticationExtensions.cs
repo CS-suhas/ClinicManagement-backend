@@ -2,6 +2,7 @@ using System.Security.Claims;
 using ClinicManagement.Application.Interfaces;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.IdentityModel.Tokens;
 
 namespace ClinicManagement.Api.Security;
@@ -48,6 +49,9 @@ public static class AuthenticationExtensions
 
         services.AddScoped<IClaimsTransformation, RoleClaimsTransformation>();
 
+        services.AddOptions<PublicAccessSettings>().BindConfiguration(PublicAccessSettings.SectionName);
+        services.AddSingleton<IAuthorizationHandler, PublicDoctorsAuthorizationHandler>();
+
         services.AddAuthorizationBuilder()
             .AddPolicy(AuthorizationPolicies.Authenticated, policy => policy.RequireAuthenticatedUser())
             .AddPolicy(AuthorizationPolicies.PatientOnly, policy => policy.RequireRole(AuthorizationPolicies.PatientRole))
@@ -56,7 +60,9 @@ public static class AuthenticationExtensions
             .AddPolicy(AuthorizationPolicies.ClinicAdminOnly, policy =>
                 policy.RequireRole(AuthorizationPolicies.ClinicAdminRole))
             .AddPolicy(AuthorizationPolicies.ClinicAdminOrAdministratorOnly, policy =>
-                policy.RequireRole(AuthorizationPolicies.AdminRole, AuthorizationPolicies.ClinicAdminRole));
+                policy.RequireRole(AuthorizationPolicies.AdminRole, AuthorizationPolicies.ClinicAdminRole))
+            .AddPolicy(AuthorizationPolicies.PublicDoctors, policy =>
+                policy.AddRequirements(new PublicDoctorsRequirement()));
 
         return services;
     }

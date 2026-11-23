@@ -1,6 +1,8 @@
 using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
+using ClinicManagement.Api.Security;
 using ClinicManagement.Api.Tests.Support;
 using ClinicManagement.Application.AllergyTypes.Models;
 using ClinicManagement.Application.Appointments.Models;
@@ -23,7 +25,6 @@ public sealed class ApiAuthorizationTests(ClinicApiFactory factory)
         var routes = new (HttpMethod Method, string Url)[]
         {
             (HttpMethod.Get, "/api/me"),
-            (HttpMethod.Get, "/api/clinics"),
             (HttpMethod.Post, "/api/clinics"),
             (HttpMethod.Put, $"/api/clinics/{world.Clinic.Id}"),
             (HttpMethod.Delete, $"/api/clinics/{world.Clinic.Id}"),
@@ -1458,6 +1459,113 @@ public sealed class ApiAuthorizationTests(ClinicApiFactory factory)
             using var response = await SendAsync(HttpMethod.Get, $"/api/providers/{id}/summary", subject: null);
             Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         }
+    }
+
+    [Fact]
+    public async Task DoctorDirectoryReads_ArePublicWithoutPatientOrUserData()
+    {
+        var world = SeedWorld();
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        // Every read /doctors and /doctors/[id] make for an anonymous visitor.
+        var urls = new[]
+        {
+            "/api/providers/directory?page=1&pageSize=100",
+            "/api/clinics",
+            $"/api/providers/{world.Doctor.Id}/summary",
+            $"/api/providers/{world.Doctor.Id}/busy-slots?date={today:yyyy-MM-dd}",
+            "/api/appointment-settings"
+        };
+        var sensitive = new[]
+        {
+            world.Patient.Id.ToString(),
+            world.Patient.LastName,
+            world.Patient.Email,
+            world.Patient.PhoneNumber,
+            world.OtherPatient.Email,
+            world.Appointment.Id.ToString(),
+            world.Appointment.ReasonForVisit!,
+            Factory.Store.UserFor(world.PatientSubject).Id.ToString(),
+            Factory.Store.UserFor(world.DoctorSubject).Id.ToString(),
+            world.PatientSubject,
+            world.DoctorSubject
+        };
+
+        foreach (var url in urls)
+        {
+            using var response = await SendAsync(HttpMethod.Get, url, subject: null);
+            var body = await response.Content.ReadAsStringAsync();
+
+            Assert.True(response.StatusCode == HttpStatusCode.OK, $"GET {url} returned {(int)response.StatusCode}, expected 200.");
+            foreach (var value in sensitive)
+                Assert.False(body.Contains(value, StringComparison.OrdinalIgnoreCase), $"GET {url} exposed '{value}'.");
+        }
+    }
+
+    [Fact]
+    public async Task ClinicList_IsPublicAndCarriesOnlyClinicContactDetails()
+    {
+        var world = SeedWorld();
+
+        using var response = await SendAsync(HttpMethod.Get, "/api/clinics", subject: null);
+        using var document = await ReadJsonAsync(response);
+        var item = document.RootElement.EnumerateArray().Single(element => element.GetProperty("id").GetGuid() == world.Clinic.Id);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(
+            ["id", "name", "address", "phoneNumber", "providerCount"],
+            item.EnumerateObject().Select(property => property.Name).ToArray());
+        Assert.Equal(1, item.GetProperty("providerCount").GetInt32());
+    }
+
+    [Fact]
+    public async Task ClinicNeighbours_StayProtectedFromAnonymousCallers()
+    {
+        var world = SeedWorld();
+        var routes = new[]
+        {
+            "/api/clinics/search?page=1&pageSize=10",
+            $"/api/clinics/{world.Clinic.Id}",
+            $"/api/clinics/{world.Clinic.Id}/summary",
+            $"/api/clinics/{world.Clinic.Id}/providers",
+            $"/api/clinics/{world.Clinic.Id}/appointments",
+            $"/api/clinics/{world.Clinic.Id}/join-requests",
+            "/api/providers",
+            $"/api/providers/{world.Doctor.Id}/patients",
+            $"/api/providers/{world.Doctor.Id}/appointments",
+            $"/api/providers/{world.Doctor.Id}/calendar?{CalendarQuery}",
+            $"/api/patients/{world.Patient.Id}/summary",
+            "/api/appointments",
+            "/api/me"
+        };
+
+        foreach (var url in routes)
+        {
+            using var response = await SendAsync(HttpMethod.Get, url, subject: null);
+
+            Assert.True(
+                response.StatusCode == HttpStatusCode.Unauthorized,
+                $"GET {url} returned {(int)response.StatusCode}, expected 401.");
+        }
+    }
+
+    [Fact]
+    public async Task ClinicList_RequiresSignInWhenPublicDoctorsIsOff()
+    {
+        var world = SeedWorld();
+        await using var factory = Factory.WithWebHostBuilder(builder =>
+            builder.UseSetting($"{PublicAccessSettings.SectionName}:Doctors", "false"));
+        using var client = factory.CreateClient();
+
+        using var anonymous = await client.GetAsync("/api/clinics");
+        using var signedInRequest = new HttpRequestMessage(HttpMethod.Get, "/api/clinics");
+        signedInRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", Factory.MintToken(world.PatientSubject));
+        using var signedIn = await client.SendAsync(signedInRequest);
+        // Reads that were public before the toggle existed are not affected by it.
+        using var directory = await client.GetAsync("/api/providers/directory");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, anonymous.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, signedIn.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, directory.StatusCode);
     }
 
     private Clinic AddClinic(string name)
