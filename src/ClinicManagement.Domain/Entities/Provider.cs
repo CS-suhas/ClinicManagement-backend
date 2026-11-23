@@ -13,6 +13,8 @@ public class Provider : BaseEntity
     public Guid? ClinicId { get; private set; }
     public ProviderVerificationStatus VerificationStatus { get; private set; }
     public string? IdentitySubject { get; private set; }
+    public decimal? Fee { get; private set; }
+    public Gender? Gender { get; private set; }
     public ICollection<Appointment> Appointments { get; private set; } = new List<Appointment>();
 
     private Provider() { }
@@ -117,6 +119,24 @@ public class Provider : BaseEntity
         if (string.IsNullOrWhiteSpace(specialty))
             throw new DomainValidationException("Specialty cannot be empty.", nameof(specialty));
         Specialty = specialty.Trim();
+        UpdatedAtUtc = DateTime.UtcNow;
+    }
+
+    /// <summary>Consultation fee. Optional; when set it must be non-negative with at most two decimal places.</summary>
+    public void SetFee(decimal? fee)
+    {
+        if (fee is { } value && (value < 0 || value >= 100_000_000m || decimal.Round(value, 2) != value))
+            throw new DomainValidationException(
+                "Fee must be between 0 and 99,999,999.99 with at most two decimal places.", nameof(fee));
+        Fee = fee;
+        UpdatedAtUtc = DateTime.UtcNow;
+    }
+
+    public void SetGender(Gender? gender)
+    {
+        if (gender is { } value && !Enum.IsDefined(value))
+            throw new DomainValidationException("Gender is invalid.", nameof(gender));
+        Gender = gender;
         UpdatedAtUtc = DateTime.UtcNow;
     }
 

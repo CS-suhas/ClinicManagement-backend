@@ -12,7 +12,7 @@ public class ProviderRepository(IDbConnectionFactory connectionFactory) : IProvi
     // Providers without a clinic (self-registered, not yet approved anywhere) must still be returned,
     // so the clinic is a LEFT JOIN and may map to null.
     private const string SelectProviderWithClinic = """
-        SELECT pr.Id, pr.FirstName, pr.LastName, pr.Specialty, pr.ClinicId, pr.VerificationStatus, pr.IdentitySubject,
+        SELECT pr.Id, pr.FirstName, pr.LastName, pr.Specialty, pr.ClinicId, pr.VerificationStatus, pr.IdentitySubject, pr.Fee, pr.Gender,
                c.Id, c.Name, c.Address, c.PhoneNumber
         FROM Providers pr
         LEFT JOIN Clinics c ON c.Id = pr.ClinicId
@@ -22,8 +22,8 @@ public class ProviderRepository(IDbConnectionFactory connectionFactory) : IProvi
     {
         using var connection = connectionFactory.CreateConnection();
         const string sql = """
-            INSERT INTO Providers (Id, FirstName, LastName, Specialty, ClinicId, VerificationStatus, IdentitySubject)
-            VALUES (:Id, :FirstName, :LastName, :Specialty, :ClinicId, :VerificationStatus, :IdentitySubject)
+            INSERT INTO Providers (Id, FirstName, LastName, Specialty, ClinicId, VerificationStatus, IdentitySubject, Fee, Gender)
+            VALUES (:Id, :FirstName, :LastName, :Specialty, :ClinicId, :VerificationStatus, :IdentitySubject, :Fee, :Gender)
             """;
         await connection.ExecuteAsync(sql, new
         {
@@ -33,7 +33,9 @@ public class ProviderRepository(IDbConnectionFactory connectionFactory) : IProvi
             provider.Specialty,
             ClinicId = clinicId.ToString(),
             VerificationStatus = provider.VerificationStatus.ToString(),
-            provider.IdentitySubject
+            provider.IdentitySubject,
+            provider.Fee,
+            Gender = provider.Gender?.ToString()
         });
         return provider.Id;
     }
@@ -42,8 +44,8 @@ public class ProviderRepository(IDbConnectionFactory connectionFactory) : IProvi
     {
         using var connection = connectionFactory.CreateConnection();
         const string sql = """
-            INSERT INTO Providers (Id, FirstName, LastName, Specialty, ClinicId, VerificationStatus, IdentitySubject)
-            VALUES (:Id, :FirstName, :LastName, :Specialty, NULL, :VerificationStatus, :IdentitySubject)
+            INSERT INTO Providers (Id, FirstName, LastName, Specialty, ClinicId, VerificationStatus, IdentitySubject, Fee, Gender)
+            VALUES (:Id, :FirstName, :LastName, :Specialty, NULL, :VerificationStatus, :IdentitySubject, :Fee, :Gender)
             """;
         await connection.ExecuteAsync(sql, new
         {
@@ -52,7 +54,9 @@ public class ProviderRepository(IDbConnectionFactory connectionFactory) : IProvi
             provider.LastName,
             provider.Specialty,
             VerificationStatus = provider.VerificationStatus.ToString(),
-            provider.IdentitySubject
+            provider.IdentitySubject,
+            provider.Fee,
+            Gender = provider.Gender?.ToString()
         });
         return provider.Id;
     }
@@ -115,13 +119,15 @@ public class ProviderRepository(IDbConnectionFactory connectionFactory) : IProvi
     public async Task<Guid> UpdateProviderAsync(Provider provider, Guid clinicId)
     {
         using var connection = connectionFactory.CreateConnection();
-        const string sql = "UPDATE Providers SET FirstName = :FirstName, LastName = :LastName, Specialty = :Specialty, ClinicId = :ClinicId, UpdatedAtUtc = SYSTIMESTAMP WHERE Id = :Id";
+        const string sql = "UPDATE Providers SET FirstName = :FirstName, LastName = :LastName, Specialty = :Specialty, Fee = :Fee, Gender = :Gender, ClinicId = :ClinicId, UpdatedAtUtc = SYSTIMESTAMP WHERE Id = :Id";
         await connection.ExecuteAsync(sql, new
         {
             Id = provider.Id.ToString(),
             provider.FirstName,
             provider.LastName,
             provider.Specialty,
+            provider.Fee,
+            Gender = provider.Gender?.ToString(),
             ClinicId = clinicId.ToString()
         });
         return provider.Id;

@@ -6,5 +6,7 @@ public record ProviderResponse(
     string FirstName,
     string LastName,
     string Specialty,
-    string VerificationStatus
+    string VerificationStatus,
+    decimal? Fee,
+    string? Gender
 );

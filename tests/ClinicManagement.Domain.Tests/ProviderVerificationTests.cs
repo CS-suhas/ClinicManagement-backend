@@ -74,4 +74,61 @@ public class ProviderVerificationTests
         Assert.Throws<InvalidStatusTransitionException>(() => verified.Reject());
         Assert.Throws<InvalidStatusTransitionException>(() => rejected.Reject());
     }
+
+    [Fact]
+    public void FeeAndGender_AreOptionalAndUnsetByDefault()
+    {
+        var provider = Provider.Register(Guid.NewGuid(), "Grace", "Hopper", "Computing");
+
+        Assert.Null(provider.Fee);
+        Assert.Null(provider.Gender);
+    }
+
+    [Fact]
+    public void SetFeeAndGender_StoresValues_AndCanClearThem()
+    {
+        var provider = Provider.Register(Guid.NewGuid(), "Grace", "Hopper", "Computing");
+
+        provider.SetFee(2500.50m);
+        provider.SetGender(Gender.FEMALE);
+        Assert.Equal(2500.50m, provider.Fee);
+        Assert.Equal(Gender.FEMALE, provider.Gender);
+
+        provider.SetFee(null);
+        provider.SetGender(null);
+        Assert.Null(provider.Fee);
+        Assert.Null(provider.Gender);
+    }
+
+    [Theory]
+    [InlineData("-0.01")]
+    [InlineData("10.005")]
+    [InlineData("100000000")]
+    public void SetFee_RejectsNegativeOverlongOrTooPreciseValues(string fee)
+    {
+        var provider = Provider.Register(Guid.NewGuid(), "Grace", "Hopper", "Computing");
+
+        var exception = Assert.Throws<DomainValidationException>(
+            () => provider.SetFee(decimal.Parse(fee, System.Globalization.CultureInfo.InvariantCulture)));
+
+        Assert.Equal("fee", exception.PropertyName);
+    }
+
+    [Fact]
+    public void SetFee_AllowsZero()
+    {
+        var provider = Provider.Register(Guid.NewGuid(), "Grace", "Hopper", "Computing");
+
+        provider.SetFee(0m);
+
+        Assert.Equal(0m, provider.Fee);
+    }
+
+    [Fact]
+    public void SetGender_RejectsUndefinedValue()
+    {
+        var provider = Provider.Register(Guid.NewGuid(), "Grace", "Hopper", "Computing");
+
+        Assert.Throws<DomainValidationException>(() => provider.SetGender((Gender)42));
+    }
 }

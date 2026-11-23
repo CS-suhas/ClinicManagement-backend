@@ -5,5 +5,7 @@ public record ProviderRequest(
     Guid ClinicId,
     string FirstName,
     string LastName,
-    string Specialty
+    string Specialty,
+    decimal? Fee = null,
+    string? Gender = null
 );

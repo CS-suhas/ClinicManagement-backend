@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- Consultation fee and gender for providers. Both nullable, because existing rows have neither. -->
+    <changeSet id="1.6-providers-fee-gender" author="clinic-management">
+        <addColumn tableName="Providers">
+            <column name="Fee" type="NUMBER(10,2)"/>
+            <column name="Gender" type="VARCHAR2(10)"/>
+        </addColumn>
+        <sql>
+            ALTER TABLE Providers
+            ADD CONSTRAINT CK_Providers_Fee
+            CHECK (Fee IS NULL OR Fee &gt;= 0)
+        </sql>
+        <sql>
+            ALTER TABLE Providers
+            ADD CONSTRAINT CK_Providers_Gender
+            CHECK (Gender IS NULL OR Gender IN ('MALE', 'FEMALE', 'OTHER'))
+        </sql>
+        <rollback>
+            <sql>ALTER TABLE Providers DROP CONSTRAINT CK_Providers_Gender</sql>
+            <sql>ALTER TABLE Providers DROP CONSTRAINT CK_Providers_Fee</sql>
+            <dropColumn tableName="Providers" columnName="Gender"/>
+            <dropColumn tableName="Providers" columnName="Fee"/>
+        </rollback>
+    </changeSet>
+</databaseChangeLog>

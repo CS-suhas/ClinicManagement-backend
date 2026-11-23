@@ -4,5 +4,7 @@ public record ProviderRegistrationRequest(
     Guid Id,
     string FirstName,
     string LastName,
-    string Specialty
+    string Specialty,
+    decimal? Fee = null,
+    string? Gender = null
 );

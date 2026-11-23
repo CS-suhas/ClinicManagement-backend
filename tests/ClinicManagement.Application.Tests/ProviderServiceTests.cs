@@ -159,6 +159,88 @@ public class ProviderServiceTests
     }
 
     [Fact]
+    public async Task AddProviderAsync_StoresFeeAndGender()
+    {
+        var providerRepository = new FakeProviderRepository();
+        var service = new ProviderService(
+            providerRepository,
+            new FakeClinicRepository { Exists = true },
+            new FakeAppointmentRepository(), new TestCurrentUser());
+
+        await service.AddProviderAsync(
+            new ProviderRequest(Guid.NewGuid(), Guid.NewGuid(), "Grace", "Hopper", "Computing", 1500.75m, " female "));
+
+        Assert.NotNull(providerRepository.AddedProvider);
+        Assert.Equal(1500.75m, providerRepository.AddedProvider.Fee);
+        Assert.Equal(Gender.FEMALE, providerRepository.AddedProvider.Gender);
+    }
+
+    [Fact]
+    public async Task AddProviderAsync_LeavesFeeAndGenderUnsetWhenOmitted()
+    {
+        var providerRepository = new FakeProviderRepository();
+        var service = new ProviderService(
+            providerRepository,
+            new FakeClinicRepository { Exists = true },
+            new FakeAppointmentRepository(), new TestCurrentUser());
+
+        await service.AddProviderAsync(
+            new ProviderRequest(Guid.NewGuid(), Guid.NewGuid(), "Grace", "Hopper", "Computing"));
+
+        Assert.NotNull(providerRepository.AddedProvider);
+        Assert.Null(providerRepository.AddedProvider.Fee);
+        Assert.Null(providerRepository.AddedProvider.Gender);
+    }
+
+    [Fact]
+    public async Task AddProviderAsync_RejectsUnknownGenderBeforeStoring()
+    {
+        var providerRepository = new FakeProviderRepository();
+        var service = new ProviderService(
+            providerRepository,
+            new FakeClinicRepository { Exists = true },
+            new FakeAppointmentRepository(), new TestCurrentUser());
+
+        var exception = await Assert.ThrowsAsync<DomainValidationException>(
+            () => service.AddProviderAsync(
+                new ProviderRequest(Guid.NewGuid(), Guid.NewGuid(), "Grace", "Hopper", "Computing", Gender: "unknown")));
+
+        Assert.Equal("gender", exception.PropertyName);
+        Assert.Null(providerRepository.AddedProvider);
+    }
+
+    [Fact]
+    public async Task RegisterProviderAsync_StoresFeeAndGender()
+    {
+        var providerRepository = new FakeProviderRepository();
+        var service = new ProviderService(providerRepository, new FakeClinicRepository(), new FakeAppointmentRepository(), new TestCurrentUser());
+
+        await service.RegisterProviderAsync(
+            new ProviderRegistrationRequest(Guid.NewGuid(), "Grace", "Hopper", "Computing", 900m, "OTHER"));
+
+        var registered = Assert.IsType<Provider>(providerRepository.Registered);
+        Assert.Equal(900m, registered.Fee);
+        Assert.Equal(Gender.OTHER, registered.Gender);
+    }
+
+    [Fact]
+    public async Task GetProviderByIdAsync_ReturnsFeeAndGender()
+    {
+        var provider = Provider.Create(Guid.NewGuid(), Guid.NewGuid(), "Grace", "Hopper", "Computing");
+        provider.SetFee(2000m);
+        provider.SetGender(Gender.MALE);
+        var service = new ProviderService(
+            new FakeProviderRepository { ExistingProvider = provider },
+            new FakeClinicRepository(),
+            new FakeAppointmentRepository(), new TestCurrentUser());
+
+        var result = await service.GetProviderByIdAsync(provider.Id);
+
+        Assert.Equal(2000m, result.Fee);
+        Assert.Equal("MALE", result.Gender);
+    }
+
+    [Fact]
     public async Task AddProviderAsync_ThrowsWhenClinicDoesNotExist()
     {
         var providerRepository = new FakeProviderRepository();
