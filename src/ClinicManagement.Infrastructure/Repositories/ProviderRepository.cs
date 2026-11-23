@@ -185,16 +185,16 @@ public class ProviderRepository(IDbConnectionFactory connectionFactory) : IProvi
               AND (:VerificationStatus IS NULL OR pr.VerificationStatus = :VerificationStatus)
               {visibility}
               AND (:Search IS NULL
-                OR UPPER(pr.FirstName) LIKE '%' || UPPER(:Search) || '%'
-                OR UPPER(pr.LastName) LIKE '%' || UPPER(:Search) || '%'
-                OR UPPER(pr.Specialty) LIKE '%' || UPPER(:Search) || '%'
-                OR UPPER(c.Name) LIKE '%' || UPPER(:Search) || '%')
+                OR UPPER(pr.FirstName) LIKE '%' || UPPER(:Search) || '%' ESCAPE '\'
+                OR UPPER(pr.LastName) LIKE '%' || UPPER(:Search) || '%' ESCAPE '\'
+                OR UPPER(pr.Specialty) LIKE '%' || UPPER(:Search) || '%' ESCAPE '\'
+                OR UPPER(c.Name) LIKE '%' || UPPER(:Search) || '%' ESCAPE '\')
             """;
         var parameters = new
         {
             ClinicId = clinicId?.ToString(),
             VerificationStatus = verificationStatus?.ToString(),
-            Search = query.NormalizedSearch,
+            Search = SqlLike.Escape(query.NormalizedSearch),
             Offset = offset,
             query.PageSize
         };
@@ -223,9 +223,9 @@ public class ProviderRepository(IDbConnectionFactory connectionFactory) : IProvi
         const string patientFilter = """
             WHERE EXISTS (SELECT 1 FROM Appointments va WHERE va.PatientId = p.Id AND va.ProviderId = :ProviderId)
               AND (:Search IS NULL
-                OR UPPER(p.FirstName) LIKE '%' || UPPER(:Search) || '%'
-                OR UPPER(p.LastName) LIKE '%' || UPPER(:Search) || '%'
-                OR UPPER(p.FirstName || ' ' || p.LastName) LIKE '%' || UPPER(:Search) || '%')
+                OR UPPER(p.FirstName) LIKE '%' || UPPER(:Search) || '%' ESCAPE '\'
+                OR UPPER(p.LastName) LIKE '%' || UPPER(:Search) || '%' ESCAPE '\'
+                OR UPPER(p.FirstName || ' ' || p.LastName) LIKE '%' || UPPER(:Search) || '%' ESCAPE '\')
             """;
         const string patientJoin = """
             FROM Patients p
@@ -246,7 +246,7 @@ public class ProviderRepository(IDbConnectionFactory connectionFactory) : IProvi
         var parameters = new
         {
             ProviderId = providerId.ToString(),
-            Search = query.NormalizedSearch,
+            Search = SqlLike.Escape(query.NormalizedSearch),
             Offset = offset,
             query.PageSize
         };

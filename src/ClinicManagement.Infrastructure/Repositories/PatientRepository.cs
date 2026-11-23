@@ -116,13 +116,13 @@ public class PatientRepository(IDbConnectionFactory connectionFactory) : IPatien
         using var connection = connectionFactory.CreateConnection();
         const string where = """
             WHERE (:Search IS NULL
-                OR UPPER(FirstName) LIKE '%' || UPPER(:Search) || '%'
-                OR UPPER(LastName) LIKE '%' || UPPER(:Search) || '%'
-                OR UPPER(FirstName || ' ' || LastName) LIKE '%' || UPPER(:Search) || '%'
-                OR UPPER(Email) LIKE '%' || UPPER(:Search) || '%'
-                OR UPPER(PhoneNumber) LIKE '%' || UPPER(:Search) || '%')
+                OR UPPER(FirstName) LIKE '%' || UPPER(:Search) || '%' ESCAPE '\'
+                OR UPPER(LastName) LIKE '%' || UPPER(:Search) || '%' ESCAPE '\'
+                OR UPPER(FirstName || ' ' || LastName) LIKE '%' || UPPER(:Search) || '%' ESCAPE '\'
+                OR UPPER(Email) LIKE '%' || UPPER(:Search) || '%' ESCAPE '\'
+                OR UPPER(PhoneNumber) LIKE '%' || UPPER(:Search) || '%' ESCAPE '\')
             """;
-        var parameters = new { Search = query.NormalizedSearch, Offset = offset, query.PageSize };
+        var parameters = new { Search = SqlLike.Escape(query.NormalizedSearch), Offset = offset, query.PageSize };
         var totalCount = await connection.ExecuteScalarAsync<int>(
             $"SELECT COUNT(1) FROM Patients {where}",
             parameters);
@@ -147,14 +147,14 @@ public class PatientRepository(IDbConnectionFactory connectionFactory) : IPatien
         const string where = """
             WHERE pa.PatientId = :PatientId
               AND (:Search IS NULL
-                OR UPPER(a.Name) LIKE '%' || UPPER(:Search) || '%'
-                OR UPPER(pa.Severity) LIKE '%' || UPPER(:Search) || '%'
-                OR UPPER(pa.Notes) LIKE '%' || UPPER(:Search) || '%')
+                OR UPPER(a.Name) LIKE '%' || UPPER(:Search) || '%' ESCAPE '\'
+                OR UPPER(pa.Severity) LIKE '%' || UPPER(:Search) || '%' ESCAPE '\'
+                OR UPPER(pa.Notes) LIKE '%' || UPPER(:Search) || '%' ESCAPE '\')
             """;
         var parameters = new
         {
             PatientId = patientId.ToString(),
-            Search = query.NormalizedSearch,
+            Search = SqlLike.Escape(query.NormalizedSearch),
             Offset = offset,
             query.PageSize
         };
@@ -197,13 +197,13 @@ public class PatientRepository(IDbConnectionFactory connectionFactory) : IPatien
                   AND pa.AllergyId = a.Id
                   AND (:SelectedAllergyId IS NULL OR pa.AllergyId <> :SelectedAllergyId)
             )
-              AND (:Search IS NULL OR UPPER(a.Name) LIKE '%' || UPPER(:Search) || '%')
+              AND (:Search IS NULL OR UPPER(a.Name) LIKE '%' || UPPER(:Search) || '%' ESCAPE '\')
             """;
         var parameters = new
         {
             PatientId = patientId.ToString(),
             SelectedAllergyId = selectedAllergyId?.ToString(),
-            Search = query.NormalizedSearch,
+            Search = SqlLike.Escape(query.NormalizedSearch),
             Offset = offset,
             query.PageSize
         };

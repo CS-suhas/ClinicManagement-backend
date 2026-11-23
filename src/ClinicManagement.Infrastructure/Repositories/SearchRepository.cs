@@ -9,22 +9,22 @@ public class SearchRepository(IDbConnectionFactory connectionFactory) : ISearchR
 {
     // Case-insensitive contains-match on the name parts and the email, as the other search queries do.
     private const string PatientMatch = """
-        (UPPER(p.FirstName) LIKE '%' || UPPER(:Term) || '%'
-          OR UPPER(p.LastName) LIKE '%' || UPPER(:Term) || '%'
-          OR UPPER(p.FirstName || ' ' || p.LastName) LIKE '%' || UPPER(:Term) || '%'
-          OR UPPER(p.Email) LIKE '%' || UPPER(:Term) || '%')
+        (UPPER(p.FirstName) LIKE '%' || UPPER(:Term) || '%' ESCAPE '\'
+          OR UPPER(p.LastName) LIKE '%' || UPPER(:Term) || '%' ESCAPE '\'
+          OR UPPER(p.FirstName || ' ' || p.LastName) LIKE '%' || UPPER(:Term) || '%' ESCAPE '\'
+          OR UPPER(p.Email) LIKE '%' || UPPER(:Term) || '%' ESCAPE '\')
         """;
 
     private const string ProviderMatch = """
-        (UPPER(pr.FirstName) LIKE '%' || UPPER(:Term) || '%'
-          OR UPPER(pr.LastName) LIKE '%' || UPPER(:Term) || '%'
-          OR UPPER(pr.FirstName || ' ' || pr.LastName) LIKE '%' || UPPER(:Term) || '%'
-          OR UPPER(pr.Specialty) LIKE '%' || UPPER(:Term) || '%')
+        (UPPER(pr.FirstName) LIKE '%' || UPPER(:Term) || '%' ESCAPE '\'
+          OR UPPER(pr.LastName) LIKE '%' || UPPER(:Term) || '%' ESCAPE '\'
+          OR UPPER(pr.FirstName || ' ' || pr.LastName) LIKE '%' || UPPER(:Term) || '%' ESCAPE '\'
+          OR UPPER(pr.Specialty) LIKE '%' || UPPER(:Term) || '%' ESCAPE '\')
         """;
 
     private const string ClinicMatch = """
-        (UPPER(c.Name) LIKE '%' || UPPER(:Term) || '%'
-          OR UPPER(c.Address) LIKE '%' || UPPER(:Term) || '%')
+        (UPPER(c.Name) LIKE '%' || UPPER(:Term) || '%' ESCAPE '\'
+          OR UPPER(c.Address) LIKE '%' || UPPER(:Term) || '%' ESCAPE '\')
         """;
 
     public async Task<IReadOnlyList<SearchPatientResult>> SearchPatientsAsync(
@@ -33,7 +33,7 @@ public class SearchRepository(IDbConnectionFactory connectionFactory) : ISearchR
         PatientSearchScope scope)
     {
         var parameters = new DynamicParameters();
-        parameters.Add("Term", term);
+        parameters.Add("Term", SqlLike.Escape(term));
         parameters.Add("Limit", limit);
 
         var visibility = string.Empty;
@@ -97,7 +97,7 @@ public class SearchRepository(IDbConnectionFactory connectionFactory) : ISearchR
             ORDER BY UPPER(pr.FirstName || ' ' || pr.LastName), pr.Id
             OFFSET 0 ROWS FETCH NEXT :Limit ROWS ONLY
             """,
-            new { Term = term, Limit = limit });
+            new { Term = SqlLike.Escape(term), Limit = limit });
         return rows.AsList();
     }
 
@@ -112,7 +112,7 @@ public class SearchRepository(IDbConnectionFactory connectionFactory) : ISearchR
             ORDER BY UPPER(c.Name), c.Id
             OFFSET 0 ROWS FETCH NEXT :Limit ROWS ONLY
             """,
-            new { Term = term, Limit = limit });
+            new { Term = SqlLike.Escape(term), Limit = limit });
         return rows.AsList();
     }
 }

@@ -39,7 +39,8 @@ public sealed class StatusRepository(IDbConnectionFactory connectionFactory) : I
                 (SELECT COUNT(1) FROM Appointments) AS Appointments
             FROM DUAL
             """;
-        const string appointmentsSql = AppointmentListSql.Columns + AppointmentListSql.Joins + """
+        const string appointmentsSql = $"""
+            {SelectListItem}
             WHERE a.AppointmentDateTime >= :Now
               AND a.Status IN ('REQUESTED', 'CONFIRMED')
             ORDER BY a.AppointmentDateTime, a.Id
@@ -58,7 +59,11 @@ public sealed class StatusRepository(IDbConnectionFactory connectionFactory) : I
             upcomingAppointments);
     }
 
-    private const string SelectListItem = AppointmentListSql.Columns + AppointmentListSql.Joins;
+    // The fragments have no trailing newline, so they must be joined on separate lines, not with +.
+    private const string SelectListItem = $"""
+        {AppointmentListSql.Columns}
+        {AppointmentListSql.Joins}
+        """;
 
     public async Task<DashboardScopeCounts> GetPlatformCountsAsync(DateTimeOffset todayStart, DateTimeOffset todayEnd)
     {

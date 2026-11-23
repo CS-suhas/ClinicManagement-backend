@@ -150,17 +150,17 @@ public class AppointmentRepository(IDbConnectionFactory connectionFactory) : IAp
         if (query.NormalizedSearch is { } search)
         {
             conditions.Add("""
-                (UPPER(p.FirstName) LIKE '%' || UPPER(:Search) || '%'
-                 OR UPPER(p.LastName) LIKE '%' || UPPER(:Search) || '%'
-                 OR UPPER(p.FirstName || ' ' || p.LastName) LIKE '%' || UPPER(:Search) || '%'
-                 OR UPPER(pr.FirstName) LIKE '%' || UPPER(:Search) || '%'
-                 OR UPPER(pr.LastName) LIKE '%' || UPPER(:Search) || '%'
-                 OR UPPER(pr.FirstName || ' ' || pr.LastName) LIKE '%' || UPPER(:Search) || '%'
-                 OR UPPER(pr.Specialty) LIKE '%' || UPPER(:Search) || '%'
-                 OR UPPER(c.Name) LIKE '%' || UPPER(:Search) || '%'
-                 OR UPPER(a.ReasonForVisit) LIKE '%' || UPPER(:Search) || '%')
+                (UPPER(p.FirstName) LIKE '%' || UPPER(:Search) || '%' ESCAPE '\'
+                 OR UPPER(p.LastName) LIKE '%' || UPPER(:Search) || '%' ESCAPE '\'
+                 OR UPPER(p.FirstName || ' ' || p.LastName) LIKE '%' || UPPER(:Search) || '%' ESCAPE '\'
+                 OR UPPER(pr.FirstName) LIKE '%' || UPPER(:Search) || '%' ESCAPE '\'
+                 OR UPPER(pr.LastName) LIKE '%' || UPPER(:Search) || '%' ESCAPE '\'
+                 OR UPPER(pr.FirstName || ' ' || pr.LastName) LIKE '%' || UPPER(:Search) || '%' ESCAPE '\'
+                 OR UPPER(pr.Specialty) LIKE '%' || UPPER(:Search) || '%' ESCAPE '\'
+                 OR UPPER(c.Name) LIKE '%' || UPPER(:Search) || '%' ESCAPE '\'
+                 OR UPPER(a.ReasonForVisit) LIKE '%' || UPPER(:Search) || '%' ESCAPE '\')
                 """);
-            parameters.Add("Search", search);
+            parameters.Add("Search", SqlLike.Escape(search));
         }
         if (query.From is { } from)
         {

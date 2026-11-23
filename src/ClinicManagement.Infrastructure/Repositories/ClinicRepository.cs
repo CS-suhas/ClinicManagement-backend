@@ -73,11 +73,11 @@ public class ClinicRepository(IDbConnectionFactory connectionFactory) : IClinicR
         using var connection = connectionFactory.CreateConnection();
         const string where = """
             WHERE (:Search IS NULL
-                OR UPPER(Name) LIKE '%' || UPPER(:Search) || '%'
-                OR UPPER(Address) LIKE '%' || UPPER(:Search) || '%'
-                OR UPPER(PhoneNumber) LIKE '%' || UPPER(:Search) || '%')
+                OR UPPER(Name) LIKE '%' || UPPER(:Search) || '%' ESCAPE '\'
+                OR UPPER(Address) LIKE '%' || UPPER(:Search) || '%' ESCAPE '\'
+                OR UPPER(PhoneNumber) LIKE '%' || UPPER(:Search) || '%' ESCAPE '\')
             """;
-        var parameters = new { Search = query.NormalizedSearch, Offset = offset, query.PageSize };
+        var parameters = new { Search = SqlLike.Escape(query.NormalizedSearch), Offset = offset, query.PageSize };
         var totalCount = await connection.ExecuteScalarAsync<int>(
             $"SELECT COUNT(1) FROM Clinics {where}",
             parameters);

@@ -87,8 +87,10 @@ public class AllergyTypeRepository(IDbConnectionFactory connectionFactory) : IAl
         int offset)
     {
         using var connection = connectionFactory.CreateConnection();
-        const string where = "WHERE (:Search IS NULL OR UPPER(Name) LIKE '%' || UPPER(:Search) || '%')";
-        var parameters = new { Search = query.NormalizedSearch, Offset = offset, query.PageSize };
+        const string where = """
+            WHERE (:Search IS NULL OR UPPER(Name) LIKE '%' || UPPER(:Search) || '%' ESCAPE '')
+            """;
+        var parameters = new { Search = SqlLike.Escape(query.NormalizedSearch), Offset = offset, query.PageSize };
         var totalCount = await connection.ExecuteScalarAsync<int>(
             $"SELECT COUNT(1) FROM AllergyTypes {where}",
             parameters);
