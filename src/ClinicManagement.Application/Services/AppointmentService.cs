@@ -285,9 +285,10 @@ public class AppointmentService(
         var appointmentStartTime = TimeOnly.FromDateTime(appointmentDateTime.DateTime);
         var appointmentEndTime = TimeOnly.FromDateTime(appointmentEnd.DateTime);
 
-        if (appointmentStartTime <= clinicSettings.DefaultClinicStartTime
+        // Opening and closing times are inclusive: a start at opening and an end at closing are both allowed.
+        if (appointmentStartTime < clinicSettings.DefaultClinicStartTime
             || appointmentEnd.Date != appointmentDateTime.Date
-            || appointmentEndTime >= clinicSettings.DefaultClinicEndTime)
+            || appointmentEndTime > clinicSettings.DefaultClinicEndTime)
         {
             throw new AppointmentOutsideClinicHoursException(
                 clinicSettings.DefaultClinicStartTime,

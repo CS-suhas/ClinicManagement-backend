@@ -235,6 +235,9 @@ internal sealed class InMemoryAppointmentRepository(InMemoryStore store) : IAppo
 
     public Task<Guid> AddAppointmentAsync(Appointment request, Guid patientId, Guid providerId)
     {
+        // The SQL repository hydrates patient and provider on read; attach them so listings can map the row.
+        request.SetPatient(store.Patients.Single(patient => patient.Id == patientId));
+        request.SetProvider(store.Providers.Single(provider => provider.Id == providerId));
         store.Appointments.Add(request);
         return Task.FromResult(request.Id);
     }

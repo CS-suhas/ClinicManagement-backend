@@ -1326,4 +1326,31 @@ public sealed class ApiAuthorizationTests(ClinicApiFactory factory)
         Factory.Store.Appointments.Add(appointment);
         return appointment;
     }
+
+    [Theory]
+    [InlineData(8, 0)]
+    [InlineData(15, 40)]
+    public async Task Booking_AcceptsStartAtClinicOpeningAndEndAtClosing(int hour, int minute)
+    {
+        var world = SeedWorld();
+        var when = new DateTimeOffset(DateTime.UtcNow.Date.AddDays(4).AddHours(hour).AddMinutes(minute), TimeSpan.Zero);
+        var request = new AppointmentRequest(Guid.NewGuid(), world.Patient.Id, world.Doctor.Id, when, "Checkup");
+
+        using var response = await SendAsync(HttpMethod.Post, "/api/appointments", world.PatientSubject, request);
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Booking_RejectsStartOneMinuteBeforeClinicOpening()
+    {
+        var world = SeedWorld();
+        var when = new DateTimeOffset(DateTime.UtcNow.Date.AddDays(4).AddHours(7).AddMinutes(59), TimeSpan.Zero);
+        var request = new AppointmentRequest(Guid.NewGuid(), world.Patient.Id, world.Doctor.Id, when, "Checkup");
+
+        using var response = await SendAsync(HttpMethod.Post, "/api/appointments", world.PatientSubject, request);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.DoesNotContain(Factory.Store.Appointments, appointment => appointment.Id == request.Id);
+    }
 }

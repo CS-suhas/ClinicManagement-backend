@@ -235,8 +235,8 @@ public class AppointmentServiceTests
     }
 
     [Theory]
-    [InlineData(8, 0)]
-    [InlineData(15, 40)]
+    [InlineData(7, 59)]
+    [InlineData(15, 41)]
     [InlineData(23, 50)]
     public async Task AddAppointmentAsync_RejectsAppointmentsOutsideClinicHours(int hour, int minute)
     {
@@ -248,6 +248,61 @@ public class AppointmentServiceTests
             () => service.AddAppointmentAsync(CreateRequest(appointmentDateTime)));
 
         Assert.Null(repository.AddedAppointment);
+    }
+
+    [Theory]
+    [InlineData(8, 0)]
+    [InlineData(15, 40)]
+    public async Task AddAppointmentAsync_AcceptsStartAtOpeningAndEndAtClosing(int hour, int minute)
+    {
+        var repository = new FakeAppointmentRepository();
+        var service = CreateService(repository, new FakePatientRepository { Exists = true });
+        var appointmentDateTime = new DateTimeOffset(2030, 1, 2, hour, minute, 0, TimeSpan.Zero);
+
+        await service.AddAppointmentAsync(CreateRequest(appointmentDateTime));
+
+        Assert.Equal(appointmentDateTime, repository.AddedAppointment?.AppointmentDateTime);
+    }
+
+    [Theory]
+    [InlineData(8, 0)]
+    [InlineData(15, 40)]
+    public async Task UpdateAppointmentAsync_AcceptsStartAtOpeningAndEndAtClosing(int hour, int minute)
+    {
+        var request = CreateRequest(new DateTimeOffset(2030, 1, 2, hour, minute, 0, TimeSpan.Zero));
+        var repository = new FakeAppointmentRepository
+        {
+            AppointmentById = CreateExistingAppointment(
+                request.ProviderId,
+                request.PatientId,
+                CurrentTime.AddHours(2),
+                request.Id)
+        };
+        var service = CreateService(repository, new FakePatientRepository());
+
+        await service.UpdateAppointmentAsync(request);
+
+        Assert.Equal(request.AppointmentDateTime, repository.UpdatedAppointment?.AppointmentDateTime);
+    }
+
+    [Fact]
+    public async Task UpdateAppointmentAsync_RejectsStartBeforeClinicOpening()
+    {
+        var request = CreateRequest(new DateTimeOffset(2030, 1, 2, 7, 59, 0, TimeSpan.Zero));
+        var repository = new FakeAppointmentRepository
+        {
+            AppointmentById = CreateExistingAppointment(
+                request.ProviderId,
+                request.PatientId,
+                CurrentTime.AddHours(2),
+                request.Id)
+        };
+        var service = CreateService(repository, new FakePatientRepository());
+
+        await Assert.ThrowsAsync<AppointmentOutsideClinicHoursException>(
+            () => service.UpdateAppointmentAsync(request));
+
+        Assert.Null(repository.UpdatedAppointment);
     }
 
     [Fact]
@@ -409,9 +464,9 @@ public class AppointmentServiceTests
     }
 
     [Fact]
-    public async Task UpdateAppointmentAsync_RejectsAppointmentEndingAtClinicClosingTime()
+    public async Task UpdateAppointmentAsync_RejectsAppointmentEndingAfterClinicClosingTime()
     {
-        var request = CreateRequest(new DateTimeOffset(2030, 1, 2, 15, 40, 0, TimeSpan.Zero));
+        var request = CreateRequest(new DateTimeOffset(2030, 1, 2, 15, 41, 0, TimeSpan.Zero));
         var repository = new FakeAppointmentRepository
         {
             AppointmentById = CreateExistingAppointment(
