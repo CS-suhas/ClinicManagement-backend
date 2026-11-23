@@ -5,7 +5,9 @@ using ClinicManagement.Application.Common.Settings;
 using ClinicManagement.Application.Appointments.Interfaces;
 using ClinicManagement.Application.Patients.Interfaces;
 using ClinicManagement.Application.Clinics.Interfaces;
+using ClinicManagement.Application.Providers.Interfaces;
 using ClinicManagement.Domain.Entities;
+using ClinicManagement.Domain.Enums;
 using ClinicManagement.Domain.Exceptions;
 
 namespace ClinicManagement.Application.Tests;
@@ -13,6 +15,140 @@ namespace ClinicManagement.Application.Tests;
 public class AppointmentServiceTests
 {
     private static readonly DateTimeOffset CurrentTime = new(2030, 1, 1, 9, 0, 0, TimeSpan.Zero);
+
+    [Fact]
+    public async Task AddAppointmentAsync_CreatesRequestedAppointment()
+    {
+        var repository = new FakeAppointmentRepository();
+        var service = CreateService(repository, new FakePatientRepository { Exists = true });
+
+        await service.AddAppointmentAsync(CreateRequest(CurrentTime.AddMinutes(20)));
+
+        Assert.Equal(AppointmentStatus.REQUESTED, repository.AddedAppointment?.Status);
+    }
+
+    [Fact]
+    public async Task AddAppointmentAsync_RejectsProviderThatIsNotVerified()
+    {
+        var repository = new FakeAppointmentRepository();
+        var pending = Provider.Register(Guid.NewGuid(), "New", "Doctor", "General");
+        var service = CreateService(
+            repository,
+            new FakePatientRepository { Exists = true },
+            providerRepository: new FakeProviderRepository { ConfiguredProvider = pending });
+
+        await Assert.ThrowsAsync<ProviderNotAcceptingAppointmentsException>(
+            () => service.AddAppointmentAsync(
+                CreateRequest(CurrentTime.AddMinutes(20)) with { ProviderId = pending.Id }));
+
+        Assert.Null(repository.AddedAppointment);
+    }
+
+    [Fact]
+    public async Task AddAppointmentAsync_RejectsVerifiedProviderWithoutAClinic()
+    {
+        var repository = new FakeAppointmentRepository();
+        var unassigned = Provider.Register(Guid.NewGuid(), "New", "Doctor", "General");
+        unassigned.Verify();
+        var service = CreateService(
+            repository,
+            new FakePatientRepository { Exists = true },
+            providerRepository: new FakeProviderRepository { ConfiguredProvider = unassigned });
+
+        await Assert.ThrowsAsync<ProviderNotAcceptingAppointmentsException>(
+            () => service.AddAppointmentAsync(
+                CreateRequest(CurrentTime.AddMinutes(20)) with { ProviderId = unassigned.Id }));
+
+        Assert.Null(repository.AddedAppointment);
+    }
+
+    [Fact]
+    public async Task AddAppointmentAsync_ThrowsNotFoundForUnknownProvider()
+    {
+        var repository = new FakeAppointmentRepository();
+        var service = CreateService(
+            repository,
+            new FakePatientRepository { Exists = true },
+            providerRepository: new FakeProviderRepository { ProviderMissing = true });
+
+        await Assert.ThrowsAsync<ResourceNotFoundException>(
+            () => service.AddAppointmentAsync(CreateRequest(CurrentTime.AddMinutes(20))));
+
+        Assert.Null(repository.AddedAppointment);
+    }
+
+    [Fact]
+    public async Task ConfirmAppointmentAsync_MovesRequestedAppointmentToConfirmed()
+    {
+        var request = CreateRequest(CurrentTime.AddHours(2));
+        var repository = new FakeAppointmentRepository
+        {
+            AppointmentById = CreateExistingAppointment(
+                request.ProviderId, request.PatientId, CurrentTime.AddHours(2), request.Id)
+        };
+        var service = CreateService(repository, new FakePatientRepository());
+
+        await service.ConfirmAppointmentAsync(request.Id);
+
+        Assert.Equal((AppointmentStatus.REQUESTED, AppointmentStatus.CONFIRMED), repository.StatusChange);
+    }
+
+    [Fact]
+    public async Task CancelAppointmentAsync_UsesTheStoredStatusAsTheExpectedOne()
+    {
+        var request = CreateRequest(CurrentTime.AddHours(2));
+        var appointment = CreateExistingAppointment(
+            request.ProviderId, request.PatientId, CurrentTime.AddHours(2), request.Id);
+        appointment.Confirm(CurrentTime);
+        var repository = new FakeAppointmentRepository { AppointmentById = appointment };
+        var service = CreateService(repository, new FakePatientRepository());
+
+        await service.CancelAppointmentAsync(request.Id);
+
+        Assert.Equal((AppointmentStatus.CONFIRMED, AppointmentStatus.CANCELLED), repository.StatusChange);
+    }
+
+    [Fact]
+    public async Task CompleteAppointmentAsync_RejectsAppointmentThatWasNeverConfirmed()
+    {
+        var request = CreateRequest(CurrentTime.AddHours(2));
+        var repository = new FakeAppointmentRepository
+        {
+            AppointmentById = CreateExistingAppointment(
+                request.ProviderId, request.PatientId, CurrentTime.AddHours(2), request.Id)
+        };
+        var service = CreateService(repository, new FakePatientRepository());
+
+        await Assert.ThrowsAsync<InvalidStatusTransitionException>(
+            () => service.CompleteAppointmentAsync(request.Id));
+
+        Assert.Null(repository.StatusChange);
+    }
+
+    [Fact]
+    public async Task ConfirmAppointmentAsync_ThrowsConflictWhenStatusChangedConcurrently()
+    {
+        var request = CreateRequest(CurrentTime.AddHours(2));
+        var repository = new FakeAppointmentRepository
+        {
+            StatusChangeSucceeds = false,
+            AppointmentById = CreateExistingAppointment(
+                request.ProviderId, request.PatientId, CurrentTime.AddHours(2), request.Id)
+        };
+        var service = CreateService(repository, new FakePatientRepository());
+
+        await Assert.ThrowsAsync<ConcurrentModificationException>(
+            () => service.ConfirmAppointmentAsync(request.Id));
+    }
+
+    [Fact]
+    public async Task DeclineAppointmentAsync_ThrowsNotFoundForUnknownAppointment()
+    {
+        var service = CreateService(new FakeAppointmentRepository(), new FakePatientRepository());
+
+        await Assert.ThrowsAsync<ResourceNotFoundException>(
+            () => service.DeclineAppointmentAsync(Guid.NewGuid()));
+    }
 
     [Fact]
     public async Task AddAppointmentAsync_PersistsRequestWithInjectedTime()
@@ -257,11 +393,13 @@ public class AppointmentServiceTests
     private static AppointmentService CreateService(
         FakeAppointmentRepository appointmentRepository,
         FakePatientRepository patientRepository,
-        FakeClinicRepository? clinicRepository = null) =>
+        FakeClinicRepository? clinicRepository = null,
+        FakeProviderRepository? providerRepository = null) =>
         new(
             appointmentRepository,
             patientRepository,
             clinicRepository ?? new FakeClinicRepository(),
+            providerRepository ?? new FakeProviderRepository(),
             new ClinicManagementSettings { DefaultAppointmentDurationMinutes = 20 },
             new FixedTimeProvider(CurrentTime));
 
@@ -341,6 +479,23 @@ public class AppointmentServiceTests
 
     private sealed class FakeAppointmentRepository : IAppointmentRepository
     {
+        public bool StatusChangeSucceeds { get; init; } = true;
+        public (AppointmentStatus Expected, AppointmentStatus Next)? StatusChange { get; private set; }
+
+        public Task<bool> TryUpdateStatusAsync(
+            Guid appointmentId,
+            AppointmentStatus expected,
+            AppointmentStatus next)
+        {
+            if (StatusChangeSucceeds) StatusChange = (expected, next);
+            return Task.FromResult(StatusChangeSucceeds);
+        }
+        public Task<IReadOnlyList<ClinicManagement.Application.Models.AppointmentListResponse>>
+            GetProviderAppointmentsInRangeAsync(
+                Guid providerId,
+                DateTimeOffset start,
+                DateTimeOffset end,
+                bool includeInactive) => throw new NotSupportedException();
         public List<Appointment> ProviderAppointments { get; } = [];
         public Appointment? AppointmentById { get; init; }
         public Appointment? AddedAppointment { get; private set; }
@@ -397,6 +552,40 @@ public class AppointmentServiceTests
                 && appointment.AppointmentDateTime > appointmentStart
                 && appointment.AppointmentDateTime < appointmentEnd));
         }
+    }
+
+    /// <summary>Unless configured otherwise, any requested provider exists and accepts appointments.</summary>
+    private sealed class FakeProviderRepository : IProviderRepository
+    {
+        public Provider? ConfiguredProvider { get; init; }
+        public bool ProviderMissing { get; init; }
+
+        public Task<Provider?> GetProviderByIdAsync(Guid providerId) =>
+            Task.FromResult(ProviderMissing
+                ? null
+                : ConfiguredProvider ?? Provider.Create(providerId, Guid.NewGuid(), "Test", "Provider", "General"));
+        public Task<IEnumerable<Provider>> GetAllProvidersAsync() => throw new NotSupportedException();
+        public Task<Guid> AddProviderAsync(Provider request, Guid clinicId) => throw new NotSupportedException();
+        public Task<Guid> UpdateProviderAsync(Provider request, Guid clinicId) => throw new NotSupportedException();
+        public Task<Guid> DeleteProviderAsync(Guid providerId) => throw new NotSupportedException();
+        public Task<bool> HasAppointmentsAsync(Guid providerId) => throw new NotSupportedException();
+        public Task<IEnumerable<Provider>> GetProvidersByClinicIdAsync(Guid clinicId) =>
+            throw new NotSupportedException();
+        public Task<(IReadOnlyList<Provider> Items, int TotalCount)> SearchProvidersAsync(
+            ClinicManagement.Application.Models.PageQuery query,
+            int offset,
+            Guid? clinicId,
+            ClinicManagement.Domain.Enums.ProviderVerificationStatus? verificationStatus = null) =>
+            throw new NotSupportedException();
+        public Task<(IReadOnlyList<Provider> Items, int TotalCount)> SearchPublicProvidersAsync(
+            ClinicManagement.Application.Models.PageQuery query,
+            int offset,
+            Guid? clinicId) => throw new NotSupportedException();
+        public Task<Guid> AddRegistrationAsync(Provider provider) => throw new NotSupportedException();
+        public Task<bool> TryUpdateVerificationStatusAsync(
+            Guid providerId,
+            ClinicManagement.Domain.Enums.ProviderVerificationStatus expected,
+            ClinicManagement.Domain.Enums.ProviderVerificationStatus next) => throw new NotSupportedException();
     }
 
     private sealed class FakeClinicRepository : IClinicRepository

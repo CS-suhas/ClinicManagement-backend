@@ -282,6 +282,16 @@ public class PatientServiceTests
 
     private sealed class FakeAppointmentRepository : IAppointmentRepository
     {
+        public Task<bool> TryUpdateStatusAsync(
+            Guid appointmentId,
+            ClinicManagement.Domain.Enums.AppointmentStatus expected,
+            ClinicManagement.Domain.Enums.AppointmentStatus next) => throw new NotSupportedException();
+        public Task<IReadOnlyList<ClinicManagement.Application.Models.AppointmentListResponse>>
+            GetProviderAppointmentsInRangeAsync(
+                Guid providerId,
+                DateTimeOffset start,
+                DateTimeOffset end,
+                bool includeInactive) => throw new NotSupportedException();
         public List<Appointment> Appointments { get; } = [];
 
         public Task<Appointment?> GetAppointmentByIdAsync(Guid appointmentId) =>

@@ -5,12 +5,114 @@ using ClinicManagement.Application.Providers.Models;
 using ClinicManagement.Application.Providers.Services;
 using ClinicManagement.Application.Appointments.Interfaces;
 using ClinicManagement.Domain.Entities;
+using ClinicManagement.Domain.Enums;
 using ClinicManagement.Domain.Exceptions;
 
 namespace ClinicManagement.Application.Tests;
 
 public class ProviderServiceTests
 {
+    [Fact]
+    public async Task RegisterProviderAsync_StoresAPendingProviderWithoutAClinic()
+    {
+        var providerRepository = new FakeProviderRepository();
+        var service = new ProviderService(providerRepository, new FakeClinicRepository(), new FakeAppointmentRepository());
+        var id = Guid.NewGuid();
+
+        var result = await service.RegisterProviderAsync(new ProviderRegistrationRequest(id, " Grace ", "Hopper", "Computing"));
+
+        Assert.Equal(id, result);
+        var registered = Assert.IsType<Provider>(providerRepository.Registered);
+        Assert.Equal(ProviderVerificationStatus.PENDING, registered.VerificationStatus);
+        Assert.Null(registered.ClinicId);
+        Assert.Equal("Grace", registered.FirstName);
+    }
+
+    [Fact]
+    public async Task RegisterProviderAsync_RejectsBlankSpecialtyBeforeStoring()
+    {
+        var providerRepository = new FakeProviderRepository();
+        var service = new ProviderService(providerRepository, new FakeClinicRepository(), new FakeAppointmentRepository());
+
+        var exception = await Assert.ThrowsAsync<DomainValidationException>(
+            () => service.RegisterProviderAsync(new ProviderRegistrationRequest(Guid.NewGuid(), "Grace", "Hopper", " ")));
+
+        Assert.Equal("specialty", exception.PropertyName);
+        Assert.Null(providerRepository.Registered);
+    }
+
+    [Fact]
+    public async Task VerifyProviderAsync_MovesPendingProviderToVerified()
+    {
+        var pending = Provider.Register(Guid.NewGuid(), "Grace", "Hopper", "Computing");
+        var providerRepository = new FakeProviderRepository { ExistingProvider = pending };
+        var service = new ProviderService(providerRepository, new FakeClinicRepository(), new FakeAppointmentRepository());
+
+        await service.VerifyProviderAsync(pending.Id);
+
+        Assert.Equal(
+            (ProviderVerificationStatus.PENDING, ProviderVerificationStatus.VERIFIED),
+            providerRepository.VerificationChange);
+    }
+
+    [Fact]
+    public async Task RejectProviderAsync_ThrowsWhenProviderIsAlreadyVerified()
+    {
+        var verified = Provider.Create(Guid.NewGuid(), Guid.NewGuid(), "Grace", "Hopper", "Computing");
+        var providerRepository = new FakeProviderRepository { ExistingProvider = verified };
+        var service = new ProviderService(providerRepository, new FakeClinicRepository(), new FakeAppointmentRepository());
+
+        await Assert.ThrowsAsync<InvalidStatusTransitionException>(() => service.RejectProviderAsync(verified.Id));
+
+        Assert.Null(providerRepository.VerificationChange);
+    }
+
+    [Fact]
+    public async Task VerifyProviderAsync_ThrowsConflictWhenStatusChangedConcurrently()
+    {
+        var pending = Provider.Register(Guid.NewGuid(), "Grace", "Hopper", "Computing");
+        var providerRepository = new FakeProviderRepository
+        {
+            ExistingProvider = pending,
+            VerificationChangeSucceeds = false
+        };
+        var service = new ProviderService(providerRepository, new FakeClinicRepository(), new FakeAppointmentRepository());
+
+        await Assert.ThrowsAsync<ConcurrentModificationException>(() => service.VerifyProviderAsync(pending.Id));
+    }
+
+    [Fact]
+    public async Task GetProviderCalendarAsync_RejectsInvertedAndOversizedRanges()
+    {
+        var provider = Provider.Create(Guid.NewGuid(), Guid.NewGuid(), "Grace", "Hopper", "Computing");
+        var service = new ProviderService(
+            new FakeProviderRepository { ExistingProvider = provider },
+            new FakeClinicRepository(),
+            new FakeAppointmentRepository());
+        var from = new DateTimeOffset(2030, 1, 1, 0, 0, 0, TimeSpan.Zero);
+
+        var inverted = await Assert.ThrowsAsync<DomainValidationException>(
+            () => service.GetProviderCalendarAsync(provider.Id, from, from.AddDays(-1), false));
+        var oversized = await Assert.ThrowsAsync<DomainValidationException>(
+            () => service.GetProviderCalendarAsync(provider.Id, from, from.AddDays(63), false));
+
+        Assert.Equal("from", inverted.PropertyName);
+        Assert.Equal("to", oversized.PropertyName);
+    }
+
+    [Fact]
+    public async Task GetProviderCalendarAsync_ThrowsNotFoundForUnknownProvider()
+    {
+        var service = new ProviderService(
+            new FakeProviderRepository(),
+            new FakeClinicRepository(),
+            new FakeAppointmentRepository());
+        var from = new DateTimeOffset(2030, 1, 1, 0, 0, 0, TimeSpan.Zero);
+
+        await Assert.ThrowsAsync<ResourceNotFoundException>(
+            () => service.GetProviderCalendarAsync(Guid.NewGuid(), from, from.AddDays(7), false));
+    }
+
     [Fact]
     public async Task GetProviderByIdAsync_ReturnsFirstAndLastNameSeparately()
     {
@@ -142,6 +244,30 @@ public class ProviderServiceTests
 
     private sealed class FakeProviderRepository : IProviderRepository
     {
+        public Task<(IReadOnlyList<Provider> Items, int TotalCount)> SearchPublicProvidersAsync(
+            ClinicManagement.Application.Models.PageQuery query,
+            int offset,
+            Guid? clinicId) => throw new NotSupportedException();
+        public Provider? Registered { get; private set; }
+        public bool VerificationChangeSucceeds { get; init; } = true;
+        public (ProviderVerificationStatus Expected, ProviderVerificationStatus Next)? VerificationChange
+        {
+            get; private set;
+        }
+
+        public Task<Guid> AddRegistrationAsync(Provider provider)
+        {
+            Registered = provider;
+            return Task.FromResult(provider.Id);
+        }
+        public Task<bool> TryUpdateVerificationStatusAsync(
+            Guid providerId,
+            ProviderVerificationStatus expected,
+            ProviderVerificationStatus next)
+        {
+            if (VerificationChangeSucceeds) VerificationChange = (expected, next);
+            return Task.FromResult(VerificationChangeSucceeds);
+        }
         public Provider? AddedProvider { get; private set; }
         public Guid? AddedClinicId { get; private set; }
         public Provider? ExistingProvider { get; init; }
@@ -170,7 +296,9 @@ public class ProviderServiceTests
         public Task<(IReadOnlyList<Provider> Items, int TotalCount)> SearchProvidersAsync(
             ClinicManagement.Application.Models.PageQuery query,
             int offset,
-            Guid? clinicId) => throw new NotSupportedException();
+            Guid? clinicId,
+            ClinicManagement.Domain.Enums.ProviderVerificationStatus? verificationStatus = null) =>
+            throw new NotSupportedException();
     }
 
     private sealed class FakeClinicRepository : IClinicRepository
@@ -193,6 +321,16 @@ public class ProviderServiceTests
 
     private sealed class FakeAppointmentRepository : IAppointmentRepository
     {
+        public Task<bool> TryUpdateStatusAsync(
+            Guid appointmentId,
+            ClinicManagement.Domain.Enums.AppointmentStatus expected,
+            ClinicManagement.Domain.Enums.AppointmentStatus next) => throw new NotSupportedException();
+        public Task<IReadOnlyList<ClinicManagement.Application.Models.AppointmentListResponse>>
+            GetProviderAppointmentsInRangeAsync(
+                Guid providerId,
+                DateTimeOffset start,
+                DateTimeOffset end,
+                bool includeInactive) => throw new NotSupportedException();
         public List<Appointment> Appointments { get; } = [];
 
         public Task<Appointment?> GetAppointmentByIdAsync(Guid appointmentId) =>
