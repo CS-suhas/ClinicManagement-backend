@@ -1,6 +1,7 @@
 using ClinicManagement.Application.ClinicJoinRequests.Interfaces;
 using ClinicManagement.Application.ClinicJoinRequests.Models;
 using ClinicManagement.Domain.Enums;
+using ClinicManagement.Api.Security;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ClinicManagement.Api.Endpoints;
@@ -18,6 +19,7 @@ public static class ClinicJoinRequestEndpoints
             return Results.Created($"/api/clinic-join-requests/{id}", new { id });
         })
             .WithName("RequestToJoinClinic")
+            .RequireAuthorization(AuthorizationPolicies.DoctorOnly)
             .WithSummary("Ask a clinic to accept a provider")
             .WithDescription("The provider must be verified and not already in a clinic, and can have only one pending request.")
             .Produces(StatusCodes.Status201Created)
@@ -52,6 +54,7 @@ public static class ClinicJoinRequestEndpoints
             return Results.NoContent();
         })
             .WithName("ApproveClinicJoinRequest")
+            .RequireAuthorization(AuthorizationPolicies.ClinicAdminOnly)
             .WithSummary("Approve a join request and assign the provider to the clinic")
             .Produces(StatusCodes.Status204NoContent)
             .Produces(StatusCodes.Status404NotFound)
@@ -65,6 +68,7 @@ public static class ClinicJoinRequestEndpoints
             return Results.NoContent();
         })
             .WithName("RejectClinicJoinRequest")
+            .RequireAuthorization(AuthorizationPolicies.ClinicAdminOnly)
             .WithSummary("Reject a pending join request")
             .Produces(StatusCodes.Status204NoContent)
             .Produces(StatusCodes.Status404NotFound)

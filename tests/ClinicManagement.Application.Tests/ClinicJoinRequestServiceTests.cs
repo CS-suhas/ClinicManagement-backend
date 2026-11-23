@@ -22,16 +22,21 @@ public class ClinicJoinRequestServiceTests
         return provider;
     }
 
+    private static TestCurrentUser AdministratorOf(Guid clinicId) =>
+        new() { AdministeredClinicIds = [clinicId] };
+
     private static (ClinicJoinRequestService Service, FakeRequestRepository Requests) CreateService(
         Provider? provider = null,
         bool clinicExists = true,
-        FakeRequestRepository? requests = null)
+        FakeRequestRepository? requests = null,
+        TestCurrentUser? currentUser = null)
     {
         requests ??= new FakeRequestRepository();
         var service = new ClinicJoinRequestService(
             requests,
             new FakeProviderRepository(provider),
             new FakeClinicRepository(clinicExists),
+            currentUser ?? new TestCurrentUser { Provider = provider },
             new FixedTimeProvider(Now));
         return (service, requests);
     }
@@ -53,12 +58,12 @@ public class ClinicJoinRequestServiceTests
     }
 
     [Fact]
-    public async Task RequestToJoinAsync_RejectsUnverifiedProvider()
+    public async Task RequestToJoinAsync_ForbidsUnverifiedProvider()
     {
         var provider = Provider.Register(Guid.NewGuid(), "Grace", "Hopper", "Computing");
         var (service, requests) = CreateService(provider);
 
-        await Assert.ThrowsAsync<ProviderNotVerifiedException>(
+        await Assert.ThrowsAsync<ForbiddenException>(
             () => service.RequestToJoinAsync(provider.Id, Guid.NewGuid()));
 
         Assert.Null(requests.Added);
@@ -89,23 +94,35 @@ public class ClinicJoinRequestServiceTests
     }
 
     [Fact]
-    public async Task RequestToJoinAsync_ThrowsNotFoundForUnknownProviderOrClinic()
+    public async Task RequestToJoinAsync_ForbidsRequestForAnotherProvider()
     {
         var provider = VerifiedUnassignedProvider();
-        var (unknownProvider, _) = CreateService(provider: null);
-        var (unknownClinic, _) = CreateService(provider, clinicExists: false);
+        var (service, requests) = CreateService(provider);
+
+        await Assert.ThrowsAsync<ForbiddenException>(
+            () => service.RequestToJoinAsync(Guid.NewGuid(), Guid.NewGuid()));
+
+        Assert.Null(requests.Added);
+    }
+
+    [Fact]
+    public async Task RequestToJoinAsync_ThrowsNotFoundForUnknownClinic()
+    {
+        var provider = VerifiedUnassignedProvider();
+        var (service, _) = CreateService(provider, clinicExists: false);
 
         await Assert.ThrowsAsync<ResourceNotFoundException>(
-            () => unknownProvider.RequestToJoinAsync(Guid.NewGuid(), Guid.NewGuid()));
-        await Assert.ThrowsAsync<ResourceNotFoundException>(
-            () => unknownClinic.RequestToJoinAsync(provider.Id, Guid.NewGuid()));
+            () => service.RequestToJoinAsync(provider.Id, Guid.NewGuid()));
     }
 
     [Fact]
     public async Task ApproveAsync_PersistsApprovalWithInjectedTime()
     {
-        var request = ClinicJoinRequest.Create(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
-        var (service, requests) = CreateService(requests: new FakeRequestRepository { Existing = request });
+        var clinicId = Guid.NewGuid();
+        var request = ClinicJoinRequest.Create(Guid.NewGuid(), Guid.NewGuid(), clinicId);
+        var (service, requests) = CreateService(
+            requests: new FakeRequestRepository { Existing = request },
+            currentUser: AdministratorOf(clinicId));
 
         await service.ApproveAsync(request.Id);
 
@@ -115,11 +132,41 @@ public class ClinicJoinRequestServiceTests
     }
 
     [Fact]
-    public async Task ApproveAsync_ThrowsConflictWhenRequestWasAlreadyDecided()
+    public async Task ApproveAsync_ForbidsCallerThatDoesNotAdministerClinic()
     {
         var request = ClinicJoinRequest.Create(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
+        var (service, requests) = CreateService(
+            requests: new FakeRequestRepository { Existing = request },
+            currentUser: AdministratorOf(Guid.NewGuid()));
+
+        await Assert.ThrowsAsync<ForbiddenException>(() => service.ApproveAsync(request.Id));
+
+        Assert.Null(requests.Approved);
+    }
+
+    [Fact]
+    public async Task ApproveAsync_RequiresSignedInUser()
+    {
+        var clinicId = Guid.NewGuid();
+        var request = ClinicJoinRequest.Create(Guid.NewGuid(), Guid.NewGuid(), clinicId);
+        var (service, requests) = CreateService(
+            requests: new FakeRequestRepository { Existing = request },
+            currentUser: new TestCurrentUser { IsAuthenticated = false, AdministeredClinicIds = [clinicId] });
+
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => service.ApproveAsync(request.Id));
+
+        Assert.Null(requests.Approved);
+    }
+
+    [Fact]
+    public async Task ApproveAsync_ThrowsConflictWhenRequestWasAlreadyDecided()
+    {
+        var clinicId = Guid.NewGuid();
+        var request = ClinicJoinRequest.Create(Guid.NewGuid(), Guid.NewGuid(), clinicId);
         request.Reject(Now);
-        var (service, requests) = CreateService(requests: new FakeRequestRepository { Existing = request });
+        var (service, requests) = CreateService(
+            requests: new FakeRequestRepository { Existing = request },
+            currentUser: AdministratorOf(clinicId));
 
         await Assert.ThrowsAsync<InvalidStatusTransitionException>(() => service.ApproveAsync(request.Id));
 
@@ -129,9 +176,11 @@ public class ClinicJoinRequestServiceTests
     [Fact]
     public async Task ApproveAsync_ThrowsConflictWhenAnotherRequestWonTheRace()
     {
-        var request = ClinicJoinRequest.Create(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
+        var clinicId = Guid.NewGuid();
+        var request = ClinicJoinRequest.Create(Guid.NewGuid(), Guid.NewGuid(), clinicId);
         var (service, _) = CreateService(
-            requests: new FakeRequestRepository { Existing = request, WriteSucceeds = false });
+            requests: new FakeRequestRepository { Existing = request, WriteSucceeds = false },
+            currentUser: AdministratorOf(clinicId));
 
         await Assert.ThrowsAsync<ConcurrentModificationException>(() => service.ApproveAsync(request.Id));
     }
@@ -139,8 +188,11 @@ public class ClinicJoinRequestServiceTests
     [Fact]
     public async Task RejectAsync_And_CancelAsync_PersistTheDecision()
     {
-        var toReject = ClinicJoinRequest.Create(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
-        var (rejectService, rejectRequests) = CreateService(requests: new FakeRequestRepository { Existing = toReject });
+        var clinicId = Guid.NewGuid();
+        var toReject = ClinicJoinRequest.Create(Guid.NewGuid(), Guid.NewGuid(), clinicId);
+        var (rejectService, rejectRequests) = CreateService(
+            requests: new FakeRequestRepository { Existing = toReject },
+            currentUser: AdministratorOf(clinicId));
         var toCancel = ClinicJoinRequest.Create(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
         var (cancelService, cancelRequests) = CreateService(requests: new FakeRequestRepository { Existing = toCancel });
 
@@ -149,6 +201,19 @@ public class ClinicJoinRequestServiceTests
 
         Assert.Equal(ClinicJoinRequestStatus.REJECTED, rejectRequests.Decided?.Status);
         Assert.Equal(ClinicJoinRequestStatus.CANCELLED, cancelRequests.Decided?.Status);
+    }
+
+    [Fact]
+    public async Task RejectAsync_ForbidsCallerThatDoesNotAdministerClinic()
+    {
+        var request = ClinicJoinRequest.Create(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
+        var (service, requests) = CreateService(
+            requests: new FakeRequestRepository { Existing = request },
+            currentUser: AdministratorOf(Guid.NewGuid()));
+
+        await Assert.ThrowsAsync<ForbiddenException>(() => service.RejectAsync(request.Id));
+
+        Assert.Null(requests.Decided);
     }
 
     [Fact]

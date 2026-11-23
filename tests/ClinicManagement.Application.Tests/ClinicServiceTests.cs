@@ -3,8 +3,10 @@ using ClinicManagement.Application.Clinics.Models;
 using ClinicManagement.Application.Clinics.Services;
 using ClinicManagement.Application.Common.Exceptions;
 using ClinicManagement.Application.Appointments.Interfaces;
+using ClinicManagement.Application.Repositories;
 using ClinicManagement.Application.Providers.Interfaces;
 using ClinicManagement.Domain.Entities;
+using ClinicManagement.Domain.Exceptions;
 
 namespace ClinicManagement.Application.Tests;
 
@@ -126,14 +128,75 @@ public class ClinicServiceTests
             () => service.GetProvidersByClinicIdAsync(Guid.NewGuid()));
     }
 
+    [Fact]
+    public async Task AddClinicAdminAsync_StoresAdminForExistingClinic()
+    {
+        var clinic = Clinic.Create(Guid.NewGuid(), "Downtown Clinic", "10 Main St", "555-0100");
+        var adminRepository = new FakeClinicAdminRepository();
+        var service = CreateService(
+            new FakeClinicRepository { ExistingClinic = clinic },
+            clinicAdminRepository: adminRepository);
+
+        var id = await service.AddClinicAdminAsync(clinic.Id, " subject-123 ");
+
+        Assert.NotNull(adminRepository.Added);
+        Assert.Equal(id, adminRepository.Added.Id);
+        Assert.Equal(clinic.Id, adminRepository.Added.ClinicId);
+        Assert.Equal("subject-123", adminRepository.Added.IdentitySubject);
+    }
+
+    [Fact]
+    public async Task AddClinicAdminAsync_ThrowsNotFoundForUnknownClinic()
+    {
+        var adminRepository = new FakeClinicAdminRepository();
+        var service = CreateService(new FakeClinicRepository(), clinicAdminRepository: adminRepository);
+
+        await Assert.ThrowsAsync<ResourceNotFoundException>(
+            () => service.AddClinicAdminAsync(Guid.NewGuid(), "subject-123"));
+
+        Assert.Null(adminRepository.Added);
+    }
+
+    [Fact]
+    public async Task AddClinicAdminAsync_ThrowsConflictWhenIdentityAlreadyAdministersClinic()
+    {
+        var clinic = Clinic.Create(Guid.NewGuid(), "Downtown Clinic", "10 Main St", "555-0100");
+        var adminRepository = new FakeClinicAdminRepository { AlreadyAdmin = true };
+        var service = CreateService(
+            new FakeClinicRepository { ExistingClinic = clinic },
+            clinicAdminRepository: adminRepository);
+
+        await Assert.ThrowsAsync<ClinicAdminAlreadyAssignedException>(
+            () => service.AddClinicAdminAsync(clinic.Id, "subject-123"));
+
+        Assert.Null(adminRepository.Added);
+    }
+
     private static ClinicService CreateService(
         FakeClinicRepository clinicRepository,
         FakeProviderRepository? providerRepository = null,
-        FakeAppointmentRepository? appointmentRepository = null) =>
+        FakeAppointmentRepository? appointmentRepository = null,
+        FakeClinicAdminRepository? clinicAdminRepository = null) =>
         new(
             clinicRepository,
             providerRepository ?? new FakeProviderRepository(),
-            appointmentRepository ?? new FakeAppointmentRepository());
+            appointmentRepository ?? new FakeAppointmentRepository(),
+            clinicAdminRepository ?? new FakeClinicAdminRepository());
+
+    private sealed class FakeClinicAdminRepository : IClinicAdminRepository
+    {
+        public bool AlreadyAdmin { get; init; }
+        public ClinicAdmin? Added { get; private set; }
+
+        public Task<bool> IsAdminOfClinicAsync(string identitySubject, Guid clinicId) =>
+            Task.FromResult(AlreadyAdmin);
+
+        public Task AddAsync(ClinicAdmin clinicAdmin)
+        {
+            Added = clinicAdmin;
+            return Task.CompletedTask;
+        }
+    }
 
     private sealed class FakeClinicRepository : IClinicRepository
     {

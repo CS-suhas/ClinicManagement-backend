@@ -10,13 +10,17 @@ using ClinicManagement.Application.Providers.Interfaces;
 using ClinicManagement.Application.Providers.Mapping;
 using ClinicManagement.Application.Providers.Models;
 using ClinicManagement.Application.Models;
+using ClinicManagement.Application.Repositories;
+using ClinicManagement.Domain.Entities;
+using ClinicManagement.Domain.Exceptions;
 
 namespace ClinicManagement.Application.Clinics.Services;
 
 public class ClinicService(
     IClinicRepository clinicRepository,
     IProviderRepository providerRepository,
-    IAppointmentRepository appointmentRepository) : IClinicService
+    IAppointmentRepository appointmentRepository,
+    IClinicAdminRepository clinicAdminRepository) : IClinicService
 {
     public async Task<ClinicResponse> GetClinicByIdAsync(Guid clinicId)
     {
@@ -100,6 +104,21 @@ public class ClinicService(
         }
         await clinicRepository.DeleteClinicAsync(clinic.Id);
         return clinicId;
+    }
+
+    public async Task<Guid> AddClinicAdminAsync(Guid clinicId, string identitySubject)
+    {
+        RequestValidator.EnsureGuid(clinicId, nameof(clinicId), "Clinic ID");
+
+        _ = await clinicRepository.GetClinicByIdAsync(clinicId)
+            ?? throw new ResourceNotFoundException("Clinic", clinicId);
+
+        var clinicAdmin = ClinicAdmin.Create(Guid.NewGuid(), clinicId, identitySubject);
+        if (await clinicAdminRepository.IsAdminOfClinicAsync(clinicAdmin.IdentitySubject, clinicId))
+            throw new ClinicAdminAlreadyAssignedException(clinicAdmin.IdentitySubject, clinicId);
+
+        await clinicAdminRepository.AddAsync(clinicAdmin);
+        return clinicAdmin.Id;
     }
 
     private static void ValidateRequest(ClinicRequest request)

@@ -3,6 +3,7 @@ using ClinicManagement.Application.ClinicJoinRequests.Models;
 using ClinicManagement.Application.Clinics.Interfaces;
 using ClinicManagement.Application.Common;
 using ClinicManagement.Application.Common.Exceptions;
+using ClinicManagement.Application.Interfaces;
 using ClinicManagement.Application.Providers.Interfaces;
 using ClinicManagement.Domain.Entities;
 using ClinicManagement.Domain.Enums;
@@ -14,6 +15,7 @@ public class ClinicJoinRequestService(
     IClinicJoinRequestRepository requestRepository,
     IProviderRepository providerRepository,
     IClinicRepository clinicRepository,
+    ICurrentUser currentUser,
     TimeProvider timeProvider) : IClinicJoinRequestService
 {
     public async Task<Guid> RequestToJoinAsync(Guid providerId, Guid clinicId)
@@ -21,13 +23,10 @@ public class ClinicJoinRequestService(
         RequestValidator.EnsureGuid(providerId, nameof(providerId), "Provider ID");
         RequestValidator.EnsureGuid(clinicId, nameof(clinicId), "Clinic ID");
 
-        var provider = await providerRepository.GetProviderByIdAsync(providerId)
-            ?? throw new ResourceNotFoundException("Provider", providerId);
+        var provider = await CurrentUserGuard.RequireVerifiedProviderAsync(currentUser, providerId);
         if (!await clinicRepository.ClinicExistsAsync(clinicId))
             throw new ResourceNotFoundException("Clinic", clinicId);
 
-        if (provider.VerificationStatus != ProviderVerificationStatus.VERIFIED)
-            throw new ProviderNotVerifiedException(providerId);
         if (provider.ClinicId is not null)
             throw new ProviderAlreadyInClinicException(providerId);
         if (await requestRepository.HasPendingAsync(providerId))
@@ -61,26 +60,38 @@ public class ClinicJoinRequestService(
 
     public async Task ApproveAsync(Guid requestId)
     {
-        var request = await GetRequiredAsync(requestId);
+        var request = await GetManagedRequestAsync(requestId);
         request.Approve(timeProvider.GetUtcNow());
 
         if (!await requestRepository.TryApproveAsync(request))
             throw new ConcurrentModificationException("Clinic join request", requestId);
     }
 
-    public Task RejectAsync(Guid requestId) =>
-        DecideAsync(requestId, request => request.Reject(timeProvider.GetUtcNow()));
+    public async Task RejectAsync(Guid requestId)
+    {
+        var request = await GetManagedRequestAsync(requestId);
+        request.Reject(timeProvider.GetUtcNow());
+        await PersistDecisionAsync(request);
+    }
 
-    public Task CancelAsync(Guid requestId) =>
-        DecideAsync(requestId, request => request.Cancel(timeProvider.GetUtcNow()));
-
-    private async Task DecideAsync(Guid requestId, Action<ClinicJoinRequest> decide)
+    public async Task CancelAsync(Guid requestId)
     {
         var request = await GetRequiredAsync(requestId);
-        decide(request);
+        request.Cancel(timeProvider.GetUtcNow());
+        await PersistDecisionAsync(request);
+    }
 
+    private async Task PersistDecisionAsync(ClinicJoinRequest request)
+    {
         if (!await requestRepository.TryDecideAsync(request))
-            throw new ConcurrentModificationException("Clinic join request", requestId);
+            throw new ConcurrentModificationException("Clinic join request", request.Id);
+    }
+
+    private async Task<ClinicJoinRequest> GetManagedRequestAsync(Guid requestId)
+    {
+        var request = await GetRequiredAsync(requestId);
+        await CurrentUserGuard.RequireClinicAdminAsync(currentUser, request.ClinicId);
+        return request;
     }
 
     private async Task<ClinicJoinRequest> GetRequiredAsync(Guid requestId)

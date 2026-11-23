@@ -2,6 +2,7 @@ using ClinicManagement.Application.Clinics.Interfaces;
 using ClinicManagement.Application.Clinics.Models;
 using ClinicManagement.Application.Appointments.Models;
 using ClinicManagement.Application.Providers.Models;
+using ClinicManagement.Api.Security;
 using Microsoft.AspNetCore.Mvc;
 using ClinicManagement.Application.Models;
 
@@ -11,10 +12,12 @@ public static class ClinicEndpoints
 {
     public static IEndpointRouteBuilder MapClinicEndpoints(this WebApplication app)
     {
-        app.MapGet("/api/clinics", async ([FromServices] IClinicService service) =>
+        var clinics = app.MapGroup("/api/clinics").RequireAuthorization(AuthorizationPolicies.AdminOnly);
+
+        clinics.MapGet("", async ([FromServices] IClinicService service) =>
             Results.Ok(await service.GetAllClinicsAsync()));
 
-        app.MapGet("/api/clinics/search", async (
+        clinics.MapGet("/search", async (
             [AsParameters] PageQuery query,
             [FromServices] IClinicService service) =>
             Results.Ok(await service.SearchClinicsAsync(query)))
@@ -23,10 +26,10 @@ public static class ClinicEndpoints
             .WithDescription("Searches clinic names, addresses, and phone numbers, and returns a page.")
             .Produces<PagedResponse<ClinicResponse>>(StatusCodes.Status200OK);
 
-        app.MapGet("/api/clinics/{id}", async (Guid id, [FromServices] IClinicService service) =>
+        clinics.MapGet("/{id}", async (Guid id, [FromServices] IClinicService service) =>
             Results.Ok(await service.GetClinicByIdAsync(id)));
 
-        app.MapGet("/api/clinics/{id}/providers", async (
+        clinics.MapGet("/{id}/providers", async (
             Guid id,
             [FromServices] IClinicService service) =>
             Results.Ok(await service.GetProvidersByClinicIdAsync(id)))
@@ -35,7 +38,7 @@ public static class ClinicEndpoints
             .Produces<List<ProviderResponse>>(StatusCodes.Status200OK)
             .Produces(StatusCodes.Status404NotFound);
 
-        app.MapGet("/api/clinics/{id}/appointments", async (
+        clinics.MapGet("/{id}/appointments", async (
             Guid id,
             [FromServices] IClinicService service) =>
             Results.Ok(await service.GetAppointmentsByClinicIdAsync(id)))
@@ -44,23 +47,37 @@ public static class ClinicEndpoints
             .Produces<List<AppointmentResponse>>(StatusCodes.Status200OK)
             .Produces(StatusCodes.Status404NotFound);
 
-        app.MapPost("/api/clinics", async ([FromBody] ClinicRequest request, [FromServices] IClinicService service) =>
+        clinics.MapPost("", async ([FromBody] ClinicRequest request, [FromServices] IClinicService service) =>
         {
             var id = await service.AddClinicAsync(request with { Id = Guid.NewGuid() });
             return Results.Created($"/api/clinics/{id}", new { id });
         });
 
-        app.MapPut("/api/clinics/{id}", async (Guid id, [FromBody] ClinicRequest request, [FromServices] IClinicService service) =>
+        clinics.MapPut("/{id}", async (Guid id, [FromBody] ClinicRequest request, [FromServices] IClinicService service) =>
         {
             await service.UpdateClinicAsync(request with { Id = id });
             return Results.NoContent();
         });
 
-        app.MapDelete("/api/clinics/{id}", async (Guid id, [FromServices] IClinicService service) =>
+        clinics.MapDelete("/{id}", async (Guid id, [FromServices] IClinicService service) =>
         {
             await service.DeleteClinicAsync(id);
             return Results.NoContent();
         });
+
+        clinics.MapPost("/{clinicId}/admins", async (
+            Guid clinicId,
+            [FromBody] ClinicAdminRequest request,
+            [FromServices] IClinicService service) =>
+        {
+            var id = await service.AddClinicAdminAsync(clinicId, request.IdentitySubject);
+            return Results.Created($"/api/clinics/{clinicId}/admins", new { id });
+        })
+            .WithName("AddClinicAdmin")
+            .WithSummary("Assign an identity as an administrator of a clinic (admin)")
+            .Produces(StatusCodes.Status201Created)
+            .Produces(StatusCodes.Status404NotFound)
+            .Produces(StatusCodes.Status409Conflict);
 
         return app;
     }

@@ -86,7 +86,7 @@ public class AppointmentServiceTests
             AppointmentById = CreateExistingAppointment(
                 request.ProviderId, request.PatientId, CurrentTime.AddHours(2), request.Id)
         };
-        var service = CreateService(repository, new FakePatientRepository());
+        var service = CreateService(repository, new FakePatientRepository(), currentUser: ProviderUser(request.ProviderId));
 
         await service.ConfirmAppointmentAsync(request.Id);
 
@@ -135,7 +135,7 @@ public class AppointmentServiceTests
             AppointmentById = CreateExistingAppointment(
                 request.ProviderId, request.PatientId, CurrentTime.AddHours(2), request.Id)
         };
-        var service = CreateService(repository, new FakePatientRepository());
+        var service = CreateService(repository, new FakePatientRepository(), currentUser: ProviderUser(request.ProviderId));
 
         await Assert.ThrowsAsync<ConcurrentModificationException>(
             () => service.ConfirmAppointmentAsync(request.Id));
@@ -148,6 +148,39 @@ public class AppointmentServiceTests
 
         await Assert.ThrowsAsync<ResourceNotFoundException>(
             () => service.DeclineAppointmentAsync(Guid.NewGuid()));
+    }
+
+    [Fact]
+    public async Task ConfirmAppointmentAsync_ForbidsProviderThatDoesNotOwnAppointment()
+    {
+        var request = CreateRequest(CurrentTime.AddHours(2));
+        var repository = new FakeAppointmentRepository
+        {
+            AppointmentById = CreateExistingAppointment(
+                request.ProviderId, request.PatientId, CurrentTime.AddHours(2), request.Id)
+        };
+        var service = CreateService(repository, new FakePatientRepository(), currentUser: ProviderUser(Guid.NewGuid()));
+
+        await Assert.ThrowsAsync<ForbiddenException>(() => service.ConfirmAppointmentAsync(request.Id));
+
+        Assert.Null(repository.StatusChange);
+    }
+
+    [Fact]
+    public async Task DeclineAppointmentAsync_ForbidsUnverifiedProvider()
+    {
+        var request = CreateRequest(CurrentTime.AddHours(2));
+        var repository = new FakeAppointmentRepository
+        {
+            AppointmentById = CreateExistingAppointment(
+                request.ProviderId, request.PatientId, CurrentTime.AddHours(2), request.Id)
+        };
+        var pending = Provider.Register(request.ProviderId, "Grace", "Hopper", "Computing");
+        var service = CreateService(repository, new FakePatientRepository(), currentUser: new TestCurrentUser { Provider = pending });
+
+        await Assert.ThrowsAsync<ForbiddenException>(() => service.DeclineAppointmentAsync(request.Id));
+
+        Assert.Null(repository.StatusChange);
     }
 
     [Fact]
@@ -390,16 +423,21 @@ public class AppointmentServiceTests
         Assert.Null(repository.UpdatedAppointment);
     }
 
+    private static TestCurrentUser ProviderUser(Guid providerId) =>
+        new() { Provider = Provider.Create(providerId, Guid.NewGuid(), "Grace", "Hopper", "Computing") };
+
     private static AppointmentService CreateService(
         FakeAppointmentRepository appointmentRepository,
         FakePatientRepository patientRepository,
         FakeClinicRepository? clinicRepository = null,
-        FakeProviderRepository? providerRepository = null) =>
+        FakeProviderRepository? providerRepository = null,
+        TestCurrentUser? currentUser = null) =>
         new(
             appointmentRepository,
             patientRepository,
             clinicRepository ?? new FakeClinicRepository(),
             providerRepository ?? new FakeProviderRepository(),
+            currentUser ?? new TestCurrentUser(),
             new ClinicManagementSettings { DefaultAppointmentDurationMinutes = 20 },
             new FixedTimeProvider(CurrentTime));
 

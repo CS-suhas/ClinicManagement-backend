@@ -2,6 +2,7 @@ using ClinicManagement.Application.Appointments.Interfaces;
 using ClinicManagement.Application.Common;
 using ClinicManagement.Application.Common.Exceptions;
 using ClinicManagement.Application.Common.Settings;
+using ClinicManagement.Application.Interfaces;
 using ClinicManagement.Domain.Entities;
 using ClinicManagement.Domain.Exceptions;
 using ClinicManagement.Application.Appointments.Models;
@@ -24,6 +25,7 @@ public class AppointmentService(
     IPatientRepository patientRepository,
     IClinicRepository clinicRepository,
     IProviderRepository providerRepository,
+    ICurrentUser currentUser,
     ClinicManagementSettings clinicSettings,
     TimeProvider timeProvider) : IAppointmentService
 {
@@ -129,10 +131,10 @@ public class AppointmentService(
     }
 
     public Task ConfirmAppointmentAsync(Guid appointmentId) =>
-        ChangeStatusAsync(appointmentId, (appointment, now) => appointment.Confirm(now));
+        ChangeProviderStatusAsync(appointmentId, (appointment, now) => appointment.Confirm(now));
 
     public Task DeclineAppointmentAsync(Guid appointmentId) =>
-        ChangeStatusAsync(appointmentId, (appointment, now) => appointment.Decline(now));
+        ChangeProviderStatusAsync(appointmentId, (appointment, now) => appointment.Decline(now));
 
     public Task CancelAppointmentAsync(Guid appointmentId) =>
         ChangeStatusAsync(appointmentId, (appointment, now) => appointment.Cancel(now));
@@ -140,14 +142,26 @@ public class AppointmentService(
     public Task CompleteAppointmentAsync(Guid appointmentId) =>
         ChangeStatusAsync(appointmentId, (appointment, now) => appointment.Complete(now));
 
+    private async Task ChangeProviderStatusAsync(Guid appointmentId, Action<Appointment, DateTimeOffset> transition)
+    {
+        var appointment = await GetRequiredAppointmentAsync(appointmentId);
+        await CurrentUserGuard.RequireVerifiedProviderAsync(currentUser, appointment.ProviderId);
+        await ApplyStatusChangeAsync(appointment, transition);
+    }
+
     private async Task ChangeStatusAsync(Guid appointmentId, Action<Appointment, DateTimeOffset> transition)
     {
         var appointment = await GetRequiredAppointmentAsync(appointmentId);
+        await ApplyStatusChangeAsync(appointment, transition);
+    }
+
+    private async Task ApplyStatusChangeAsync(Appointment appointment, Action<Appointment, DateTimeOffset> transition)
+    {
         var expected = appointment.Status;
         transition(appointment, timeProvider.GetUtcNow());
 
-        if (!await appointmentRepository.TryUpdateStatusAsync(appointmentId, expected, appointment.Status))
-            throw new ConcurrentModificationException("Appointment", appointmentId);
+        if (!await appointmentRepository.TryUpdateStatusAsync(appointment.Id, expected, appointment.Status))
+            throw new ConcurrentModificationException("Appointment", appointment.Id);
     }
 
     private static void ValidateRequest(AppointmentRequest request, DateTimeOffset currentTime)

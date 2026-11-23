@@ -34,6 +34,20 @@ internal sealed class ApiExceptionHandler(ILogger<ApiExceptionHandler> logger) :
                 Detail = exception.Message,
                 Instance = httpContext.Request.Path
             },
+            ForbiddenException => new ProblemDetails
+            {
+                Status = StatusCodes.Status403Forbidden,
+                Title = "Forbidden",
+                Detail = exception.Message,
+                Instance = httpContext.Request.Path
+            },
+            UnauthorizedAccessException => new ProblemDetails
+            {
+                Status = StatusCodes.Status401Unauthorized,
+                Title = "Unauthorized",
+                Detail = exception.Message,
+                Instance = httpContext.Request.Path
+            },
             _ => CreateInternalProblem(httpContext, exception)
         };
 

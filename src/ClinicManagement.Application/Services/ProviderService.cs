@@ -13,13 +13,15 @@ using ClinicManagement.Domain.Entities;
 using ClinicManagement.Domain.Enums;
 using ClinicManagement.Domain.Exceptions;
 using ClinicManagement.Application.Models;
+using ClinicManagement.Application.Interfaces;
 
 namespace ClinicManagement.Application.Providers.Services;
 
 public class ProviderService(
     IProviderRepository providerRepository,
     IClinicRepository clinicRepository,
-    IAppointmentRepository appointmentRepository) : IProviderService
+    IAppointmentRepository appointmentRepository,
+    ICurrentUser currentUser) : IProviderService
 {
     public async Task<ProviderResponse> GetProviderByIdAsync(Guid providerId)
     {
@@ -81,15 +83,13 @@ public class ProviderService(
         bool includeInactive)
     {
         RequestValidator.EnsureGuid(providerId, nameof(providerId), "Provider ID");
+        await CurrentUserGuard.RequireVerifiedProviderAsync(currentUser, providerId);
         if (from >= to)
             throw new DomainValidationException("'from' must be earlier than 'to'.", nameof(from));
         if (to - from > MaxCalendarRange)
             throw new DomainValidationException(
                 $"The calendar range cannot exceed {MaxCalendarRange.TotalDays:0} days.",
                 nameof(to));
-
-        _ = await providerRepository.GetProviderByIdAsync(providerId)
-            ?? throw new ResourceNotFoundException("Provider", providerId);
 
         var appointments = await appointmentRepository.GetProviderAppointmentsInRangeAsync(
             providerId,

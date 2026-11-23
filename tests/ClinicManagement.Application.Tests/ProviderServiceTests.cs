@@ -16,7 +16,7 @@ public class ProviderServiceTests
     public async Task RegisterProviderAsync_StoresAPendingProviderWithoutAClinic()
     {
         var providerRepository = new FakeProviderRepository();
-        var service = new ProviderService(providerRepository, new FakeClinicRepository(), new FakeAppointmentRepository());
+        var service = new ProviderService(providerRepository, new FakeClinicRepository(), new FakeAppointmentRepository(), new TestCurrentUser());
         var id = Guid.NewGuid();
 
         var result = await service.RegisterProviderAsync(new ProviderRegistrationRequest(id, " Grace ", "Hopper", "Computing"));
@@ -32,7 +32,7 @@ public class ProviderServiceTests
     public async Task RegisterProviderAsync_RejectsBlankSpecialtyBeforeStoring()
     {
         var providerRepository = new FakeProviderRepository();
-        var service = new ProviderService(providerRepository, new FakeClinicRepository(), new FakeAppointmentRepository());
+        var service = new ProviderService(providerRepository, new FakeClinicRepository(), new FakeAppointmentRepository(), new TestCurrentUser());
 
         var exception = await Assert.ThrowsAsync<DomainValidationException>(
             () => service.RegisterProviderAsync(new ProviderRegistrationRequest(Guid.NewGuid(), "Grace", "Hopper", " ")));
@@ -46,7 +46,7 @@ public class ProviderServiceTests
     {
         var pending = Provider.Register(Guid.NewGuid(), "Grace", "Hopper", "Computing");
         var providerRepository = new FakeProviderRepository { ExistingProvider = pending };
-        var service = new ProviderService(providerRepository, new FakeClinicRepository(), new FakeAppointmentRepository());
+        var service = new ProviderService(providerRepository, new FakeClinicRepository(), new FakeAppointmentRepository(), new TestCurrentUser());
 
         await service.VerifyProviderAsync(pending.Id);
 
@@ -60,7 +60,7 @@ public class ProviderServiceTests
     {
         var verified = Provider.Create(Guid.NewGuid(), Guid.NewGuid(), "Grace", "Hopper", "Computing");
         var providerRepository = new FakeProviderRepository { ExistingProvider = verified };
-        var service = new ProviderService(providerRepository, new FakeClinicRepository(), new FakeAppointmentRepository());
+        var service = new ProviderService(providerRepository, new FakeClinicRepository(), new FakeAppointmentRepository(), new TestCurrentUser());
 
         await Assert.ThrowsAsync<InvalidStatusTransitionException>(() => service.RejectProviderAsync(verified.Id));
 
@@ -76,7 +76,7 @@ public class ProviderServiceTests
             ExistingProvider = pending,
             VerificationChangeSucceeds = false
         };
-        var service = new ProviderService(providerRepository, new FakeClinicRepository(), new FakeAppointmentRepository());
+        var service = new ProviderService(providerRepository, new FakeClinicRepository(), new FakeAppointmentRepository(), new TestCurrentUser());
 
         await Assert.ThrowsAsync<ConcurrentModificationException>(() => service.VerifyProviderAsync(pending.Id));
     }
@@ -88,7 +88,8 @@ public class ProviderServiceTests
         var service = new ProviderService(
             new FakeProviderRepository { ExistingProvider = provider },
             new FakeClinicRepository(),
-            new FakeAppointmentRepository());
+            new FakeAppointmentRepository(),
+            new TestCurrentUser { Provider = provider });
         var from = new DateTimeOffset(2030, 1, 1, 0, 0, 0, TimeSpan.Zero);
 
         var inverted = await Assert.ThrowsAsync<DomainValidationException>(
@@ -101,15 +102,17 @@ public class ProviderServiceTests
     }
 
     [Fact]
-    public async Task GetProviderCalendarAsync_ThrowsNotFoundForUnknownProvider()
+    public async Task GetProviderCalendarAsync_ForbidsProviderOtherThanTheCaller()
     {
+        var caller = Provider.Create(Guid.NewGuid(), Guid.NewGuid(), "Grace", "Hopper", "Computing");
         var service = new ProviderService(
-            new FakeProviderRepository(),
+            new FakeProviderRepository { ExistingProvider = caller },
             new FakeClinicRepository(),
-            new FakeAppointmentRepository());
+            new FakeAppointmentRepository(),
+            new TestCurrentUser { Provider = caller });
         var from = new DateTimeOffset(2030, 1, 1, 0, 0, 0, TimeSpan.Zero);
 
-        await Assert.ThrowsAsync<ResourceNotFoundException>(
+        await Assert.ThrowsAsync<ForbiddenException>(
             () => service.GetProviderCalendarAsync(Guid.NewGuid(), from, from.AddDays(7), false));
     }
 
@@ -125,7 +128,7 @@ public class ProviderServiceTests
         var service = new ProviderService(
             new FakeProviderRepository { ExistingProvider = provider },
             new FakeClinicRepository(),
-            new FakeAppointmentRepository());
+            new FakeAppointmentRepository(), new TestCurrentUser());
 
         var result = await service.GetProviderByIdAsync(provider.Id);
 
@@ -139,7 +142,7 @@ public class ProviderServiceTests
         var clinicId = Guid.NewGuid();
         var providerRepository = new FakeProviderRepository();
         var clinicRepository = new FakeClinicRepository { Exists = true };
-        var service = new ProviderService(providerRepository, clinicRepository, new FakeAppointmentRepository());
+        var service = new ProviderService(providerRepository, clinicRepository, new FakeAppointmentRepository(), new TestCurrentUser());
         var request = new ProviderRequest(Guid.NewGuid(), clinicId, "  Grace ", " Hopper  ", "  Computing ");
 
         var result = await service.AddProviderAsync(request);
@@ -160,7 +163,7 @@ public class ProviderServiceTests
         var service = new ProviderService(
             providerRepository,
             new FakeClinicRepository { Exists = false },
-            new FakeAppointmentRepository());
+            new FakeAppointmentRepository(), new TestCurrentUser());
 
         await Assert.ThrowsAsync<ResourceNotFoundException>(
             () => service.AddProviderAsync(
@@ -186,7 +189,7 @@ public class ProviderServiceTests
         var service = new ProviderService(
             providerRepository,
             new FakeClinicRepository(),
-            new FakeAppointmentRepository());
+            new FakeAppointmentRepository(), new TestCurrentUser());
 
         await Assert.ThrowsAsync<ProviderHasAppointmentsException>(
             () => service.DeleteProviderAsync(provider.Id));
@@ -202,7 +205,7 @@ public class ProviderServiceTests
         var service = new ProviderService(
             new FakeProviderRepository { ExistingProvider = provider },
             new FakeClinicRepository { ExistingClinic = clinic },
-            new FakeAppointmentRepository());
+            new FakeAppointmentRepository(), new TestCurrentUser());
 
         var result = await service.GetClinicByProviderIdAsync(provider.Id);
 
@@ -233,7 +236,7 @@ public class ProviderServiceTests
         var service = new ProviderService(
             new FakeProviderRepository { ExistingProvider = provider },
             new FakeClinicRepository { ExistingClinic = clinic },
-            appointments);
+            appointments, new TestCurrentUser());
 
         var result = await service.GetAppointmentsByProviderIdAsync(provider.Id);
 

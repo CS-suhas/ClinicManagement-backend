@@ -1,4 +1,5 @@
 using ClinicManagement.Application.Repositories;
+using ClinicManagement.Domain.Entities;
 using Dapper;
 using Infrastructure.Data;
 
@@ -24,5 +25,17 @@ public sealed class ClinicAdminRepository(IDbConnectionFactory connectionFactory
         const string sql = "SELECT COUNT(1) FROM ClinicAdmins WHERE IdentitySubject = :IdentitySubject";
         var count = await connection.ExecuteScalarAsync<int>(sql, new { IdentitySubject = identitySubject });
         return count > 0;
+    }
+
+    public async Task AddAsync(ClinicAdmin clinicAdmin)
+    {
+        using var connection = connectionFactory.CreateConnection();
+        const string sql = "INSERT INTO ClinicAdmins (Id, ClinicId, IdentitySubject) VALUES (:Id, :ClinicId, :IdentitySubject)";
+        await connection.ExecuteAsync(sql, new
+        {
+            Id = clinicAdmin.Id.ToString(),
+            ClinicId = clinicAdmin.ClinicId.ToString(),
+            clinicAdmin.IdentitySubject
+        });
     }
 }

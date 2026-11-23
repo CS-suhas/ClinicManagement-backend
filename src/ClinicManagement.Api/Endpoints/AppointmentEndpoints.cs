@@ -5,6 +5,7 @@ using ClinicManagement.Application.Patients.Models;
 using ClinicManagement.Application.Providers.Models;
 using ClinicManagement.Application.Models;
 using Microsoft.AspNetCore.Mvc;
+using ClinicManagement.Api.Security;
 
 namespace ClinicManagement.Api.Endpoints;
 
@@ -78,6 +79,7 @@ public static class AppointmentEndpoints
             return Results.NoContent();
         })
             .WithName("ConfirmAppointment")
+            .RequireAuthorization(AuthorizationPolicies.DoctorOnly)
             .WithSummary("Accept a requested appointment (provider)")
             .Produces(StatusCodes.Status204NoContent)
             .Produces(StatusCodes.Status404NotFound)
@@ -89,6 +91,7 @@ public static class AppointmentEndpoints
             return Results.NoContent();
         })
             .WithName("DeclineAppointment")
+            .RequireAuthorization(AuthorizationPolicies.DoctorOnly)
             .WithSummary("Decline a requested appointment (provider)")
             .Produces(StatusCodes.Status204NoContent)
             .Produces(StatusCodes.Status404NotFound)

@@ -15,4 +15,5 @@ public interface IClinicService
     Task<Guid> UpdateClinicAsync(ClinicRequest request);
     Task<Guid> DeleteClinicAsync(Guid clinicId);
     Task<PagedResponse<ClinicResponse>> SearchClinicsAsync(PageQuery query);
+    Task<Guid> AddClinicAdminAsync(Guid clinicId, string identitySubject);
 }

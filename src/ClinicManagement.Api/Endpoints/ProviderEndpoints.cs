@@ -5,6 +5,7 @@ using ClinicManagement.Application.Clinics.Models;
 using ClinicManagement.Domain.Enums;
 using Microsoft.AspNetCore.Mvc;
 using ClinicManagement.Application.Models;
+using ClinicManagement.Api.Security;
 
 namespace ClinicManagement.Api.Endpoints;
 
@@ -54,6 +55,7 @@ public static class ProviderEndpoints
             return Results.NoContent();
         })
             .WithName("VerifyProvider")
+            .RequireAuthorization(AuthorizationPolicies.AdminOnly)
             .WithSummary("Verify a provider (admin)")
             .Produces(StatusCodes.Status204NoContent)
             .Produces(StatusCodes.Status404NotFound)
@@ -65,6 +67,7 @@ public static class ProviderEndpoints
             return Results.NoContent();
         })
             .WithName("RejectProvider")
+            .RequireAuthorization(AuthorizationPolicies.AdminOnly)
             .WithSummary("Reject a pending provider (admin)")
             .Produces(StatusCodes.Status204NoContent)
             .Produces(StatusCodes.Status404NotFound)
@@ -78,6 +81,7 @@ public static class ProviderEndpoints
             [FromServices] IProviderService service) =>
             Results.Ok(await service.GetProviderCalendarAsync(id, from, to, includeInactive ?? false)))
             .WithName("GetProviderCalendar")
+            .RequireAuthorization(AuthorizationPolicies.DoctorOnly)
             .WithSummary("Get a provider's appointments in a date range")
             .WithDescription("Appointments starting in [from, to), at most 62 days, ordered by time. Declined and cancelled appointments are left out unless includeInactive is true.")
             .Produces<List<AppointmentListResponse>>(StatusCodes.Status200OK)
