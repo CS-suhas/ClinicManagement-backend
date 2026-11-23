@@ -49,12 +49,14 @@ public sealed class StatusRepository(IDbConnectionFactory connectionFactory) : I
                    pr.ClinicId,
                    c.Name AS ClinicName,
                    a.AppointmentDateTime,
-                   a.ReasonForVisit
+                   a.ReasonForVisit,
+                   a.Status
             FROM Appointments a
             INNER JOIN Patients p ON p.Id = a.PatientId
             INNER JOIN Providers pr ON pr.Id = a.ProviderId
             INNER JOIN Clinics c ON c.Id = pr.ClinicId
             WHERE a.AppointmentDateTime >= :Now
+              AND a.Status IN ('REQUESTED', 'CONFIRMED')
             ORDER BY a.AppointmentDateTime, a.Id
             FETCH FIRST 5 ROWS ONLY
             """;

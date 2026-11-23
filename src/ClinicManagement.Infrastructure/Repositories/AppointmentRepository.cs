@@ -1,5 +1,6 @@
 using ClinicManagement.Application.Appointments.Interfaces;
 using ClinicManagement.Domain.Entities;
+using ClinicManagement.Domain.Enums;
 using Dapper;
 using Infrastructure.Data;
 using ClinicManagement.Application.Models;
@@ -8,41 +9,55 @@ namespace ClinicManagement.Infrastructure.Repositories;
 
 public class AppointmentRepository(IDbConnectionFactory connectionFactory) : IAppointmentRepository
 {
+    private const string SelectAppointmentWithParties = """
+        SELECT a.Id, a.AppointmentDateTime, a.ReasonForVisit, a.Status,
+               p.Id, p.FirstName, p.LastName, p.DateOfBirth, p.PhoneNumber, p.Email,
+               pr.Id, pr.FirstName, pr.LastName, pr.Specialty, pr.ClinicId, pr.VerificationStatus
+        FROM Appointments a
+        INNER JOIN Patients p ON p.Id = a.PatientId
+        INNER JOIN Providers pr ON pr.Id = a.ProviderId
+        """;
+
+    private const string SelectAppointmentListItem = """
+        SELECT a.Id,
+               a.PatientId,
+               p.FirstName || ' ' || p.LastName AS PatientName,
+               a.ProviderId,
+               pr.FirstName || ' ' || pr.LastName AS ProviderName,
+               pr.Specialty AS ProviderSpecialty,
+               pr.ClinicId,
+               c.Name AS ClinicName,
+               a.AppointmentDateTime,
+               a.ReasonForVisit,
+               a.Status
+        """;
+
+    private const string ListItemJoins = """
+        FROM Appointments a
+        INNER JOIN Patients p ON p.Id = a.PatientId
+        INNER JOIN Providers pr ON pr.Id = a.ProviderId
+        INNER JOIN Clinics c ON c.Id = pr.ClinicId
+        """;
+
+    // Requested and confirmed appointments occupy the provider's time slot.
+    private const string ActiveStatuses = "('REQUESTED', 'CONFIRMED')";
+
     public async Task<Appointment?> GetAppointmentByIdAsync(Guid appointmentId)
     {
-        const string sql = """
-            SELECT a.Id, a.AppointmentDateTime, a.ReasonForVisit,
-                   p.Id, p.FirstName, p.LastName, p.DateOfBirth, p.PhoneNumber, p.Email,
-                   pr.Id, pr.FirstName, pr.LastName, pr.Specialty, pr.ClinicId
-            FROM Appointments a
-            INNER JOIN Patients p ON p.Id = a.PatientId
-            INNER JOIN Providers pr ON pr.Id = a.ProviderId
-            WHERE a.Id = :Id
-            """;
+        const string sql = $"{SelectAppointmentWithParties} WHERE a.Id = :Id";
 
         return (await QueryAppointmentsAsync(sql, new { Id = appointmentId.ToString() })).SingleOrDefault();
     }
 
-    public async Task<IEnumerable<Appointment>> GetAllAppointmentsAsync()
-    {
-        const string sql = """
-            SELECT a.Id, a.AppointmentDateTime, a.ReasonForVisit,
-                   p.Id, p.FirstName, p.LastName, p.DateOfBirth, p.PhoneNumber, p.Email,
-                   pr.Id, pr.FirstName, pr.LastName, pr.Specialty, pr.ClinicId
-            FROM Appointments a
-            INNER JOIN Patients p ON p.Id = a.PatientId
-            INNER JOIN Providers pr ON pr.Id = a.ProviderId
-            """;
-
-        return await QueryAppointmentsAsync(sql);
-    }
+    public async Task<IEnumerable<Appointment>> GetAllAppointmentsAsync() =>
+        await QueryAppointmentsAsync(SelectAppointmentWithParties);
 
     public async Task<Guid> AddAppointmentAsync(Appointment appointment, Guid patientId, Guid providerId)
     {
         using var connection = connectionFactory.CreateConnection();
         const string sql = """
-            INSERT INTO Appointments (Id, PatientId, ProviderId, AppointmentDateTime, ReasonForVisit)
-            VALUES (:Id, :PatientId, :ProviderId, :AppointmentDateTime, :ReasonForVisit)
+            INSERT INTO Appointments (Id, PatientId, ProviderId, AppointmentDateTime, ReasonForVisit, Status)
+            VALUES (:Id, :PatientId, :ProviderId, :AppointmentDateTime, :ReasonForVisit, :Status)
             """;
         await connection.ExecuteAsync(sql, new
         {
@@ -50,7 +65,8 @@ public class AppointmentRepository(IDbConnectionFactory connectionFactory) : IAp
             PatientId = patientId.ToString(),
             ProviderId = providerId.ToString(),
             appointment.AppointmentDateTime,
-            appointment.ReasonForVisit
+            appointment.ReasonForVisit,
+            Status = appointment.Status.ToString()
         });
         return appointment.Id;
     }
@@ -78,6 +94,26 @@ public class AppointmentRepository(IDbConnectionFactory connectionFactory) : IAp
         return appointment.Id;
     }
 
+    public async Task<bool> TryUpdateStatusAsync(
+        Guid appointmentId,
+        AppointmentStatus expected,
+        AppointmentStatus next)
+    {
+        using var connection = connectionFactory.CreateConnection();
+        const string sql = """
+            UPDATE Appointments
+            SET Status = :Next, UpdatedAtUtc = SYSTIMESTAMP
+            WHERE Id = :Id AND Status = :Expected
+            """;
+        var rows = await connection.ExecuteAsync(sql, new
+        {
+            Id = appointmentId.ToString(),
+            Expected = expected.ToString(),
+            Next = next.ToString()
+        });
+        return rows == 1;
+    }
+
     public async Task<Guid> DeleteAppointmentAsync(Guid appointmentId)
     {
         using var connection = connectionFactory.CreateConnection();
@@ -88,13 +124,8 @@ public class AppointmentRepository(IDbConnectionFactory connectionFactory) : IAp
 
     public async Task<IEnumerable<Appointment>> GetAppointmentsByProviderIdAsync(Guid providerId)
     {
-        const string sql = """
-            SELECT a.Id, a.AppointmentDateTime, a.ReasonForVisit,
-                   p.Id, p.FirstName, p.LastName, p.DateOfBirth, p.PhoneNumber, p.Email,
-                   pr.Id, pr.FirstName, pr.LastName, pr.Specialty, pr.ClinicId
-            FROM Appointments a
-            INNER JOIN Patients p ON p.Id = a.PatientId
-            INNER JOIN Providers pr ON pr.Id = a.ProviderId
+        const string sql = $"""
+            {SelectAppointmentWithParties}
             WHERE a.ProviderId = :ProviderId
             ORDER BY a.AppointmentDateTime, a.Id
             """;
@@ -104,13 +135,8 @@ public class AppointmentRepository(IDbConnectionFactory connectionFactory) : IAp
 
     public async Task<IEnumerable<Appointment>> GetAppointmentsByPatientIdAsync(Guid patientId)
     {
-        const string sql = """
-            SELECT a.Id, a.AppointmentDateTime, a.ReasonForVisit,
-                   p.Id, p.FirstName, p.LastName, p.DateOfBirth, p.PhoneNumber, p.Email,
-                   pr.Id, pr.FirstName, pr.LastName, pr.Specialty, pr.ClinicId
-            FROM Appointments a
-            INNER JOIN Patients p ON p.Id = a.PatientId
-            INNER JOIN Providers pr ON pr.Id = a.ProviderId
+        const string sql = $"""
+            {SelectAppointmentWithParties}
             WHERE a.PatientId = :PatientId
             ORDER BY a.AppointmentDateTime, a.Id
             """;
@@ -120,13 +146,8 @@ public class AppointmentRepository(IDbConnectionFactory connectionFactory) : IAp
 
     public async Task<IEnumerable<Appointment>> GetAppointmentsByClinicIdAsync(Guid clinicId)
     {
-        const string sql = """
-            SELECT a.Id, a.AppointmentDateTime, a.ReasonForVisit,
-                   p.Id, p.FirstName, p.LastName, p.DateOfBirth, p.PhoneNumber, p.Email,
-                   pr.Id, pr.FirstName, pr.LastName, pr.Specialty, pr.ClinicId
-            FROM Appointments a
-            INNER JOIN Patients p ON p.Id = a.PatientId
-            INNER JOIN Providers pr ON pr.Id = a.ProviderId
+        const string sql = $"""
+            {SelectAppointmentWithParties}
             WHERE pr.ClinicId = :ClinicId
             ORDER BY a.AppointmentDateTime, a.Id
             """;
@@ -181,33 +202,23 @@ public class AppointmentRepository(IDbConnectionFactory connectionFactory) : IAp
             conditions.Add("a.PatientId = :PatientId");
             parameters.Add("PatientId", patientId.ToString());
         }
+        if (query.Status is { } status)
+        {
+            conditions.Add("a.Status = :Status");
+            parameters.Add("Status", status.ToString());
+        }
 
         var where = conditions.Count == 0 ? string.Empty : $"WHERE {string.Join(" AND ", conditions)}";
-        const string joins = """
-            FROM Appointments a
-            INNER JOIN Patients p ON p.Id = a.PatientId
-            INNER JOIN Providers pr ON pr.Id = a.ProviderId
-            INNER JOIN Clinics c ON c.Id = pr.ClinicId
-            """;
         var totalCount = await connection.ExecuteScalarAsync<int>(
-            $"SELECT COUNT(1) {joins} {where}",
+            $"SELECT COUNT(1) {ListItemJoins} {where}",
             parameters);
 
         parameters.Add("Offset", offset);
         parameters.Add("PageSize", query.PageSize);
         var items = (await connection.QueryAsync<AppointmentListResponse>(
             $"""
-            SELECT a.Id,
-                   a.PatientId,
-                   p.FirstName || ' ' || p.LastName AS PatientName,
-                   a.ProviderId,
-                   pr.FirstName || ' ' || pr.LastName AS ProviderName,
-                   pr.Specialty AS ProviderSpecialty,
-                   pr.ClinicId,
-                   c.Name AS ClinicName,
-                   a.AppointmentDateTime,
-                   a.ReasonForVisit
-            {joins}
+            {SelectAppointmentListItem}
+            {ListItemJoins}
             {where}
             ORDER BY a.AppointmentDateTime, a.Id
             OFFSET :Offset ROWS FETCH NEXT :PageSize ROWS ONLY
@@ -221,28 +232,39 @@ public class AppointmentRepository(IDbConnectionFactory connectionFactory) : IAp
         int count)
     {
         using var connection = connectionFactory.CreateConnection();
-        const string sql = """
-            SELECT a.Id,
-                   a.PatientId,
-                   p.FirstName || ' ' || p.LastName AS PatientName,
-                   a.ProviderId,
-                   pr.FirstName || ' ' || pr.LastName AS ProviderName,
-                   pr.Specialty AS ProviderSpecialty,
-                   pr.ClinicId,
-                   c.Name AS ClinicName,
-                   a.AppointmentDateTime,
-                   a.ReasonForVisit
-            FROM Appointments a
-            INNER JOIN Patients p ON p.Id = a.PatientId
-            INNER JOIN Providers pr ON pr.Id = a.ProviderId
-            INNER JOIN Clinics c ON c.Id = pr.ClinicId
+        const string sql = $"""
+            {SelectAppointmentListItem}
+            {ListItemJoins}
             WHERE a.AppointmentDateTime >= :StartDateTime
+              AND a.Status IN {ActiveStatuses}
             ORDER BY a.AppointmentDateTime, a.Id
             FETCH FIRST :Count ROWS ONLY
             """;
         var appointments = await connection.QueryAsync<AppointmentListResponse>(
             sql,
             new { StartDateTime = from, Count = count });
+        return appointments.AsList();
+    }
+
+    public async Task<IReadOnlyList<AppointmentListResponse>> GetProviderAppointmentsInRangeAsync(
+        Guid providerId,
+        DateTimeOffset start,
+        DateTimeOffset end,
+        bool includeInactive)
+    {
+        using var connection = connectionFactory.CreateConnection();
+        var statusFilter = includeInactive ? string.Empty : "AND a.Status NOT IN ('DECLINED', 'CANCELLED')";
+        var appointments = await connection.QueryAsync<AppointmentListResponse>(
+            $"""
+            {SelectAppointmentListItem}
+            {ListItemJoins}
+            WHERE a.ProviderId = :ProviderId
+              AND a.AppointmentDateTime >= :StartDateTime
+              AND a.AppointmentDateTime < :EndDateTime
+              {statusFilter}
+            ORDER BY a.AppointmentDateTime, a.Id
+            """,
+            new { ProviderId = providerId.ToString(), StartDateTime = start, EndDateTime = end });
         return appointments.AsList();
     }
 
@@ -253,12 +275,13 @@ public class AppointmentRepository(IDbConnectionFactory connectionFactory) : IAp
         Guid? excludedAppointmentId)
     {
         using var connection = connectionFactory.CreateConnection();
-        const string sql = """
+        const string sql = $"""
             SELECT COUNT(1)
             FROM Appointments
             WHERE ProviderId = :ProviderId
               AND AppointmentDateTime > :AppointmentStart
               AND AppointmentDateTime < :AppointmentEnd
+              AND Status IN {ActiveStatuses}
               AND (:ExcludedAppointmentId IS NULL OR Id <> :ExcludedAppointmentId)
             """;
         var count = await connection.ExecuteScalarAsync<int>(sql, new
