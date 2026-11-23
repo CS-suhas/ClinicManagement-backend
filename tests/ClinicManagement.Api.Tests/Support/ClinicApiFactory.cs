@@ -57,15 +57,15 @@ public sealed class ClinicApiFactory : WebApplicationFactory<Program>
     {
         builder.UseEnvironment("Development");
 
-        builder.ConfigureAppConfiguration((_, config) => config.AddInMemoryCollection(new Dictionary<string, string?>
-        {
-            ["ConnectionStrings:DefaultConnection"] = "User Id=unused;Password=unused;Data Source=unused",
-            ["Authentication:Keycloak:Authority"] = Issuer,
-            ["Authentication:Keycloak:Audience"] = Audience,
-            ["Authentication:Keycloak:ValidIssuer"] = Issuer,
-            ["Authentication:Keycloak:RequireHttpsMetadata"] = "false",
-            ["Authorization:AdminSubjects:0"] = PlatformAdminSubject
-        }));
+        // UseSetting (not ConfigureAppConfiguration) so these values are visible while
+        // Program.cs is still configuring services; with minimal hosting,
+        // ConfigureAppConfiguration callbacks are only applied once the host is built.
+        builder.UseSetting("ConnectionStrings:DefaultConnection", "User Id=unused;Password=unused;Data Source=unused");
+        builder.UseSetting("Authentication:Keycloak:Authority", Issuer);
+        builder.UseSetting("Authentication:Keycloak:Audience", Audience);
+        builder.UseSetting("Authentication:Keycloak:ValidIssuer", Issuer);
+        builder.UseSetting("Authentication:Keycloak:RequireHttpsMetadata", "false");
+        builder.UseSetting("Authorization:AdminSubjects:0", PlatformAdminSubject);
 
         builder.ConfigureTestServices(services =>
         {
