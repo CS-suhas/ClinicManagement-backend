@@ -770,6 +770,97 @@ public sealed class ApiAuthorizationTests(ClinicApiFactory factory)
     }
 
     [Fact]
+    public async Task MyDashboard_RequiresSignIn()
+    {
+        using var response = await SendAsync(HttpMethod.Get, "/api/me/dashboard", subject: null);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task MyDashboard_AllowsSignedInUserWithoutRolesAndReturnsNullSections()
+    {
+        using var response = await SendAsync(HttpMethod.Get, "/api/me/dashboard", Subject("fresh"));
+        using var document = System.Text.Json.JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var root = document.RootElement;
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(System.Text.Json.JsonValueKind.Null, root.GetProperty("admin").ValueKind);
+        Assert.Equal(System.Text.Json.JsonValueKind.Null, root.GetProperty("clinicAdmin").ValueKind);
+        Assert.Equal(System.Text.Json.JsonValueKind.Null, root.GetProperty("doctor").ValueKind);
+        Assert.Equal(System.Text.Json.JsonValueKind.Null, root.GetProperty("patient").ValueKind);
+    }
+
+    [Fact]
+    public async Task MyDashboard_FillsOnlyTheSectionForAdministrator()
+    {
+        var world = SeedWorld();
+
+        using var response = await SendAsync(HttpMethod.Get, "/api/me/dashboard", world.SubjectFor("admin"));
+        using var document = System.Text.Json.JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var root = document.RootElement;
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.True(root.GetProperty("admin").TryGetProperty("pendingProviderVerificationCount", out _));
+        Assert.True(root.GetProperty("admin").TryGetProperty("todayAppointmentCount", out _));
+        Assert.Equal(System.Text.Json.JsonValueKind.Null, root.GetProperty("clinicAdmin").ValueKind);
+        Assert.Equal(System.Text.Json.JsonValueKind.Null, root.GetProperty("doctor").ValueKind);
+    }
+
+    [Fact]
+    public async Task MyDashboard_ClinicAdminCountsOnlyTheirClinic()
+    {
+        var world = SeedWorld();
+
+        using var response = await SendAsync(HttpMethod.Get, "/api/me/dashboard", world.ClinicAdminSubject);
+        using var document = System.Text.Json.JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var section = document.RootElement.GetProperty("clinicAdmin");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(1, section.GetProperty("clinicCount").GetInt32());
+        Assert.Equal(1, section.GetProperty("providerCount").GetInt32());
+        Assert.Equal(1, section.GetProperty("patientCount").GetInt32());
+        Assert.Equal(1, section.GetProperty("pendingJoinRequestCount").GetInt32());
+        Assert.Equal(0, section.GetProperty("todayAppointmentCount").GetInt32());
+        Assert.True(JsonValueKindNull(document.RootElement, "admin"));
+    }
+
+    [Fact]
+    public async Task MyDashboard_DoctorSectionHasCountsAndNextAppointment()
+    {
+        var world = SeedWorld();
+
+        using var response = await SendAsync(HttpMethod.Get, "/api/me/dashboard", world.DoctorSubject);
+        using var document = System.Text.Json.JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var section = document.RootElement.GetProperty("doctor");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(0, section.GetProperty("todayAppointmentCount").GetInt32());
+        Assert.Equal(0, section.GetProperty("weekAppointmentCount").GetInt32());
+        Assert.Equal(1, section.GetProperty("distinctPatientCount").GetInt32());
+        Assert.Equal(world.Appointment.Id, section.GetProperty("nextAppointment").GetProperty("id").GetGuid());
+        Assert.True(JsonValueKindNull(document.RootElement, "patient"));
+    }
+
+    [Fact]
+    public async Task MyDashboard_PatientSectionHasNextAppointmentAndUpcomingCount()
+    {
+        var world = SeedWorld();
+
+        using var response = await SendAsync(HttpMethod.Get, "/api/me/dashboard", world.PatientSubject);
+        using var document = System.Text.Json.JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var section = document.RootElement.GetProperty("patient");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(1, section.GetProperty("upcomingAppointmentCount").GetInt32());
+        Assert.Equal(world.Appointment.Id, section.GetProperty("nextAppointment").GetProperty("id").GetGuid());
+        Assert.True(JsonValueKindNull(document.RootElement, "doctor"));
+    }
+
+    private static bool JsonValueKindNull(System.Text.Json.JsonElement root, string property) =>
+        root.GetProperty(property).ValueKind == System.Text.Json.JsonValueKind.Null;
+
+    [Fact]
     public async Task Me_RequiresSignIn()
     {
         using var response = await SendAsync(HttpMethod.Get, "/api/me", subject: null);

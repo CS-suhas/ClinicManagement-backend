@@ -27,5 +27,21 @@ public class StatusServiceTests
         public Task<StatusStatistics> GetStatisticsAsync() => Task.FromResult(statistics);
         public Task<DashboardResponse> GetDashboardAsync(DateTimeOffset now) =>
             throw new NotSupportedException();
+        public Task<DashboardScopeCounts> GetPlatformCountsAsync(DateTimeOffset todayStart, DateTimeOffset todayEnd) =>
+            throw new NotSupportedException();
+        public Task<DashboardScopeCounts> GetClinicCountsAsync(
+            IReadOnlyCollection<Guid> clinicIds,
+            DateTimeOffset todayStart,
+            DateTimeOffset todayEnd) => throw new NotSupportedException();
+        public Task<int> CountPendingJoinRequestsAsync(IReadOnlyCollection<Guid> clinicIds) =>
+            throw new NotSupportedException();
+        public Task<DoctorDashboardSection> GetDoctorDashboardAsync(
+            Guid providerId,
+            DateTimeOffset now,
+            DateTimeOffset todayStart,
+            DateTimeOffset todayEnd,
+            DateTimeOffset weekEnd) => throw new NotSupportedException();
+        public Task<PatientDashboardSection> GetPatientDashboardAsync(Guid patientId, DateTimeOffset now) =>
+            throw new NotSupportedException();
     }
 }

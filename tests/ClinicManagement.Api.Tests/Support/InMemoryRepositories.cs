@@ -416,4 +416,91 @@ internal sealed class InMemoryStatusRepository(InMemoryStore store) : IStatusRep
             store.AllergyTypes.Count,
             store.Appointments.Count,
             []));
+
+    public Task<DashboardScopeCounts> GetPlatformCountsAsync(DateTimeOffset todayStart, DateTimeOffset todayEnd) =>
+        Task.FromResult(new DashboardScopeCounts(
+            store.Clinics.Count,
+            store.Providers.Count,
+            store.Patients.Count,
+            store.Providers.Count(provider => provider.VerificationStatus == ProviderVerificationStatus.PENDING),
+            CountToday(store.Appointments, todayStart, todayEnd)));
+
+    public Task<DashboardScopeCounts> GetClinicCountsAsync(
+        IReadOnlyCollection<Guid> clinicIds,
+        DateTimeOffset todayStart,
+        DateTimeOffset todayEnd)
+    {
+        var providers = store.Providers
+            .Where(provider => provider.ClinicId is { } clinicId && clinicIds.Contains(clinicId))
+            .ToList();
+        var providerIds = providers.Select(provider => provider.Id).ToHashSet();
+        var appointments = store.Appointments.Where(appointment => providerIds.Contains(appointment.ProviderId)).ToList();
+        return Task.FromResult(new DashboardScopeCounts(
+            clinicIds.Distinct().Count(),
+            providers.Count,
+            appointments.Select(appointment => appointment.PatientId).Distinct().Count(),
+            providers.Count(provider => provider.VerificationStatus == ProviderVerificationStatus.PENDING),
+            CountToday(appointments, todayStart, todayEnd)));
+    }
+
+    public Task<int> CountPendingJoinRequestsAsync(IReadOnlyCollection<Guid> clinicIds) =>
+        Task.FromResult(store.JoinRequests.Count(request =>
+            clinicIds.Contains(request.ClinicId) && request.Status == ClinicJoinRequestStatus.PENDING));
+
+    public Task<DoctorDashboardSection> GetDoctorDashboardAsync(
+        Guid providerId,
+        DateTimeOffset now,
+        DateTimeOffset todayStart,
+        DateTimeOffset todayEnd,
+        DateTimeOffset weekEnd)
+    {
+        var own = store.Appointments.Where(appointment => appointment.ProviderId == providerId).ToList();
+        var week = own.Count(appointment => IsCounted(appointment)
+            && appointment.AppointmentDateTime >= todayStart
+            && appointment.AppointmentDateTime < weekEnd);
+        return Task.FromResult(new DoctorDashboardSection(
+            CountToday(own, todayStart, todayEnd),
+            week,
+            own.Select(appointment => appointment.PatientId).Distinct().Count(),
+            NextActive(own, now)));
+    }
+
+    public Task<PatientDashboardSection> GetPatientDashboardAsync(Guid patientId, DateTimeOffset now)
+    {
+        var own = store.Appointments.Where(appointment => appointment.PatientId == patientId).ToList();
+        var upcoming = own.Count(appointment => IsActive(appointment) && appointment.AppointmentDateTime >= now);
+        return Task.FromResult(new PatientDashboardSection(NextActive(own, now), upcoming));
+    }
+
+    private static bool IsCounted(Appointment appointment) =>
+        appointment.Status is not (AppointmentStatus.DECLINED or AppointmentStatus.CANCELLED);
+
+    private static bool IsActive(Appointment appointment) =>
+        appointment.Status is AppointmentStatus.REQUESTED or AppointmentStatus.CONFIRMED;
+
+    private static int CountToday(IEnumerable<Appointment> appointments, DateTimeOffset todayStart, DateTimeOffset todayEnd) =>
+        appointments.Count(appointment => IsCounted(appointment)
+            && appointment.AppointmentDateTime >= todayStart
+            && appointment.AppointmentDateTime < todayEnd);
+
+    private AppointmentListResponse? NextActive(IEnumerable<Appointment> appointments, DateTimeOffset now)
+    {
+        var next = appointments
+            .Where(appointment => IsActive(appointment) && appointment.AppointmentDateTime >= now)
+            .OrderBy(appointment => appointment.AppointmentDateTime)
+            .ThenBy(appointment => appointment.Id)
+            .FirstOrDefault();
+        return next is null ? null : new AppointmentListResponse(
+            next.Id,
+            next.PatientId,
+            $"{next.Patient.FirstName} {next.Patient.LastName}",
+            next.ProviderId,
+            $"{next.Provider.FirstName} {next.Provider.LastName}",
+            next.Provider.Specialty,
+            next.Provider.ClinicId ?? Guid.Empty,
+            store.Clinics.FirstOrDefault(clinic => clinic.Id == next.Provider.ClinicId)?.Name ?? string.Empty,
+            next.AppointmentDateTime,
+            next.ReasonForVisit,
+            next.Status.ToString());
+    }
 }

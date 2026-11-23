@@ -30,6 +30,7 @@ public static class DependencyInjection
         services.AddScoped<IClinicJoinRequestService, ClinicJoinRequestService>();
         services.AddScoped<IStatusService, StatusService>();
         services.AddScoped<IMeService, MeService>();
+        services.AddScoped<IMeDashboardService, MeDashboardService>();
 
         return services;
     }

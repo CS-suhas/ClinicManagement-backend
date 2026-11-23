@@ -18,6 +18,15 @@ public static class MeEndpoints
             .WithDescription("Returns the token subject, roles, and the linked patient and provider, or nulls when none exist.")
             .Produces<MeResponse>(StatusCodes.Status200OK);
 
+        app.MapGet("/api/me/dashboard", async ([FromServices] IMeDashboardService service) =>
+            Results.Ok(await service.GetDashboardAsync()))
+            .WithName("GetMyDashboard")
+            .RequireAuthorization(AuthorizationPolicies.Authenticated)
+            .WithSummary("Get the role-aware dashboard for the signed-in user")
+            .WithDescription("Returns one section per role the caller holds: admin (platform counts), clinicAdmin (counts for the caller's clinics plus pending join requests), doctor (today, this week in UTC, and the next appointment), and patient (next appointment and upcoming count). Sections for roles the caller does not hold are null.")
+            .Produces<MeDashboardResponse>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status401Unauthorized);
+
         app.MapPost("/api/me/patient", async (
             [FromBody] PatientRequest request,
             [FromServices] IMeService service) =>
