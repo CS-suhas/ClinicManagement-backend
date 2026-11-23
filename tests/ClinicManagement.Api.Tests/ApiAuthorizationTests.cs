@@ -60,6 +60,62 @@ public sealed class ApiAuthorizationTests(ClinicApiFactory factory)
     }
 
     [Fact]
+    public async Task ProviderDirectory_ExcludesUnverifiedProviders()
+    {
+        var world = SeedWorld();
+
+        using var response = await SendAsync(HttpMethod.Get, "/api/providers/directory", subject: null);
+        var body = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains(world.Doctor.Id.ToString(), body);
+        Assert.DoesNotContain(world.PendingProvider.Id.ToString(), body);
+    }
+
+    [Fact]
+    public async Task ProviderSearch_IsPublicAndExcludesUnverifiedProvidersForAnonymousCallers()
+    {
+        var world = SeedWorld();
+
+        using var response = await SendAsync(HttpMethod.Get, "/api/providers/search?page=1&pageSize=50", subject: null);
+        var body = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains(world.Doctor.Id.ToString(), body);
+        Assert.DoesNotContain(world.PendingProvider.Id.ToString(), body);
+    }
+
+    [Theory]
+    [InlineData("patient")]
+    [InlineData("doctor")]
+    [InlineData("clinicadmin")]
+    public async Task ProviderSearch_ExcludesUnverifiedProvidersForNonAdministrators(string role)
+    {
+        var world = SeedWorld();
+
+        using var response = await SendAsync(
+            HttpMethod.Get,
+            "/api/providers/search?page=1&pageSize=50&verificationStatus=PENDING",
+            world.SubjectFor(role));
+        var body = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.DoesNotContain(world.PendingProvider.Id.ToString(), body);
+    }
+
+    [Fact]
+    public async Task ProviderSearch_AdministratorSeesUnverifiedProviders()
+    {
+        var world = SeedWorld();
+
+        using var response = await SendAsync(HttpMethod.Get, "/api/providers/search?page=1&pageSize=50", world.SubjectFor("admin"));
+        var body = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains(world.PendingProvider.Id.ToString(), body);
+    }
+
+    [Fact]
     public async Task Me_ReturnsRolesDerivedFromStoredRecords()
     {
         var world = SeedWorld();
@@ -677,4 +733,3 @@ public sealed class ApiAuthorizationTests(ClinicApiFactory factory)
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 }
-

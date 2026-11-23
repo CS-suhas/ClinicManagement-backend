@@ -138,7 +138,14 @@ internal sealed class InMemoryProviderRepository(InMemoryStore store) : IProvide
         PageQuery query,
         int offset,
         Guid? clinicId,
-        ProviderVerificationStatus? verificationStatus = null) => throw new NotSupportedException();
+        ProviderVerificationStatus? verificationStatus = null)
+    {
+        var items = store.Providers
+            .Where(provider => (clinicId is null || provider.ClinicId == clinicId)
+                && (verificationStatus is null || provider.VerificationStatus == verificationStatus))
+            .ToList();
+        return Task.FromResult<(IReadOnlyList<Provider>, int)>((items, items.Count));
+    }
 }
 
 internal sealed class InMemoryClinicRepository(InMemoryStore store) : IClinicRepository
