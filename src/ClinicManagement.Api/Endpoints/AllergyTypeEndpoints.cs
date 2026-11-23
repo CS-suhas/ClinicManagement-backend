@@ -29,7 +29,7 @@ public static class AllergyTypeEndpoints
 
         app.MapGet("/api/allergy-types/{id}/patients", async (Guid id, [FromServices] IAllergyTypeService service) =>
             Results.Ok(await service.GetPatientsByAllergyTypeIdAsync(id)))
-            .RequireAuthorization(AuthorizationPolicies.Authenticated);
+            .RequireAuthorization(AuthorizationPolicies.AdminOnly);
 
         app.MapPost("/api/allergy-types", async ([FromBody] AllergyTypeRequest request, [FromServices] IAllergyTypeService service) =>
         {

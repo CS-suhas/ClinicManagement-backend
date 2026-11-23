@@ -604,5 +604,77 @@ public sealed class ApiAuthorizationTests(ClinicApiFactory factory)
         Factory.Store.AllergyTypes.Add(allergyType);
         return allergyType;
     }
+
+    [Fact]
+    public async Task AllergyTypePatients_RequireSignIn()
+    {
+        var allergyType = AddAllergyType();
+
+        using var response = await SendAsync(HttpMethod.Get, $"/api/allergy-types/{allergyType.Id}/patients", subject: null);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Theory]
+    [InlineData("patient")]
+    [InlineData("doctor")]
+    [InlineData("clinicadmin")]
+    public async Task AllergyTypePatients_AreAdministratorOnly(string role)
+    {
+        var world = SeedWorld();
+        var allergyType = AddAllergyType();
+
+        using var response = await SendAsync(
+            HttpMethod.Get,
+            $"/api/allergy-types/{allergyType.Id}/patients",
+            world.SubjectFor(role));
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task AllergyTypePatients_AdministratorCanView()
+    {
+        var world = SeedWorld();
+        var allergyType = AddAllergyType();
+
+        using var response = await SendAsync(
+            HttpMethod.Get,
+            $"/api/allergy-types/{allergyType.Id}/patients",
+            world.SubjectFor("admin"));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Dashboard_RequiresSignIn()
+    {
+        using var response = await SendAsync(HttpMethod.Get, "/api/dashboard", subject: null);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Theory]
+    [InlineData("patient")]
+    [InlineData("doctor")]
+    [InlineData("clinicadmin")]
+    public async Task Dashboard_IsAdministratorOnly(string role)
+    {
+        var world = SeedWorld();
+
+        using var response = await SendAsync(HttpMethod.Get, "/api/dashboard", world.SubjectFor(role));
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Dashboard_AdministratorCanView()
+    {
+        var world = SeedWorld();
+
+        using var response = await SendAsync(HttpMethod.Get, "/api/dashboard", world.SubjectFor("admin"));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
 }
 

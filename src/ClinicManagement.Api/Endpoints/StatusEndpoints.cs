@@ -1,3 +1,4 @@
+using ClinicManagement.Api.Security;
 using ClinicManagement.Application.Interfaces;
 
 namespace ClinicManagement.Api.Endpoints;
@@ -15,6 +16,7 @@ public static class StatusEndpoints
 
         app.MapGet("/api/dashboard", async (IStatusService service) =>
                 Results.Ok(await service.GetDashboardAsync()))
+            .RequireAuthorization(AuthorizationPolicies.AdminOnly)
             .WithName("GetDashboard")
             .WithSummary("Get dashboard counts and upcoming appointments")
             .WithDescription("Returns resource totals and the next five appointments with patient, provider, and clinic names.")
