@@ -112,6 +112,16 @@ public static class ProviderEndpoints
             .Produces(StatusCodes.Status400BadRequest)
             .Produces(StatusCodes.Status404NotFound);
 
+        app.MapGet("/api/providers/{id}/summary", async (
+            Guid id,
+            [FromServices] IAppointmentService service) =>
+            Results.Ok(await service.GetProviderSummaryAsync(id)))
+            .WithName("GetProviderSummary")
+            .WithSummary("Get a bookable provider's summary and next free slot")
+            .WithDescription("Public, with no patient data. Returns the provider, its clinic, nextAvailableStart and todayAppointmentCount. nextAvailableStart is the earliest slot at or after now within the next 14 UTC days, or null if none is free. Slots start at clinic opening plus multiples of the appointment duration and must end by closing (both inclusive). A slot conflicts with a REQUESTED or CONFIRMED appointment that starts strictly within one duration of it. todayAppointmentCount covers the UTC calendar day and excludes declined and cancelled appointments. Returns 404 for an unknown provider, or one that is not verified or has no clinic.")
+            .Produces<ProviderSummaryResponse>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status404NotFound);
+
         app.MapGet("/api/providers/{id}/patients", async (
             Guid id,
             [AsParameters] PageQuery query,

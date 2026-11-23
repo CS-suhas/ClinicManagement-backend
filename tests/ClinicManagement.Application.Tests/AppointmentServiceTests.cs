@@ -602,12 +602,179 @@ public class AppointmentServiceTests
     private static TestCurrentUser ProviderUser(Guid providerId) =>
         new() { Provider = Provider.Create(providerId, Guid.NewGuid(), "Grace", "Hopper", "Computing") };
 
+    [Fact]
+    public async Task GetProviderSummaryAsync_ThrowsNotFoundForUnknownProvider()
+    {
+        var service = CreateService(
+            new FakeAppointmentRepository(),
+            new FakePatientRepository(),
+            providerRepository: new FakeProviderRepository { ProviderMissing = true });
+
+        await Assert.ThrowsAsync<ResourceNotFoundException>(() => service.GetProviderSummaryAsync(Guid.NewGuid()));
+    }
+
+    [Fact]
+    public async Task GetProviderSummaryAsync_ThrowsNotFoundForUnverifiedProvider()
+    {
+        var pending = Provider.Register(Guid.NewGuid(), "New", "Doctor", "General");
+        var service = CreateService(
+            new FakeAppointmentRepository(),
+            new FakePatientRepository(),
+            providerRepository: new FakeProviderRepository { ConfiguredProvider = pending });
+
+        await Assert.ThrowsAsync<ResourceNotFoundException>(() => service.GetProviderSummaryAsync(pending.Id));
+    }
+
+    [Fact]
+    public async Task GetProviderSummaryAsync_ThrowsNotFoundForVerifiedProviderWithoutClinic()
+    {
+        var unassigned = Provider.Register(Guid.NewGuid(), "New", "Doctor", "General");
+        unassigned.Verify();
+        var service = CreateService(
+            new FakeAppointmentRepository(),
+            new FakePatientRepository(),
+            providerRepository: new FakeProviderRepository { ConfiguredProvider = unassigned });
+
+        await Assert.ThrowsAsync<ResourceNotFoundException>(() => service.GetProviderSummaryAsync(unassigned.Id));
+    }
+
+    [Fact]
+    public async Task GetProviderSummaryAsync_SkipsBusySlotAndQueriesTheWindowInOneCall()
+    {
+        var repository = new FakeAppointmentRepository();
+        repository.ActiveStartTimes.Add(SlotAt(2, 8, 0));
+        var service = SummaryService(repository, now: SlotAt(2, 7, 0));
+
+        var summary = await service.GetProviderSummaryAsync(SummaryProvider.Id);
+
+        Assert.Equal(SlotAt(2, 8, 20), summary.NextAvailableStart);
+        // Padded by one duration on each side of the 14 UTC days starting today.
+        Assert.Equal((SlotAt(1, 23, 40), SlotAt(16, 0, 20)), repository.ActiveStartTimeRange);
+    }
+
+    [Fact]
+    public async Task GetProviderSummaryAsync_NeverReturnsAStartBeforeNow()
+    {
+        var service = SummaryService(new FakeAppointmentRepository(), now: SlotAt(2, 9, 10));
+
+        var summary = await service.GetProviderSummaryAsync(SummaryProvider.Id);
+
+        Assert.Equal(SlotAt(2, 9, 20), summary.NextAvailableStart);
+    }
+
+    [Fact]
+    public async Task GetProviderSummaryAsync_RollsToNextDayWhenTodayIsPastClosing()
+    {
+        var service = SummaryService(new FakeAppointmentRepository(), now: SlotAt(2, 16, 30));
+
+        var summary = await service.GetProviderSummaryAsync(SummaryProvider.Id);
+
+        Assert.Equal(SlotAt(3, 8, 0), summary.NextAvailableStart);
+    }
+
+    [Fact]
+    public async Task GetProviderSummaryAsync_RollsToNextDayWhenTodayIsFullyBooked()
+    {
+        var repository = new FakeAppointmentRepository();
+        repository.ActiveStartTimes.AddRange(DaySlotStarts(2));
+        var service = SummaryService(repository, now: SlotAt(2, 7, 0));
+
+        var summary = await service.GetProviderSummaryAsync(SummaryProvider.Id);
+
+        Assert.Equal(SlotAt(3, 8, 0), summary.NextAvailableStart);
+    }
+
+    [Fact]
+    public async Task GetProviderSummaryAsync_FindsTheLastDayOfTheFourteenDayWindow()
+    {
+        var repository = new FakeAppointmentRepository();
+        repository.ActiveStartTimes.AddRange(Enumerable.Range(2, 13).SelectMany(DaySlotStarts));
+        var service = SummaryService(repository, now: SlotAt(2, 7, 0));
+
+        var summary = await service.GetProviderSummaryAsync(SummaryProvider.Id);
+
+        Assert.Equal(SlotAt(15, 8, 0), summary.NextAvailableStart);
+    }
+
+    [Fact]
+    public async Task GetProviderSummaryAsync_ReturnsNullWhenTheWholeWindowIsBooked()
+    {
+        var repository = new FakeAppointmentRepository();
+        repository.ActiveStartTimes.AddRange(Enumerable.Range(2, 14).SelectMany(DaySlotStarts));
+        var service = SummaryService(repository, now: SlotAt(2, 7, 0));
+
+        var summary = await service.GetProviderSummaryAsync(SummaryProvider.Id);
+
+        Assert.Null(summary.NextAvailableStart);
+    }
+
+    [Fact]
+    public async Task GetProviderSummaryAsync_CountsTodaysActiveAppointmentsOnly()
+    {
+        var repository = new FakeAppointmentRepository();
+        repository.ProviderAppointmentsInRange.Add(ListItem(SlotAt(2, 9, 0)));
+        repository.ProviderAppointmentsInRange.Add(ListItem(SlotAt(2, 10, 0)));
+        var service = SummaryService(repository, now: SlotAt(2, 7, 0));
+
+        var summary = await service.GetProviderSummaryAsync(SummaryProvider.Id);
+
+        Assert.Equal(2, summary.TodayAppointmentCount);
+        Assert.Equal((SlotAt(2, 0, 0), SlotAt(3, 0, 0), false), repository.ProviderAppointmentsRequest);
+        Assert.Equal(SummaryClinic.Id, summary.Clinic.Id);
+    }
+
+    [Fact]
+    public async Task GetProviderSummaryAsync_IsAvailableWithoutSignIn()
+    {
+        var service = SummaryService(
+            new FakeAppointmentRepository(),
+            now: SlotAt(2, 7, 0),
+            currentUser: new TestCurrentUser { IsAuthenticated = false, Subject = null });
+
+        var summary = await service.GetProviderSummaryAsync(SummaryProvider.Id);
+
+        Assert.NotNull(summary.NextAvailableStart);
+    }
+
+    private static readonly Clinic SummaryClinic = Clinic.Create(Guid.NewGuid(), "Riverside", "1 River Road", "555-0100");
+    private static readonly Provider SummaryProvider = Provider.Create(Guid.NewGuid(), "Alan", "Turing", "Computing", SummaryClinic);
+
+    private static AppointmentService SummaryService(
+        FakeAppointmentRepository repository,
+        DateTimeOffset now,
+        TestCurrentUser? currentUser = null) =>
+        CreateService(
+            repository,
+            new FakePatientRepository(),
+            clinicRepository: new FakeClinicRepository(),
+            providerRepository: new FakeProviderRepository { ConfiguredProvider = SummaryProvider },
+            currentUser: currentUser ?? new TestCurrentUser { IsAuthenticated = false, Subject = null },
+            now: now);
+
+    private static DateTimeOffset SlotAt(int day, int hour, int minute) =>
+        new(2030, 1, day, hour, minute, 0, TimeSpan.Zero);
+
+    // Every 20-minute slot start of a clinic day: 08:00 through 15:40, so each slot ends by 16:00.
+    private static IEnumerable<DateTimeOffset> DaySlotStarts(int day)
+    {
+        for (var start = SlotAt(day, 8, 0); start.AddMinutes(20) <= SlotAt(day, 16, 0); start = start.AddMinutes(20))
+            yield return start;
+    }
+
+    private static ClinicManagement.Application.Models.AppointmentListResponse ListItem(DateTimeOffset when) =>
+        new(
+            Guid.NewGuid(), Guid.NewGuid(), "Ada Lovelace",
+            SummaryProvider.Id, "Alan Turing", "Computing",
+            SummaryClinic.Id, "Riverside",
+            when, null, "CONFIRMED", 0, null, when, when);
+
     private static AppointmentService CreateService(
         FakeAppointmentRepository appointmentRepository,
         FakePatientRepository patientRepository,
         FakeClinicRepository? clinicRepository = null,
         FakeProviderRepository? providerRepository = null,
-        TestCurrentUser? currentUser = null) =>
+        TestCurrentUser? currentUser = null,
+        DateTimeOffset? now = null) =>
         new(
             appointmentRepository,
             patientRepository,
@@ -615,7 +782,7 @@ public class AppointmentServiceTests
             providerRepository ?? new FakeProviderRepository(),
             currentUser ?? new TestCurrentUser { Patient = DefaultPatient },
             new ClinicManagementSettings { DefaultAppointmentDurationMinutes = 20 },
-            new FixedTimeProvider(CurrentTime));
+            new FixedTimeProvider(now ?? CurrentTime));
 
     [Fact]
     public async Task AddAppointmentAsync_BooksForSignedInPatientIgnoringRequestPatientId()
@@ -895,12 +1062,20 @@ public class AppointmentServiceTests
             if (StatusChangeSucceeds) StatusChange = (expected, next);
             return Task.FromResult(StatusChangeSucceeds);
         }
+        public List<ClinicManagement.Application.Models.AppointmentListResponse> ProviderAppointmentsInRange { get; } = [];
+        public (DateTimeOffset Start, DateTimeOffset End, bool IncludeInactive)? ProviderAppointmentsRequest { get; private set; }
+
         public Task<IReadOnlyList<ClinicManagement.Application.Models.AppointmentListResponse>>
             GetProviderAppointmentsInRangeAsync(
                 Guid providerId,
                 DateTimeOffset start,
                 DateTimeOffset end,
-                bool includeInactive) => throw new NotSupportedException();
+                bool includeInactive)
+        {
+            ProviderAppointmentsRequest = (start, end, includeInactive);
+            return Task.FromResult<IReadOnlyList<ClinicManagement.Application.Models.AppointmentListResponse>>(
+                ProviderAppointmentsInRange.ToList());
+        }
         public List<Appointment> ProviderAppointments { get; } = [];
         public Appointment? AppointmentById { get; init; }
         public Appointment? AddedAppointment { get; private set; }

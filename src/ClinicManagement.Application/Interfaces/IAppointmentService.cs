@@ -11,6 +11,8 @@ public interface IAppointmentService
     Task<AppointmentResponse> GetAppointmentByIdAsync(Guid appointmentId);
     /// <summary>Public. Booked start times for a provider on a UTC date (YYYY-MM-DD). Unbookable providers are not found.</summary>
     Task<ProviderBusySlotsResponse> GetProviderBusySlotsAsync(Guid providerId, string? date);
+    /// <summary>Public. Bookable provider overview with the next free slot in the next 14 UTC days. Unbookable providers are not found.</summary>
+    Task<ProviderSummaryResponse> GetProviderSummaryAsync(Guid providerId);
     Task<List<AppointmentResponse>> GetAllAppointmentsAsync();
     Task<PatientResponse> GetPatientByAppointmentIdAsync(Guid appointmentId);
     Task<ProviderResponse> GetProviderByAppointmentIdAsync(Guid appointmentId);

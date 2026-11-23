@@ -1408,6 +1408,58 @@ public sealed class ApiAuthorizationTests(ClinicApiFactory factory)
         Assert.Null(await PendingJoinRequestCountAsync(clinic.Id, world.PatientSubject));
     }
 
+    [Fact]
+    public async Task ProviderSummary_IsPublicAndShowsTodaysActiveCountWithoutPatientData()
+    {
+        var world = SeedWorld();
+        var doctor = AddVerifiedProvider(world.Clinic, "Summary", "Doctor", "Cardiology");
+        var todayStart = new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero);
+        AddAppointment(world.Patient, doctor, todayStart.AddHours(9), AppointmentStatus.REQUESTED);
+        AddAppointment(world.Patient, doctor, todayStart.AddHours(10), AppointmentStatus.DECLINED);
+        AddAppointment(world.Patient, doctor, todayStart.AddHours(11), AppointmentStatus.CANCELLED);
+        AddAppointment(world.Patient, doctor, todayStart.AddDays(1).AddHours(9), AppointmentStatus.CONFIRMED);
+
+        using var response = await SendAsync(HttpMethod.Get, $"/api/providers/{doctor.Id}/summary", subject: null);
+        var body = await response.Content.ReadAsStringAsync();
+        using var document = JsonDocument.Parse(body);
+        var root = document.RootElement;
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(
+            ["provider", "clinic", "nextAvailableStart", "todayAppointmentCount"],
+            root.EnumerateObject().Select(property => property.Name).ToArray());
+        Assert.Equal(doctor.Id, root.GetProperty("provider").GetProperty("id").GetGuid());
+        Assert.Equal(world.Clinic.Name, root.GetProperty("provider").GetProperty("clinicName").GetString());
+        Assert.Equal(world.Clinic.Name, root.GetProperty("clinic").GetProperty("name").GetString());
+        Assert.Equal(1, root.GetProperty("todayAppointmentCount").GetInt32());
+
+        // Slots start on the 20-minute grid from 08:00 and the last one begins at 15:40 (ends at 16:00).
+        var next = root.GetProperty("nextAvailableStart");
+        Assert.Equal(JsonValueKind.String, next.ValueKind);
+        var start = DateTimeOffset.Parse(next.GetString()!);
+        Assert.InRange(start.TimeOfDay, TimeSpan.FromHours(8), TimeSpan.FromMinutes(940));
+        Assert.Equal(0, (int)(start.TimeOfDay - TimeSpan.FromHours(8)).TotalMinutes % 20);
+
+        Assert.DoesNotContain("Checkup", body);
+        Assert.DoesNotContain("Lovelace", body);
+        Assert.DoesNotContain(world.Patient.Id.ToString(), body);
+    }
+
+    [Fact]
+    public async Task ProviderSummary_UnknownUnverifiedAndUnassignedProvidersAreNotFound()
+    {
+        var world = SeedWorld();
+        var unassigned = Provider.Register(Guid.NewGuid(), "Unassigned", "Doctor", "General");
+        unassigned.Verify();
+        Factory.Store.Providers.Add(unassigned);
+
+        foreach (var id in new[] { Guid.NewGuid(), world.PendingProvider.Id, unassigned.Id })
+        {
+            using var response = await SendAsync(HttpMethod.Get, $"/api/providers/{id}/summary", subject: null);
+            Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        }
+    }
+
     private Clinic AddClinic(string name)
     {
         var clinic = Clinic.Create(Guid.NewGuid(), name, "9 Test Street", "555-0199");

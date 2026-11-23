@@ -369,7 +369,16 @@ internal sealed class InMemoryAppointmentRepository(InMemoryStore store) : IAppo
         DateTimeOffset start,
         DateTimeOffset end,
         bool includeInactive) =>
-        Task.FromResult<IReadOnlyList<AppointmentListResponse>>([]);
+        Task.FromResult<IReadOnlyList<AppointmentListResponse>>(store.Appointments
+            .Where(appointment => appointment.ProviderId == providerId
+                && appointment.AppointmentDateTime >= start
+                && appointment.AppointmentDateTime < end
+                && (includeInactive
+                    || (appointment.Status != AppointmentStatus.DECLINED && appointment.Status != AppointmentStatus.CANCELLED)))
+            .OrderBy(appointment => appointment.AppointmentDateTime)
+            .ThenBy(appointment => appointment.Id)
+            .Select(appointment => InMemoryAppointmentListItems.ToListItem(appointment, store))
+            .ToList());
 
     public Task<bool> HasProviderAppointmentOverlapAsync(
         Guid providerId,

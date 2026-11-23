@@ -118,6 +118,52 @@ public class AppointmentService(
             busyStartTimes);
     }
 
+    public async Task<ProviderSummaryResponse> GetProviderSummaryAsync(Guid providerId)
+    {
+        RequestValidator.EnsureGuid(providerId, nameof(providerId), "Provider ID");
+
+        // Same bookability rule as busy-slots: verified and assigned to a clinic, otherwise not found.
+        var provider = await providerRepository.GetProviderByIdAsync(providerId);
+        if (provider is null || !provider.IsAcceptingAppointments || provider.Clinic is null)
+            throw new ResourceNotFoundException("Provider", providerId);
+
+        // "Today" and the 14-day search window are UTC calendar days, as in busy-slots.
+        var now = timeProvider.GetUtcNow();
+        var todayStart = new DateTimeOffset(now.UtcDateTime.Date, TimeSpan.Zero);
+        var duration = TimeSpan.FromMinutes(clinicSettings.DefaultAppointmentDurationMinutes);
+
+        // One query. The range is padded by one duration on each side so that a busy start just outside the
+        // window still blocks a slot at its edge.
+        var busyStarts = await appointmentRepository.GetActiveStartTimesInRangeAsync(
+            providerId,
+            todayStart - duration,
+            todayStart.AddDays(NextAvailableSearchDays) + duration);
+
+        var nextAvailableStart = BookingSlotFinder.FindFirstAvailableStart(
+            now,
+            DateOnly.FromDateTime(todayStart.UtcDateTime),
+            NextAvailableSearchDays,
+            clinicSettings.DefaultClinicStartTime,
+            clinicSettings.DefaultClinicEndTime,
+            duration,
+            busyStarts);
+
+        // Declined and cancelled appointments are excluded, matching the dashboard's definition of "today".
+        var todayAppointments = await appointmentRepository.GetProviderAppointmentsInRangeAsync(
+            providerId,
+            todayStart,
+            todayStart.AddDays(1),
+            includeInactive: false);
+
+        return new ProviderSummaryResponse(
+            provider.ToResponse(),
+            provider.Clinic.ToResponse(),
+            nextAvailableStart,
+            todayAppointments.Count);
+    }
+
+    private const int NextAvailableSearchDays = 14;
+
     private static DateOnly ParseBookingDate(string? date)
     {
         if (string.IsNullOrWhiteSpace(date))
