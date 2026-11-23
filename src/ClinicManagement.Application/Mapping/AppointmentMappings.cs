@@ -23,7 +23,8 @@ public static class AppointmentMappings
             $"{appointment.Provider.FirstName} {appointment.Provider.LastName}",
             appointment.Provider.Specialty,
             appointment.AppointmentDateTime,
-            appointment.ReasonForVisit);
+            appointment.ReasonForVisit,
+            appointment.Status.ToString());
 
     public static void ApplyTo(this AppointmentRequest request, Appointment appointment, DateTimeOffset currentTime)
     {

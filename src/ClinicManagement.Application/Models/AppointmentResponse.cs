@@ -8,6 +8,7 @@ public record AppointmentResponse(
     string ProviderName,
     string ProviderSpecialty,
     DateTimeOffset AppointmentDateTime,
-    string? ReasonForVisit
+    string? ReasonForVisit,
+    string Status
 );
 

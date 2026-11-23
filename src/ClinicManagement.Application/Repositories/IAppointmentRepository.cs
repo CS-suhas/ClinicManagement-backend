@@ -1,4 +1,5 @@
 using ClinicManagement.Domain.Entities;
+using ClinicManagement.Domain.Enums;
 using ClinicManagement.Application.Models;
 
 namespace ClinicManagement.Application.Appointments.Interfaces;
@@ -17,6 +18,14 @@ public interface IAppointmentRepository
         AppointmentSearchQuery query,
         int offset);
     Task<IReadOnlyList<AppointmentListResponse>> GetUpcomingAppointmentsAsync(DateTimeOffset from, int count);
+    /// <summary>Returns false when the stored status is no longer <paramref name="expected"/>.</summary>
+    Task<bool> TryUpdateStatusAsync(Guid appointmentId, AppointmentStatus expected, AppointmentStatus next);
+    /// <summary>Appointments starting in [start, end). Declined and cancelled ones are excluded unless requested.</summary>
+    Task<IReadOnlyList<AppointmentListResponse>> GetProviderAppointmentsInRangeAsync(
+        Guid providerId,
+        DateTimeOffset start,
+        DateTimeOffset end,
+        bool includeInactive);
     Task<bool> HasProviderAppointmentOverlapAsync(
         Guid providerId,
         DateTimeOffset appointmentStart,

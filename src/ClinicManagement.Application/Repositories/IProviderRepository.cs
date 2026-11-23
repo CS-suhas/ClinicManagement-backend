@@ -1,5 +1,6 @@
 using ClinicManagement.Application.Providers.Models;
 using ClinicManagement.Domain.Entities;
+using ClinicManagement.Domain.Enums;
 using ClinicManagement.Application.Models;
 
 namespace ClinicManagement.Application.Providers.Interfaces;
@@ -16,5 +17,18 @@ public interface IProviderRepository
     Task<(IReadOnlyList<Provider> Items, int TotalCount)> SearchProvidersAsync(
         PageQuery query,
         int offset,
+        Guid? clinicId,
+        ProviderVerificationStatus? verificationStatus = null);
+    /// <summary>Providers that patients may see: verified and assigned to a clinic.</summary>
+    Task<(IReadOnlyList<Provider> Items, int TotalCount)> SearchPublicProvidersAsync(
+        PageQuery query,
+        int offset,
         Guid? clinicId);
+    /// <summary>Inserts a self-registered provider that has no clinic yet.</summary>
+    Task<Guid> AddRegistrationAsync(Provider provider);
+    /// <summary>Returns false when the stored status is no longer <paramref name="expected"/>.</summary>
+    Task<bool> TryUpdateVerificationStatusAsync(
+        Guid providerId,
+        ProviderVerificationStatus expected,
+        ProviderVerificationStatus next);
 }

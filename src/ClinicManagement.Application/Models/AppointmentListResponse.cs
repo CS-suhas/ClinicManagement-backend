@@ -11,4 +11,5 @@ public sealed record AppointmentListResponse(
     Guid ClinicId,
     string ClinicName,
     DateTimeOffset AppointmentDateTime,
-    string? ReasonForVisit);
+    string? ReasonForVisit,
+    string Status);

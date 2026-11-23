@@ -2,8 +2,9 @@ namespace ClinicManagement.Application.Providers.Models;
 
 public record ProviderResponse(
     Guid Id,
-    Guid ClinicId,
+    Guid? ClinicId,
     string FirstName,
     string LastName,
-    string Specialty
+    string Specialty,
+    string VerificationStatus
 );

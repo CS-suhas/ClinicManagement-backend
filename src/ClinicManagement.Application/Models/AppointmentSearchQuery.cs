@@ -1,3 +1,4 @@
+using ClinicManagement.Domain.Enums;
 using ClinicManagement.Domain.Exceptions;
 
 namespace ClinicManagement.Application.Models;
@@ -11,7 +12,8 @@ public sealed record AppointmentSearchQuery(
     Guid? ProviderId = null,
     Guid? PatientId = null,
     int Page = 1,
-    int PageSize = 20)
+    int PageSize = 20,
+    AppointmentStatus? Status = null)
 {
     public int GetOffset()
     {

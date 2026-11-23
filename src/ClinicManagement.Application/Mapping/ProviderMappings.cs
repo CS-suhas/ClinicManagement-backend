@@ -13,13 +13,21 @@ public static class ProviderMappings
             request.LastName,
             request.Specialty);
 
+    public static Provider ToEntity(this ProviderRegistrationRequest request) =>
+        Provider.Register(
+            request.Id,
+            request.FirstName,
+            request.LastName,
+            request.Specialty);
+
     public static ProviderResponse ToResponse(this Provider provider) =>
         new(
             provider.Id,
             provider.ClinicId,
             provider.FirstName,
             provider.LastName,
-            provider.Specialty);
+            provider.Specialty,
+            provider.VerificationStatus.ToString());
 
     public static void ApplyTo(this ProviderRequest request, Provider provider)
     {

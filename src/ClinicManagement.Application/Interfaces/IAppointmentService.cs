@@ -17,4 +17,11 @@ public interface IAppointmentService
     Task<Guid> UpdateAppointmentAsync(AppointmentRequest request);
     Task<Guid> DeleteAppointmentAsync(Guid appointmentId);
     Task<PagedResponse<AppointmentListResponse>> SearchAppointmentsAsync(AppointmentSearchQuery query);
+    /// <summary>Provider accepts a requested appointment.</summary>
+    Task ConfirmAppointmentAsync(Guid appointmentId);
+    /// <summary>Provider declines a requested appointment.</summary>
+    Task DeclineAppointmentAsync(Guid appointmentId);
+    /// <summary>Cancels a requested or confirmed appointment, freeing the slot.</summary>
+    Task CancelAppointmentAsync(Guid appointmentId);
+    Task CompleteAppointmentAsync(Guid appointmentId);
 }

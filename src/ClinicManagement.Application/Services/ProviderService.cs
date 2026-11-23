@@ -9,6 +9,8 @@ using ClinicManagement.Application.Clinics.Models;
 using ClinicManagement.Application.Providers.Interfaces;
 using ClinicManagement.Application.Providers.Mapping;
 using ClinicManagement.Application.Providers.Models;
+using ClinicManagement.Domain.Entities;
+using ClinicManagement.Domain.Enums;
 using ClinicManagement.Domain.Exceptions;
 using ClinicManagement.Application.Models;
 
@@ -34,15 +36,67 @@ public class ProviderService(
         return providers.Select(item => item.ToResponse()).ToList();
     }
 
-    public async Task<PagedResponse<ProviderResponse>> SearchProvidersAsync(PageQuery query, Guid? clinicId)
+    public async Task<PagedResponse<ProviderResponse>> SearchProvidersAsync(
+        PageQuery query,
+        Guid? clinicId,
+        ProviderVerificationStatus? verificationStatus = null)
     {
         var offset = query.GetOffset();
-        var (items, totalCount) = await providerRepository.SearchProvidersAsync(query, offset, clinicId);
-        return new PagedResponse<ProviderResponse>(
-            items.Select(item => item.ToResponse()).ToArray(),
-            totalCount,
-            query.Page,
-            query.PageSize);
+        var (items, totalCount) = await providerRepository.SearchProvidersAsync(
+            query,
+            offset,
+            clinicId,
+            verificationStatus);
+        return ToPage(items, totalCount, query);
+    }
+
+    public async Task<PagedResponse<ProviderResponse>> SearchProviderDirectoryAsync(PageQuery query, Guid? clinicId)
+    {
+        var offset = query.GetOffset();
+        var (items, totalCount) = await providerRepository.SearchPublicProvidersAsync(query, offset, clinicId);
+        return ToPage(items, totalCount, query);
+    }
+
+    public async Task<Guid> RegisterProviderAsync(ProviderRegistrationRequest request)
+    {
+        RequestValidator.EnsureGuid(request.Id, "id", "Provider ID");
+        RequestValidator.EnsureText(request.FirstName, "firstName", "First name");
+        RequestValidator.EnsureText(request.LastName, "lastName", "Last name");
+        RequestValidator.EnsureText(request.Specialty, "specialty", "Specialty");
+
+        var provider = request.ToEntity();
+        return await providerRepository.AddRegistrationAsync(provider);
+    }
+
+    public Task VerifyProviderAsync(Guid providerId) =>
+        ChangeVerificationAsync(providerId, provider => provider.Verify());
+
+    public Task RejectProviderAsync(Guid providerId) =>
+        ChangeVerificationAsync(providerId, provider => provider.Reject());
+
+    public async Task<List<AppointmentListResponse>> GetProviderCalendarAsync(
+        Guid providerId,
+        DateTimeOffset from,
+        DateTimeOffset to,
+        bool includeInactive)
+    {
+        RequestValidator.EnsureGuid(providerId, nameof(providerId), "Provider ID");
+        if (from >= to)
+            throw new DomainValidationException("'from' must be earlier than 'to'.", nameof(from));
+        if (to - from > MaxCalendarRange)
+            throw new DomainValidationException(
+                $"The calendar range cannot exceed {MaxCalendarRange.TotalDays:0} days.",
+                nameof(to));
+
+        _ = await providerRepository.GetProviderByIdAsync(providerId)
+            ?? throw new ResourceNotFoundException("Provider", providerId);
+
+        var appointments = await appointmentRepository.GetProviderAppointmentsInRangeAsync(
+            providerId,
+            from,
+            to,
+            includeInactive);
+        return appointments.ToList();
     }
 
     public async Task<ClinicResponse> GetClinicByProviderIdAsync(Guid providerId)
@@ -51,6 +105,8 @@ public class ProviderService(
 
         var provider = await providerRepository.GetProviderByIdAsync(providerId)
             ?? throw new ResourceNotFoundException("Provider", providerId);
+        if (provider.Clinic is null)
+            throw new ResourceNotFoundException($"Provider '{providerId}' does not belong to a clinic.");
         return provider.Clinic.ToResponse();
     }
 
@@ -116,6 +172,28 @@ public class ProviderService(
         await providerRepository.DeleteProviderAsync(provider.Id);
         return providerId;
     }
+
+    private static readonly TimeSpan MaxCalendarRange = TimeSpan.FromDays(62);
+
+    private async Task ChangeVerificationAsync(Guid providerId, Action<Provider> change)
+    {
+        RequestValidator.EnsureGuid(providerId, nameof(providerId), "Provider ID");
+
+        var provider = await providerRepository.GetProviderByIdAsync(providerId)
+            ?? throw new ResourceNotFoundException("Provider", providerId);
+
+        var expected = provider.VerificationStatus;
+        change(provider);
+
+        if (!await providerRepository.TryUpdateVerificationStatusAsync(providerId, expected, provider.VerificationStatus))
+            throw new ConcurrentModificationException("Provider", providerId);
+    }
+
+    private static PagedResponse<ProviderResponse> ToPage(
+        IReadOnlyList<Provider> items,
+        int totalCount,
+        PageQuery query) =>
+        new(items.Select(item => item.ToResponse()).ToArray(), totalCount, query.Page, query.PageSize);
 
     private static void ValidateRequest(ProviderRequest request)
     {

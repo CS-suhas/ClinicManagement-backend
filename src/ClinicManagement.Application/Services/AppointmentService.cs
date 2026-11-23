@@ -12,6 +12,7 @@ using ClinicManagement.Application.Clinics.Mapping;
 using ClinicManagement.Application.Clinics.Models;
 using ClinicManagement.Application.Patients.Mapping;
 using ClinicManagement.Application.Patients.Models;
+using ClinicManagement.Application.Providers.Interfaces;
 using ClinicManagement.Application.Providers.Mapping;
 using ClinicManagement.Application.Providers.Models;
 using ClinicManagement.Application.Models;
@@ -22,6 +23,7 @@ public class AppointmentService(
     IAppointmentRepository appointmentRepository,
     IPatientRepository patientRepository,
     IClinicRepository clinicRepository,
+    IProviderRepository providerRepository,
     ClinicManagementSettings clinicSettings,
     TimeProvider timeProvider) : IAppointmentService
 {
@@ -36,6 +38,13 @@ public class AppointmentService(
         if (!patientExists)
         {
             throw new ResourceNotFoundException("Patient", request.PatientId);
+        }
+
+        var provider = await providerRepository.GetProviderByIdAsync(request.ProviderId)
+            ?? throw new ResourceNotFoundException("Provider", request.ProviderId);
+        if (!provider.IsAcceptingAppointments)
+        {
+            throw new ProviderNotAcceptingAppointmentsException(request.ProviderId);
         }
 
         await EnsureNoProviderAppointmentOverlapAsync(
@@ -88,7 +97,9 @@ public class AppointmentService(
     public async Task<ClinicResponse> GetClinicByAppointmentIdAsync(Guid appointmentId)
     {
         var appointment = await GetRequiredAppointmentAsync(appointmentId);
-        var clinicId = appointment.Provider.ClinicId;
+        if (appointment.Provider.ClinicId is not { } clinicId)
+            throw new ResourceNotFoundException(
+                $"Provider '{appointment.ProviderId}' does not belong to a clinic.");
         var clinic = await clinicRepository.GetClinicByIdAsync(clinicId)
             ?? throw new ResourceNotFoundException("Clinic", clinicId);
         return clinic.ToResponse();
@@ -115,6 +126,28 @@ public class AppointmentService(
             request.ToEntity(currentTime),
             request.PatientId,
             request.ProviderId);
+    }
+
+    public Task ConfirmAppointmentAsync(Guid appointmentId) =>
+        ChangeStatusAsync(appointmentId, (appointment, now) => appointment.Confirm(now));
+
+    public Task DeclineAppointmentAsync(Guid appointmentId) =>
+        ChangeStatusAsync(appointmentId, (appointment, now) => appointment.Decline(now));
+
+    public Task CancelAppointmentAsync(Guid appointmentId) =>
+        ChangeStatusAsync(appointmentId, (appointment, now) => appointment.Cancel(now));
+
+    public Task CompleteAppointmentAsync(Guid appointmentId) =>
+        ChangeStatusAsync(appointmentId, (appointment, now) => appointment.Complete(now));
+
+    private async Task ChangeStatusAsync(Guid appointmentId, Action<Appointment, DateTimeOffset> transition)
+    {
+        var appointment = await GetRequiredAppointmentAsync(appointmentId);
+        var expected = appointment.Status;
+        transition(appointment, timeProvider.GetUtcNow());
+
+        if (!await appointmentRepository.TryUpdateStatusAsync(appointmentId, expected, appointment.Status))
+            throw new ConcurrentModificationException("Appointment", appointmentId);
     }
 
     private static void ValidateRequest(AppointmentRequest request, DateTimeOffset currentTime)
