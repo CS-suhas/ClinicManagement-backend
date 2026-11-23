@@ -162,6 +162,21 @@ public sealed class ApiAuthorizationTests(ClinicApiFactory factory)
     }
 
     [Fact]
+    public async Task JoinRequestDecisions_ForbidPlatformAdministrator()
+    {
+        var world = SeedWorld();
+        var subject = world.SubjectFor("admin");
+
+        using var approve = await SendAsync(HttpMethod.Post, $"/api/clinic-join-requests/{world.JoinRequest.Id}/approve", subject);
+        using var reject = await SendAsync(HttpMethod.Post, $"/api/clinic-join-requests/{world.JoinRequest.Id}/reject", subject);
+        using var list = await SendAsync(HttpMethod.Get, $"/api/clinics/{world.Clinic.Id}/join-requests", subject);
+
+        Assert.Equal(HttpStatusCode.Forbidden, approve.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, reject.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, list.StatusCode);
+    }
+
+    [Fact]
     public async Task JoinRequestApproval_AllowsClinicAdminOfThatClinic()
     {
         var world = SeedWorld();

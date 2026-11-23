@@ -54,7 +54,7 @@ public static class AuthenticationExtensions
             .AddPolicy(AuthorizationPolicies.DoctorOnly, policy => policy.RequireRole(AuthorizationPolicies.DoctorRole))
             .AddPolicy(AuthorizationPolicies.AdminOnly, policy => policy.RequireRole(AuthorizationPolicies.AdminRole))
             .AddPolicy(AuthorizationPolicies.ClinicAdminOnly, policy =>
-                policy.RequireRole(AuthorizationPolicies.ClinicAdminRole, AuthorizationPolicies.AdminRole));
+                policy.RequireRole(AuthorizationPolicies.ClinicAdminRole));
 
         return services;
     }
