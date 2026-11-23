@@ -19,7 +19,8 @@ internal static class AppointmentListSql
                a.AppointmentDateTime,
                a.ReasonForVisit,
                a.Status,
-               NVL(allergySummary.AllergyCount, 0) AS PatientAllergyCount,
+               -- NUMBER(9) reads as Int32, matching the record's int; a bare COUNT reads as decimal.
+               CAST(NVL(allergySummary.AllergyCount, 0) AS NUMBER(9)) AS PatientAllergyCount,
                CASE allergySummary.SeverityRank
                    WHEN 3 THEN 'SEVERE'
                    WHEN 2 THEN 'MODERATE'

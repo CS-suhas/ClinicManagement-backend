@@ -1489,7 +1489,11 @@ public sealed class ApiAuthorizationTests(ClinicApiFactory factory)
 
     private Appointment AddAppointment(Patient patient, Provider provider, DateTimeOffset when, AppointmentStatus status)
     {
-        var now = DateTimeOffset.UtcNow;
+        // Booked before its slot, so seeding a slot earlier today works whatever time the tests run.
+        var bookedAt = DateTimeOffset.UtcNow;
+        if (bookedAt >= when)
+            bookedAt = when.AddHours(-1);
+        var now = bookedAt;
         var appointment = Appointment.Create(when, "Checkup", patient, provider, now);
         switch (status)
         {
