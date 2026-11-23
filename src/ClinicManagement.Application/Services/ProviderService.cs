@@ -69,12 +69,13 @@ public class ProviderService(
         RequestValidator.EnsureText(request.LastName, "lastName", "Last name");
         RequestValidator.EnsureText(request.Specialty, "specialty", "Specialty");
 
+        var userId = CurrentUserGuard.RequireUserId(currentUser);
         var subject = CurrentUserGuard.RequireSubject(currentUser);
-        if (await providerRepository.GetByIdentitySubjectAsync(subject) is not null)
+        if (await providerRepository.GetByUserIdAsync(userId) is not null)
             throw new IdentityAlreadyLinkedException("provider", subject);
 
         var provider = request.ToEntity();
-        provider.AssignIdentitySubject(subject);
+        provider.AssignUser(userId);
         return await providerRepository.AddRegistrationAsync(provider);
     }
 

@@ -1,0 +1,75 @@
+using ClinicManagement.Domain.Entities;
+using ClinicManagement.Domain.Enums;
+using ClinicManagement.Infrastructure.Repositories;
+using Dapper;
+using Infrastructure.Data;
+
+namespace ClinicManagement.Infrastructure.Tests;
+
+public class UserRepositoryIntegrationTests
+{
+    [Fact]
+    public async Task UserRepository_CreatesUsersLinksProfilesAndResolvesRoleFactsInOracle()
+    {
+        var connectionString = Environment.GetEnvironmentVariable("TEST_DATABASE_CONNECTION_STRING");
+        Assert.False(
+            string.IsNullOrWhiteSpace(connectionString),
+            "Set TEST_DATABASE_CONNECTION_STRING to an Oracle test database.");
+
+        OracleDapperTypeHandlers.Register();
+
+        var connectionFactory = new OracleConnectionFactory(connectionString!);
+        var users = new UserRepository(connectionFactory);
+        var patients = new PatientRepository(connectionFactory);
+        var providers = new ProviderRepository(connectionFactory);
+        var subject = $"it-{Guid.NewGuid():N}";
+        Guid? userId = null;
+        var patientId = Guid.NewGuid();
+        var providerId = Guid.NewGuid();
+
+        try
+        {
+            var created = await users.GetOrCreateAsync(subject, "ada@example.com", "Ada");
+            userId = created.Id;
+
+            var again = await users.GetOrCreateAsync(subject, null, "Ada King");
+            Assert.Equal(created.Id, again.Id);
+
+            var stored = await users.GetBySubjectAsync(subject);
+            Assert.NotNull(stored);
+            Assert.Equal("ada@example.com", stored.Email);
+            Assert.Equal("Ada King", stored.DisplayName);
+            Assert.False(stored.IsPlatformAdmin);
+
+            Assert.Equal(new(false, null, false, false), await users.GetRoleFactsAsync(created.Id));
+
+            var patient = Patient.Create(patientId, "Ada", "Lovelace", new DateOnly(1985, 12, 10), $"ada.{patientId:N}@example.com", "555-0100");
+            patient.AssignUser(created.Id);
+            await patients.AddPatientAsync(patient);
+
+            var provider = Provider.Register(providerId, "Ada", "Lovelace", "Computing");
+            provider.AssignUser(created.Id);
+            await providers.AddRegistrationAsync(provider);
+
+            Assert.Equal(patientId, (await patients.GetByUserIdAsync(created.Id))?.Id);
+            Assert.Equal(providerId, (await providers.GetByUserIdAsync(created.Id))?.Id);
+
+            using (var connection = connectionFactory.CreateConnection())
+                await connection.ExecuteAsync("UPDATE Users SET IsPlatformAdmin = 1 WHERE Id = :Id", new { Id = created.Id.ToString() });
+
+            var facts = await users.GetRoleFactsAsync(created.Id);
+            Assert.True(facts.HasPatientProfile);
+            Assert.Equal(ProviderVerificationStatus.PENDING, facts.ProviderStatus);
+            Assert.False(facts.IsClinicAdmin);
+            Assert.True(facts.IsPlatformAdmin);
+            Assert.True((await users.GetBySubjectAsync(subject))!.IsPlatformAdmin);
+        }
+        finally
+        {
+            using var connection = connectionFactory.CreateConnection();
+            await connection.ExecuteAsync("DELETE FROM Patients WHERE Id = :Id", new { Id = patientId.ToString() });
+            await connection.ExecuteAsync("DELETE FROM Providers WHERE Id = :Id", new { Id = providerId.ToString() });
+            await connection.ExecuteAsync("DELETE FROM Users WHERE IdentitySubject = :Subject", new { Subject = subject });
+        }
+    }
+}

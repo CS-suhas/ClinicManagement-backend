@@ -12,7 +12,7 @@ public class ProviderRepository(IDbConnectionFactory connectionFactory) : IProvi
     // Providers without a clinic (self-registered, not yet approved anywhere) must still be returned,
     // so the clinic is a LEFT JOIN and may map to null.
     private const string SelectProviderWithClinic = """
-        SELECT pr.Id, pr.FirstName, pr.LastName, pr.Specialty, pr.ClinicId, pr.VerificationStatus, pr.IdentitySubject, pr.Fee, pr.Gender,
+        SELECT pr.Id, pr.FirstName, pr.LastName, pr.Specialty, pr.ClinicId, pr.VerificationStatus, pr.UserId, pr.Fee, pr.Gender,
                c.Id, c.Name, c.Address, c.PhoneNumber
         FROM Providers pr
         LEFT JOIN Clinics c ON c.Id = pr.ClinicId
@@ -22,8 +22,8 @@ public class ProviderRepository(IDbConnectionFactory connectionFactory) : IProvi
     {
         using var connection = connectionFactory.CreateConnection();
         const string sql = """
-            INSERT INTO Providers (Id, FirstName, LastName, Specialty, ClinicId, VerificationStatus, IdentitySubject, Fee, Gender)
-            VALUES (:Id, :FirstName, :LastName, :Specialty, :ClinicId, :VerificationStatus, :IdentitySubject, :Fee, :Gender)
+            INSERT INTO Providers (Id, FirstName, LastName, Specialty, ClinicId, VerificationStatus, UserId, Fee, Gender)
+            VALUES (:Id, :FirstName, :LastName, :Specialty, :ClinicId, :VerificationStatus, :UserId, :Fee, :Gender)
             """;
         await connection.ExecuteAsync(sql, new
         {
@@ -33,7 +33,7 @@ public class ProviderRepository(IDbConnectionFactory connectionFactory) : IProvi
             provider.Specialty,
             ClinicId = clinicId.ToString(),
             VerificationStatus = provider.VerificationStatus.ToString(),
-            provider.IdentitySubject,
+            UserId = provider.UserId?.ToString(),
             provider.Fee,
             Gender = provider.Gender?.ToString()
         });
@@ -44,8 +44,8 @@ public class ProviderRepository(IDbConnectionFactory connectionFactory) : IProvi
     {
         using var connection = connectionFactory.CreateConnection();
         const string sql = """
-            INSERT INTO Providers (Id, FirstName, LastName, Specialty, ClinicId, VerificationStatus, IdentitySubject, Fee, Gender)
-            VALUES (:Id, :FirstName, :LastName, :Specialty, NULL, :VerificationStatus, :IdentitySubject, :Fee, :Gender)
+            INSERT INTO Providers (Id, FirstName, LastName, Specialty, ClinicId, VerificationStatus, UserId, Fee, Gender)
+            VALUES (:Id, :FirstName, :LastName, :Specialty, NULL, :VerificationStatus, :UserId, :Fee, :Gender)
             """;
         await connection.ExecuteAsync(sql, new
         {
@@ -54,7 +54,7 @@ public class ProviderRepository(IDbConnectionFactory connectionFactory) : IProvi
             provider.LastName,
             provider.Specialty,
             VerificationStatus = provider.VerificationStatus.ToString(),
-            provider.IdentitySubject,
+            UserId = provider.UserId?.ToString(),
             provider.Fee,
             Gender = provider.Gender?.ToString()
         });
@@ -320,13 +320,13 @@ public class ProviderRepository(IDbConnectionFactory connectionFactory) : IProvi
         return (items, totalCount);
     }
 
-    public async Task<Provider?> GetByIdentitySubjectAsync(string identitySubject)
+    public async Task<Provider?> GetByUserIdAsync(Guid userId)
     {
         using var connection = connectionFactory.CreateConnection();
         var providers = await QueryProvidersAsync(
             connection,
-            $"{SelectProviderWithClinic} WHERE pr.IdentitySubject = :IdentitySubject",
-            new { IdentitySubject = identitySubject });
+            $"{SelectProviderWithClinic} WHERE pr.UserId = :UserId",
+            new { UserId = userId.ToString() });
         return providers.SingleOrDefault();
     }
 

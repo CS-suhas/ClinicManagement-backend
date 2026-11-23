@@ -4,8 +4,7 @@ namespace ClinicManagement.Application.Repositories;
 
 public interface IClinicAdminRepository
 {
-    Task<bool> IsAdminOfClinicAsync(string identitySubject, Guid clinicId);
-    Task<bool> IsAnyAdminAsync(string identitySubject);
-    Task<IReadOnlyList<Guid>> GetClinicIdsAsync(string identitySubject);
+    Task<bool> IsAdminOfClinicAsync(Guid userId, Guid clinicId);
+    Task<IReadOnlyList<Guid>> GetClinicIdsAsync(Guid userId);
     Task AddAsync(ClinicAdmin clinicAdmin);
 }

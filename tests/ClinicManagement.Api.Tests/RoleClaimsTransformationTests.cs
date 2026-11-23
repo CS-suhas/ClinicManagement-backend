@@ -46,7 +46,7 @@ public class RoleClaimsTransformationTests
     public async Task RejectedProvider_DoesNotDeriveDoctorRole()
     {
         var provider = Provider.Register(Guid.NewGuid(), "Grace", "Hopper", "Computing");
-        provider.AssignIdentitySubject(Subject);
+        provider.AssignUser(store.UserFor(Subject).Id);
         provider.Reject();
         store.Providers.Add(provider);
 
@@ -58,7 +58,7 @@ public class RoleClaimsTransformationTests
     [Fact]
     public async Task ClinicAdminRow_DerivesClinicAdminRole()
     {
-        store.ClinicAdmins.Add(ClinicAdmin.Create(Guid.NewGuid(), Guid.NewGuid(), Subject));
+        store.ClinicAdmins.Add(ClinicAdmin.Create(Guid.NewGuid(), Guid.NewGuid(), store.UserFor(Subject).Id));
 
         var roles = await RolesFor(Subject);
 
@@ -74,9 +74,9 @@ public class RoleClaimsTransformationTests
     }
 
     [Fact]
-    public async Task PlatformAdminRow_DerivesAdminRole()
+    public async Task PlatformAdminUser_DerivesAdminRole()
     {
-        store.PlatformAdminSubjects.Add(Subject);
+        store.UserFor(Subject).GrantPlatformAdmin();
 
         var roles = await RolesFor(Subject);
 
@@ -88,7 +88,7 @@ public class RoleClaimsTransformationTests
     {
         AddPatient(Subject);
         AddProvider(Subject, verified: true);
-        store.ClinicAdmins.Add(ClinicAdmin.Create(Guid.NewGuid(), Guid.NewGuid(), Subject));
+        store.ClinicAdmins.Add(ClinicAdmin.Create(Guid.NewGuid(), Guid.NewGuid(), store.UserFor(Subject).Id));
 
         var roles = await RolesFor(Subject);
 
@@ -126,6 +126,54 @@ public class RoleClaimsTransformationTests
         Assert.Empty(result.FindAll(ClaimTypes.Role));
     }
 
+    [Fact]
+    public async Task FirstSignIn_CreatesUserFromTokenAndAddsUserIdClaim()
+    {
+        var principal = await TransformAsync(
+            Subject,
+            new Claim("email", "ada@example.com"),
+            new Claim("name", "Ada Lovelace"));
+
+        var user = Assert.Single(store.Users);
+        Assert.Equal(Subject, user.IdentitySubject);
+        Assert.Equal("ada@example.com", user.Email);
+        Assert.Equal("Ada Lovelace", user.DisplayName);
+        Assert.Equal(user.Id.ToString(), principal.FindFirst(ClinicClaimTypes.UserId)?.Value);
+    }
+
+    [Fact]
+    public async Task LaterSignIn_ReusesUserAndRefreshesProfile()
+    {
+        var existing = store.UserFor(Subject);
+
+        await TransformAsync(Subject, new Claim("name", "Ada"));
+        var principal = await TransformAsync(Subject, new Claim("name", "Ada King"));
+
+        Assert.Single(store.Users);
+        Assert.Equal("Ada King", existing.DisplayName);
+        Assert.Single(principal.FindAll(ClinicClaimTypes.UserId));
+    }
+
+    [Fact]
+    public async Task RunningTwice_DoesNotDuplicateClaims()
+    {
+        AddPatient(Subject);
+        var transformation = CreateTransformation([]);
+        var principal = new ClaimsPrincipal(new ClaimsIdentity([new Claim("sub", Subject)], "test"));
+
+        await transformation.TransformAsync(principal);
+        await transformation.TransformAsync(principal);
+
+        Assert.Single(principal.FindAll(ClaimTypes.Role));
+        Assert.Single(principal.FindAll(ClinicClaimTypes.UserId));
+    }
+
+    private async Task<ClaimsPrincipal> TransformAsync(string subject, params Claim[] extraClaims)
+    {
+        var identity = new ClaimsIdentity([new Claim("sub", subject), .. extraClaims], "test");
+        return await CreateTransformation([]).TransformAsync(new ClaimsPrincipal(identity));
+    }
+
     private async Task<List<string>> RolesFor(
         string subject,
         IEnumerable<string>? configuredAdmins = null,
@@ -150,25 +198,20 @@ public class RoleClaimsTransformationTests
 
         var configuration = new ConfigurationBuilder().AddInMemoryCollection(values).Build();
 
-        return new RoleClaimsTransformation(
-            configuration,
-            new InMemoryPatientRepository(store),
-            new InMemoryProviderRepository(store),
-            new InMemoryClinicAdminRepository(store),
-            new InMemoryPlatformAdminRepository(store));
+        return new RoleClaimsTransformation(configuration, new InMemoryUserRepository(store));
     }
 
     private void AddPatient(string subject)
     {
         var patient = Patient.Create(Guid.NewGuid(), "Ada", "Lovelace", new DateOnly(1985, 12, 10), "ada@example.com", "555-0100");
-        patient.AssignIdentitySubject(subject);
+        patient.AssignUser(store.UserFor(subject).Id);
         store.Patients.Add(patient);
     }
 
     private void AddProvider(string subject, bool verified)
     {
         var provider = Provider.Register(Guid.NewGuid(), "Grace", "Hopper", "Computing");
-        provider.AssignIdentitySubject(subject);
+        provider.AssignUser(store.UserFor(subject).Id);
         if (verified)
             provider.Verify();
         store.Providers.Add(provider);

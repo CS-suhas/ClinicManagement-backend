@@ -24,34 +24,34 @@ public abstract class ClinicApiTestBase(ClinicApiFactory factory)
 
         var patientSubject = Subject("patient");
         var patient = Patient.Create(Guid.NewGuid(), "Ada", "Lovelace", new DateOnly(1985, 12, 10), "ada@example.com", "555-0102");
-        patient.AssignIdentitySubject(patientSubject);
+        patient.AssignUser(store.UserFor(patientSubject).Id);
         store.Patients.Add(patient);
 
         var otherPatientSubject = Subject("patient");
         var otherPatient = Patient.Create(Guid.NewGuid(), "Grace", "Hopper", new DateOnly(1906, 12, 9), "grace@example.com", "555-0103");
-        otherPatient.AssignIdentitySubject(otherPatientSubject);
+        otherPatient.AssignUser(store.UserFor(otherPatientSubject).Id);
         store.Patients.Add(otherPatient);
 
         var doctorSubject = Subject("doctor");
         var doctor = Provider.Create(Guid.NewGuid(), clinic.Id, "Alan", "Turing", "Computing");
-        doctor.AssignIdentitySubject(doctorSubject);
+        doctor.AssignUser(store.UserFor(doctorSubject).Id);
         store.Providers.Add(doctor);
 
         var otherDoctorSubject = Subject("doctor");
         var otherDoctor = Provider.Create(Guid.NewGuid(), otherClinic.Id, "Katherine", "Johnson", "Mathematics");
-        otherDoctor.AssignIdentitySubject(otherDoctorSubject);
+        otherDoctor.AssignUser(store.UserFor(otherDoctorSubject).Id);
         store.Providers.Add(otherDoctor);
 
         var pendingSubject = Subject("pending");
         var pending = Provider.Register(Guid.NewGuid(), "Edsger", "Dijkstra", "Algorithms");
-        pending.AssignIdentitySubject(pendingSubject);
+        pending.AssignUser(store.UserFor(pendingSubject).Id);
         store.Providers.Add(pending);
 
         var clinicAdminSubject = Subject("clinicadmin");
-        store.ClinicAdmins.Add(ClinicAdmin.Create(Guid.NewGuid(), clinic.Id, clinicAdminSubject));
+        store.ClinicAdmins.Add(ClinicAdmin.Create(Guid.NewGuid(), clinic.Id, store.UserFor(clinicAdminSubject).Id));
 
         var otherClinicAdminSubject = Subject("clinicadmin");
-        store.ClinicAdmins.Add(ClinicAdmin.Create(Guid.NewGuid(), otherClinic.Id, otherClinicAdminSubject));
+        store.ClinicAdmins.Add(ClinicAdmin.Create(Guid.NewGuid(), otherClinic.Id, store.UserFor(otherClinicAdminSubject).Id));
 
         var appointment = Appointment.Create(
             DateTimeOffset.UtcNow.AddDays(30),

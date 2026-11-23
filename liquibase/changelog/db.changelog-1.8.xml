@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- Users is the single home for a sign-in identity. Patients, Providers and ClinicAdmins point at it by
+         UserId instead of each storing the identity subject; PlatformAdmins becomes Users.IsPlatformAdmin. -->
+    <changeSet id="1.8-create-users" author="clinic-management">
+        <createTable tableName="Users">
+            <column name="Id" type="VARCHAR2(36)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="IdentitySubject" type="VARCHAR2(64)">
+                <constraints nullable="false" unique="true" uniqueConstraintName="UK_Users_IdentitySubject"/>
+            </column>
+            <column name="Email" type="VARCHAR2(320)"/>
+            <column name="DisplayName" type="VARCHAR2(200)"/>
+            <column name="IsPlatformAdmin" type="NUMBER(1)" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="CreatedAtUtc" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="SYSTIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="UpdatedAtUtc" type="TIMESTAMP WITH TIME ZONE"/>
+        </createTable>
+        <sql>ALTER TABLE Users ADD CONSTRAINT CK_Users_IsPlatformAdmin CHECK (IsPlatformAdmin IN (0, 1))</sql>
+    </changeSet>
+
+    <!-- One user per distinct subject already in use anywhere. -->
+    <changeSet id="1.8-backfill-users" author="clinic-management">
+        <sql>
+            INSERT INTO Users (Id, IdentitySubject, IsPlatformAdmin)
+            SELECT LOWER(REGEXP_REPLACE(RAWTOHEX(SYS_GUID()), '(.{8})(.{4})(.{4})(.{4})(.{12})', '\1-\2-\3-\4-\5')),
+                   Subject,
+                   IsAdmin
+            FROM (
+                SELECT Subject, MAX(IsAdmin) AS IsAdmin
+                FROM (
+                    SELECT IdentitySubject AS Subject, 0 AS IsAdmin FROM Patients WHERE IdentitySubject IS NOT NULL
+                    UNION ALL
+                    SELECT IdentitySubject, 0 FROM Providers WHERE IdentitySubject IS NOT NULL
+                    UNION ALL
+                    SELECT IdentitySubject, 0 FROM ClinicAdmins
+                    UNION ALL
+                    SELECT IdentitySubject, 1 FROM PlatformAdmins
+                )
+                GROUP BY Subject
+            )
+        </sql>
+    </changeSet>
+
+    <changeSet id="1.8-link-profiles-to-users" author="clinic-management">
+        <addColumn tableName="Patients">
+            <column name="UserId" type="VARCHAR2(36)"/>
+        </addColumn>
+        <addColumn tableName="Providers">
+            <column name="UserId" type="VARCHAR2(36)"/>
+        </addColumn>
+        <addColumn tableName="ClinicAdmins">
+            <column name="UserId" type="VARCHAR2(36)"/>
+        </addColumn>
+
+        <sql>UPDATE Patients p SET UserId = (SELECT u.Id FROM Users u WHERE u.IdentitySubject = p.IdentitySubject) WHERE p.IdentitySubject IS NOT NULL</sql>
+        <sql>UPDATE Providers p SET UserId = (SELECT u.Id FROM Users u WHERE u.IdentitySubject = p.IdentitySubject) WHERE p.IdentitySubject IS NOT NULL</sql>
+        <sql>UPDATE ClinicAdmins a SET UserId = (SELECT u.Id FROM Users u WHERE u.IdentitySubject = a.IdentitySubject)</sql>
+
+        <addNotNullConstraint tableName="ClinicAdmins" columnName="UserId" columnDataType="VARCHAR2(36)"/>
+
+        <addUniqueConstraint tableName="Patients" columnNames="UserId" constraintName="UK_Patients_UserId"/>
+        <addUniqueConstraint tableName="Providers" columnNames="UserId" constraintName="UK_Providers_UserId"/>
+        <addUniqueConstraint tableName="ClinicAdmins" columnNames="ClinicId, UserId" constraintName="UK_ClinicAdmins_ClinicId_UserId"/>
+
+        <addForeignKeyConstraint baseTableName="Patients" baseColumnNames="UserId"
+            referencedTableName="Users" referencedColumnNames="Id"
+            constraintName="FK_Patients_Users" onDelete="RESTRICT"/>
+        <addForeignKeyConstraint baseTableName="Providers" baseColumnNames="UserId"
+            referencedTableName="Users" referencedColumnNames="Id"
+            constraintName="FK_Providers_Users" onDelete="RESTRICT"/>
+        <addForeignKeyConstraint baseTableName="ClinicAdmins" baseColumnNames="UserId"
+            referencedTableName="Users" referencedColumnNames="Id"
+            constraintName="FK_ClinicAdmins_Users" onDelete="RESTRICT"/>
+    </changeSet>
+
+    <changeSet id="1.8-drop-identity-subject-columns" author="clinic-management">
+        <dropUniqueConstraint tableName="Patients" constraintName="UK_Patients_IdentitySubject"/>
+        <dropUniqueConstraint tableName="Providers" constraintName="UK_Providers_IdentitySubject"/>
+        <dropUniqueConstraint tableName="ClinicAdmins" constraintName="UK_ClinicAdmins_ClinicId_IdentitySubject"/>
+        <dropColumn tableName="Patients" columnName="IdentitySubject"/>
+        <dropColumn tableName="Providers" columnName="IdentitySubject"/>
+        <dropColumn tableName="ClinicAdmins" columnName="IdentitySubject"/>
+        <dropTable tableName="PlatformAdmins"/>
+    </changeSet>
+</databaseChangeLog>

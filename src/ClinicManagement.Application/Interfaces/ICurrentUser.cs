@@ -5,6 +5,8 @@ namespace ClinicManagement.Application.Interfaces;
 public interface ICurrentUser
 {
     string? Subject { get; }
+    /// <summary>The signed-in user's <c>Users</c> row id; null when not signed in.</summary>
+    Guid? UserId { get; }
     bool IsAuthenticated { get; }
     /// <summary>The <c>name</c> claim, else <c>preferred_username</c>; null when neither has a value.</summary>
     string? DisplayName { get; }

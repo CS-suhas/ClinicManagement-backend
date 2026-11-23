@@ -6,24 +6,24 @@ namespace ClinicManagement.Domain.Entities;
 public class ClinicAdmin : BaseEntity
 {
     public Guid ClinicId { get; private set; }
-    public string IdentitySubject { get; private set; } = string.Empty;
+    public Guid UserId { get; private set; }
 
     private ClinicAdmin() { }
 
-    public static ClinicAdmin Create(Guid id, Guid clinicId, string identitySubject)
+    public static ClinicAdmin Create(Guid id, Guid clinicId, Guid userId)
     {
         if (!DataValidator.IsValidGuid(id))
             throw new DomainValidationException("Clinic admin ID must be a non-empty GUID.", nameof(id));
         if (!DataValidator.IsValidGuid(clinicId))
             throw new DomainValidationException("Clinic ID must be a non-empty GUID.", nameof(clinicId));
-        if (string.IsNullOrWhiteSpace(identitySubject))
-            throw new DomainValidationException("Identity subject cannot be empty.", nameof(identitySubject));
+        if (!DataValidator.IsValidGuid(userId))
+            throw new DomainValidationException("User ID must be a non-empty GUID.", nameof(userId));
 
         return new ClinicAdmin
         {
             Id = id,
             ClinicId = clinicId,
-            IdentitySubject = identitySubject.Trim()
+            UserId = userId
         };
     }
 }

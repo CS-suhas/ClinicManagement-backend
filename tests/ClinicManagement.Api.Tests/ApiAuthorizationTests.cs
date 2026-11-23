@@ -729,7 +729,7 @@ public sealed class ApiAuthorizationTests(ClinicApiFactory factory)
         using var response = await SendAsync(HttpMethod.Post, "/api/me/patient", subject, request);
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-        Assert.Single(Factory.Store.Patients, patient => patient.IdentitySubject == subject);
+        Assert.Single(Factory.Store.Patients, patient => patient.UserId == Factory.Store.UserFor(subject).Id);
     }
 
     [Fact]
@@ -743,7 +743,7 @@ public sealed class ApiAuthorizationTests(ClinicApiFactory factory)
 
         Assert.Equal(HttpStatusCode.Created, first.StatusCode);
         Assert.Equal(HttpStatusCode.Conflict, second.StatusCode);
-        Assert.Single(Factory.Store.Patients, patient => patient.IdentitySubject == subject);
+        Assert.Single(Factory.Store.Patients, patient => patient.UserId == Factory.Store.UserFor(subject).Id);
     }
 
     [Fact]
@@ -1398,7 +1398,7 @@ public sealed class ApiAuthorizationTests(ClinicApiFactory factory)
         var world = SeedWorld();
         var clinic = AddClinic($"Requests {Guid.NewGuid():N}");
         var ownAdminSubject = Subject("clinicadmin");
-        Factory.Store.ClinicAdmins.Add(ClinicAdmin.Create(Guid.NewGuid(), clinic.Id, ownAdminSubject));
+        Factory.Store.ClinicAdmins.Add(ClinicAdmin.Create(Guid.NewGuid(), clinic.Id, Factory.Store.UserFor(ownAdminSubject).Id));
         Factory.Store.JoinRequests.Add(ClinicJoinRequest.Create(Guid.NewGuid(), world.PendingProvider.Id, clinic.Id));
 
         Assert.Equal(1, await PendingJoinRequestCountAsync(clinic.Id, world.SubjectFor("admin")));

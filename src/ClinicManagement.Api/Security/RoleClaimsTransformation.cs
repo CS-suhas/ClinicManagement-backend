@@ -1,18 +1,17 @@
 using System.Security.Claims;
-using ClinicManagement.Application.Patients.Interfaces;
-using ClinicManagement.Application.Providers.Interfaces;
 using ClinicManagement.Application.Repositories;
 using ClinicManagement.Domain.Enums;
 using Microsoft.AspNetCore.Authentication;
 
 namespace ClinicManagement.Api.Security;
 
+/// <summary>
+/// Resolves the signed-in identity to a <c>Users</c> row (creating it on first sign-in) and replaces any
+/// inbound role claims with roles derived from that user's data.
+/// </summary>
 public sealed class RoleClaimsTransformation(
     IConfiguration configuration,
-    IPatientRepository patientRepository,
-    IProviderRepository providerRepository,
-    IClinicAdminRepository clinicAdminRepository,
-    IPlatformAdminRepository platformAdminRepository) : IClaimsTransformation
+    IUserRepository userRepository) : IClaimsTransformation
 {
     private const string AdminSubjectsKey = "Authorization:AdminSubjects";
 
@@ -25,33 +24,27 @@ public sealed class RoleClaimsTransformation(
         if (string.IsNullOrWhiteSpace(subject))
             return principal;
 
-        foreach (var claim in identity.FindAll(ClaimTypes.Role).ToList())
+        foreach (var claim in identity.FindAll(ClaimTypes.Role).Concat(identity.FindAll(ClinicClaimTypes.UserId)).ToList())
             identity.RemoveClaim(claim);
 
-        foreach (var role in await ResolveRolesAsync(subject))
-            identity.AddClaim(new Claim(ClaimTypes.Role, role));
+        var user = await userRepository.GetOrCreateAsync(
+            subject,
+            principal.FindFirst("email")?.Value,
+            principal.FindFirst("name")?.Value ?? principal.FindFirst("preferred_username")?.Value);
+        identity.AddClaim(new Claim(ClinicClaimTypes.UserId, user.Id.ToString()));
+
+        var facts = await userRepository.GetRoleFactsAsync(user.Id);
+
+        if (facts.HasPatientProfile)
+            identity.AddClaim(new Claim(ClaimTypes.Role, AuthorizationPolicies.PatientRole));
+        if (facts.ProviderStatus == ProviderVerificationStatus.VERIFIED)
+            identity.AddClaim(new Claim(ClaimTypes.Role, AuthorizationPolicies.DoctorRole));
+        if (facts.IsClinicAdmin)
+            identity.AddClaim(new Claim(ClaimTypes.Role, AuthorizationPolicies.ClinicAdminRole));
+        if (facts.IsPlatformAdmin || IsConfiguredAdmin(subject))
+            identity.AddClaim(new Claim(ClaimTypes.Role, AuthorizationPolicies.AdminRole));
 
         return principal;
-    }
-
-    private async Task<List<string>> ResolveRolesAsync(string subject)
-    {
-        var roles = new List<string>();
-
-        if (await patientRepository.GetByIdentitySubjectAsync(subject) is not null)
-            roles.Add(AuthorizationPolicies.PatientRole);
-
-        var provider = await providerRepository.GetByIdentitySubjectAsync(subject);
-        if (provider?.VerificationStatus == ProviderVerificationStatus.VERIFIED)
-            roles.Add(AuthorizationPolicies.DoctorRole);
-
-        if (await clinicAdminRepository.IsAnyAdminAsync(subject))
-            roles.Add(AuthorizationPolicies.ClinicAdminRole);
-
-        if (IsConfiguredAdmin(subject) || await platformAdminRepository.IsAdminAsync(subject))
-            roles.Add(AuthorizationPolicies.AdminRole);
-
-        return roles;
     }
 
     private bool IsConfiguredAdmin(string subject) =>

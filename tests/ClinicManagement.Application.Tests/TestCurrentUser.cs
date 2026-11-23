@@ -6,6 +6,7 @@ namespace ClinicManagement.Application.Tests;
 public sealed class TestCurrentUser : ICurrentUser
 {
     public string? Subject { get; init; } = "test-subject";
+    public Guid? UserId { get; init; } = Guid.Parse("00000000-0000-0000-0000-0000000000a1");
     public bool IsAuthenticated { get; init; } = true;
     public IReadOnlyCollection<string> Roles { get; init; } = [];
     public Patient? Patient { get; init; }

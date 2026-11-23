@@ -20,10 +20,25 @@ public sealed class InMemoryStore
     public List<Appointment> Appointments { get; } = [];
     public List<ClinicJoinRequest> JoinRequests { get; } = [];
     public List<ClinicAdmin> ClinicAdmins { get; } = [];
-    public List<string> PlatformAdminSubjects { get; } = [];
+    public List<User> Users { get; } = [];
     public List<AllergyType> AllergyTypes { get; } = [];
     /// <summary>When each appointment last changed status, mirroring Appointments.StatusChangedAtUtc.</summary>
     public Dictionary<Guid, DateTimeOffset> StatusChangedAt { get; } = [];
+
+    /// <summary>The user for <paramref name="subject"/>, created when missing. Use it to seed linked rows.</summary>
+    public User UserFor(string subject)
+    {
+        lock (Users)
+        {
+            var user = Users.FirstOrDefault(candidate => candidate.IdentitySubject == subject);
+            if (user is null)
+            {
+                user = User.Create(Guid.NewGuid(), subject);
+                Users.Add(user);
+            }
+            return user;
+        }
+    }
 }
 
 /// <summary>Allergy summary of a patient, computed the way the SQL summaries are.</summary>
@@ -100,8 +115,8 @@ internal sealed class InMemoryPatientRepository(InMemoryStore store) : IPatientR
         Task.FromResult<IEnumerable<PatientAllergy>>(
             store.Patients.FirstOrDefault(patient => patient.Id == patientId)?.Allergies.ToList() ?? []);
 
-    public Task<Patient?> GetByIdentitySubjectAsync(string identitySubject) =>
-        Task.FromResult(store.Patients.FirstOrDefault(patient => patient.IdentitySubject == identitySubject));
+    public Task<Patient?> GetByUserIdAsync(Guid userId) =>
+        Task.FromResult(store.Patients.FirstOrDefault(patient => patient.UserId == userId));
 
     public Task<(IReadOnlyList<Patient> Items, int TotalCount)> SearchPatientsAsync(PageQuery query, int offset)
     {
@@ -237,8 +252,8 @@ internal sealed class InMemoryProviderRepository(InMemoryStore store) : IProvide
         ProviderVerificationStatus next) =>
         Task.FromResult(store.Providers.Any(provider => provider.Id == providerId && provider.VerificationStatus == next));
 
-    public Task<Provider?> GetByIdentitySubjectAsync(string identitySubject) =>
-        Task.FromResult<Provider?>(store.Providers.FirstOrDefault(provider => provider.IdentitySubject == identitySubject) is { } found ? Attach(found) : null);
+    public Task<Provider?> GetByUserIdAsync(Guid userId) =>
+        Task.FromResult<Provider?>(store.Providers.FirstOrDefault(provider => provider.UserId == userId) is { } found ? Attach(found) : null);
 
     public Task<(IReadOnlyList<Provider> Items, int TotalCount)> SearchPublicProvidersAsync(
         PageQuery query,
@@ -472,16 +487,12 @@ internal sealed class InMemoryClinicJoinRequestRepository(InMemoryStore store) :
 
 internal sealed class InMemoryClinicAdminRepository(InMemoryStore store) : IClinicAdminRepository
 {
-    public Task<bool> IsAdminOfClinicAsync(string identitySubject, Guid clinicId) =>
-        Task.FromResult(store.ClinicAdmins.Any(admin =>
-            admin.IdentitySubject == identitySubject && admin.ClinicId == clinicId));
+    public Task<bool> IsAdminOfClinicAsync(Guid userId, Guid clinicId) =>
+        Task.FromResult(store.ClinicAdmins.Any(admin => admin.UserId == userId && admin.ClinicId == clinicId));
 
-    public Task<bool> IsAnyAdminAsync(string identitySubject) =>
-        Task.FromResult(store.ClinicAdmins.Any(admin => admin.IdentitySubject == identitySubject));
-
-    public Task<IReadOnlyList<Guid>> GetClinicIdsAsync(string identitySubject) =>
+    public Task<IReadOnlyList<Guid>> GetClinicIdsAsync(Guid userId) =>
         Task.FromResult<IReadOnlyList<Guid>>(store.ClinicAdmins
-            .Where(admin => admin.IdentitySubject == identitySubject)
+            .Where(admin => admin.UserId == userId)
             .Select(admin => admin.ClinicId)
             .OrderBy(id => id)
             .ToList());
@@ -493,10 +504,30 @@ internal sealed class InMemoryClinicAdminRepository(InMemoryStore store) : IClin
     }
 }
 
-internal sealed class InMemoryPlatformAdminRepository(InMemoryStore store) : IPlatformAdminRepository
+internal sealed class InMemoryUserRepository(InMemoryStore store) : IUserRepository
 {
-    public Task<bool> IsAdminAsync(string identitySubject) =>
-        Task.FromResult(store.PlatformAdminSubjects.Contains(identitySubject));
+    public Task<User?> GetBySubjectAsync(string identitySubject)
+    {
+        lock (store.Users)
+            return Task.FromResult(store.Users.FirstOrDefault(user => user.IdentitySubject == identitySubject));
+    }
+
+    public Task<User> GetOrCreateAsync(string identitySubject, string? email = null, string? displayName = null)
+    {
+        var user = store.UserFor(identitySubject);
+        user.UpdateProfile(email, displayName);
+        return Task.FromResult(user);
+    }
+
+    public Task<UserRoleFacts> GetRoleFactsAsync(Guid userId)
+    {
+        var user = store.Users.FirstOrDefault(candidate => candidate.Id == userId);
+        return Task.FromResult(new UserRoleFacts(
+            store.Patients.Any(patient => patient.UserId == userId),
+            store.Providers.FirstOrDefault(provider => provider.UserId == userId)?.VerificationStatus,
+            store.ClinicAdmins.Any(admin => admin.UserId == userId),
+            user?.IsPlatformAdmin == true));
+    }
 }
 
 internal sealed class InMemoryAllergyTypeRepository(InMemoryStore store) : IAllergyTypeRepository

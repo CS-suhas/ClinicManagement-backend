@@ -31,14 +31,14 @@ public class MeService(
 
     public async Task<Guid> CreatePatientProfileAsync(PatientRequest request)
     {
-        CurrentUserGuard.RequireAuthenticated(currentUser);
+        var userId = CurrentUserGuard.RequireUserId(currentUser);
         var subject = CurrentUserGuard.RequireSubject(currentUser);
 
         if (await currentUser.GetPatientAsync() is not null)
             throw new IdentityAlreadyLinkedException("patient", subject);
 
         var patient = (request with { Id = Guid.NewGuid() }).ToEntity();
-        patient.AssignIdentitySubject(subject);
+        patient.AssignUser(userId);
 
         await patientRepository.AddPatientAsync(patient);
         return patient.Id;

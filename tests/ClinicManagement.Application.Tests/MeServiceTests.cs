@@ -76,14 +76,14 @@ public class MeServiceTests
     public async Task CreatePatientProfileAsync_LinksNewPatientToSubject()
     {
         var repository = new FakePatientRepository();
-        var service = new MeService(repository, new TestCurrentUser { Subject = "kc-9", Roles = ["patient"] });
+        var service = new MeService(repository, new TestCurrentUser { Subject = "kc-9", UserId = UserId, Roles = ["patient"] });
 
         var id = await service.CreatePatientProfileAsync(
             new PatientRequest(Guid.Empty, "Ada", "Lovelace", new DateOnly(1985, 12, 10), "555-0100", "ada@example.com"));
 
         Assert.NotEqual(Guid.Empty, id);
         Assert.Equal(id, repository.AddedPatient?.Id);
-        Assert.Equal("kc-9", repository.AddedPatient?.IdentitySubject);
+        Assert.Equal(UserId, repository.AddedPatient?.UserId);
     }
 
     [Fact]
@@ -104,14 +104,16 @@ public class MeServiceTests
     public async Task CreatePatientProfileAsync_AllowsSignedInUserWithoutPatientRole()
     {
         var repository = new FakePatientRepository();
-        var service = new MeService(repository, new TestCurrentUser { Subject = "kc-new", Roles = [] });
+        var service = new MeService(repository, new TestCurrentUser { Subject = "kc-new", UserId = UserId, Roles = [] });
 
         var id = await service.CreatePatientProfileAsync(
             new PatientRequest(Guid.Empty, "Ada", "Lovelace", new DateOnly(1985, 12, 10), "555-0100", "ada@example.com"));
 
         Assert.NotEqual(Guid.Empty, id);
-        Assert.Equal("kc-new", repository.AddedPatient?.IdentitySubject);
+        Assert.Equal(UserId, repository.AddedPatient?.UserId);
     }
+
+    private static readonly Guid UserId = Guid.Parse("00000000-0000-0000-0000-0000000000b1");
 
     private sealed class FakePatientRepository : IPatientRepository
     {
@@ -126,7 +128,7 @@ public class MeServiceTests
             return Task.FromResult(patient.Id);
         }
 
-        public Task<Patient?> GetByIdentitySubjectAsync(string identitySubject) => Task.FromResult<Patient?>(null);
+        public Task<Patient?> GetByUserIdAsync(Guid userId) => Task.FromResult<Patient?>(null);
         public Task<Patient?> GetPatientByIdAsync(Guid patientId) => throw new NotSupportedException();
         public Task<IEnumerable<Patient>> GetAllPatientsAsync() => throw new NotSupportedException();
         public Task<Guid> UpdatePatientAsync(Patient patient) => throw new NotSupportedException();

@@ -280,7 +280,7 @@ public class PatientServiceTests
         public Task<IReadOnlyDictionary<Guid, PatientAllergySummary>> GetAllergySummariesAsync(
             IReadOnlyCollection<Guid>? patientIds) => throw new NotSupportedException();
 
-        public Task<Patient?> GetByIdentitySubjectAsync(string identitySubject) => Task.FromResult<Patient?>(null);
+        public Task<Patient?> GetByUserIdAsync(Guid userId) => Task.FromResult<Patient?>(null);
         public Patient? AddedPatient { get; private set; }
         public Patient? UpdatedPatient { get; private set; }
         public Patient? ExistingPatient { get; init; }

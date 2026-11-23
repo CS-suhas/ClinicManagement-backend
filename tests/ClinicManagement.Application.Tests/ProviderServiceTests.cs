@@ -47,7 +47,7 @@ public class ProviderServiceTests
     public async Task VerifyProviderAsync_MovesPendingProviderToVerified()
     {
         var pending = Provider.Register(Guid.NewGuid(), "Grace", "Hopper", "Computing");
-        pending.AssignIdentitySubject("kc-user-0");
+        pending.AssignUser(Guid.NewGuid());
         var providerRepository = new FakeProviderRepository { ExistingProvider = pending };
         var service = new ProviderService(providerRepository, new FakeClinicRepository(), new FakeAppointmentRepository(), new TestCurrentUser());
 
@@ -74,7 +74,7 @@ public class ProviderServiceTests
     public async Task VerifyProviderAsync_ThrowsConflictWhenStatusChangedConcurrently()
     {
         var pending = Provider.Register(Guid.NewGuid(), "Grace", "Hopper", "Computing");
-        pending.AssignIdentitySubject("kc-user-0");
+        pending.AssignUser(Guid.NewGuid());
         var providerRepository = new FakeProviderRepository
         {
             ExistingProvider = pending,
@@ -360,32 +360,34 @@ public class ProviderServiceTests
         Assert.Equal(provider.Id, response.ProviderId);
     }
 
+    private static readonly Guid RegisteringUserId = Guid.Parse("00000000-0000-0000-0000-0000000000c1");
+
     [Fact]
-    public async Task RegisterProviderAsync_LinksProviderToSignedInSubject()
+    public async Task RegisterProviderAsync_LinksProviderToSignedInUser()
     {
         var providerRepository = new FakeProviderRepository();
         var service = new ProviderService(
             providerRepository,
             new FakeClinicRepository(),
             new FakeAppointmentRepository(),
-            new TestCurrentUser { Subject = "kc-user-1" });
+            new TestCurrentUser { Subject = "kc-user-1", UserId = RegisteringUserId });
 
         await service.RegisterProviderAsync(new ProviderRegistrationRequest(Guid.NewGuid(), "Grace", "Hopper", "Computing"));
 
-        Assert.Equal("kc-user-1", providerRepository.Registered?.IdentitySubject);
+        Assert.Equal(RegisteringUserId, providerRepository.Registered?.UserId);
     }
 
     [Fact]
     public async Task RegisterProviderAsync_RejectsSubjectThatAlreadyHasAProvider()
     {
         var existing = Provider.Register(Guid.NewGuid(), "Grace", "Hopper", "Computing");
-        existing.AssignIdentitySubject("kc-user-1");
-        var providerRepository = new FakeProviderRepository { ExistingByIdentitySubject = existing };
+        existing.AssignUser(RegisteringUserId);
+        var providerRepository = new FakeProviderRepository { ExistingByUserId = existing };
         var service = new ProviderService(
             providerRepository,
             new FakeClinicRepository(),
             new FakeAppointmentRepository(),
-            new TestCurrentUser { Subject = "kc-user-1" });
+            new TestCurrentUser { Subject = "kc-user-1", UserId = RegisteringUserId });
 
         await Assert.ThrowsAsync<IdentityAlreadyLinkedException>(
             () => service.RegisterProviderAsync(new ProviderRegistrationRequest(Guid.NewGuid(), "Grace", "Hopper", "Computing")));
@@ -544,7 +546,7 @@ public class ProviderServiceTests
     {
         public Task<IReadOnlyDictionary<Guid, int>> GetVerifiedProviderCountsByClinicAsync() =>
             throw new NotSupportedException();
-        public Provider? ExistingByIdentitySubject { get; init; }
+        public Provider? ExistingByUserId { get; init; }
         public (Guid ProviderId, PageQuery Query, int Offset, DateTimeOffset Now)? RosterRequest { get; private set; }
 
         public Task<(IReadOnlyList<ProviderPatientRosterItem> Items, int TotalCount)> SearchPatientRosterAsync(
@@ -556,7 +558,8 @@ public class ProviderServiceTests
             RosterRequest = (providerId, query, offset, now);
             return Task.FromResult<(IReadOnlyList<ProviderPatientRosterItem>, int)>(([], 2));
         }
-        public Task<Provider?> GetByIdentitySubjectAsync(string identitySubject) => Task.FromResult(ExistingByIdentitySubject);
+        public Task<Provider?> GetByUserIdAsync(Guid userId) =>
+            Task.FromResult(ExistingByUserId?.UserId == userId ? ExistingByUserId : null);
         public Task<(IReadOnlyList<Provider> Items, int TotalCount)> SearchPublicProvidersAsync(
             ClinicManagement.Application.Models.PageQuery query,
             int offset,

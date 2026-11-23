@@ -996,7 +996,7 @@ public class AppointmentServiceTests
         public Task<IReadOnlyDictionary<Guid, ClinicManagement.Application.Models.PatientAllergySummary>> GetAllergySummariesAsync(
             IReadOnlyCollection<Guid>? patientIds) => throw new NotSupportedException();
 
-        public Task<Patient?> GetByIdentitySubjectAsync(string identitySubject) => Task.FromResult<Patient?>(null);
+        public Task<Patient?> GetByUserIdAsync(Guid userId) => Task.FromResult<Patient?>(null);
         public bool Exists { get; init; }
         public int PatientLookupCount { get; private set; }
 
@@ -1151,7 +1151,7 @@ public class AppointmentServiceTests
                 ClinicManagement.Application.Models.PageQuery query,
                 int offset,
                 DateTimeOffset now) => throw new NotSupportedException();
-        public Task<Provider?> GetByIdentitySubjectAsync(string identitySubject) => Task.FromResult<Provider?>(null);
+        public Task<Provider?> GetByUserIdAsync(Guid userId) => Task.FromResult<Provider?>(null);
         public Provider? ConfiguredProvider { get; init; }
         public bool ProviderMissing { get; init; }
 

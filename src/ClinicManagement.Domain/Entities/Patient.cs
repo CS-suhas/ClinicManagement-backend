@@ -14,7 +14,7 @@ public class Patient : BaseEntity
     public DateOnly DateOfBirth { get; private set; } // as UTC timestamp
     public string Email { get; private set; } = string.Empty;
     public string PhoneNumber { get; private set; } = string.Empty;
-    public string? IdentitySubject { get; private set; }
+    public Guid? UserId { get; private set; }
     public IReadOnlyCollection<PatientAllergy> Allergies => _allergies.AsReadOnly();
     public IReadOnlyCollection<Appointment> Appointments => _appointments.AsReadOnly();
 
@@ -94,12 +94,12 @@ public class Patient : BaseEntity
         UpdatedAtUtc = DateTime.UtcNow;
     }
 
-    public void AssignIdentitySubject(string identitySubject)
+    public void AssignUser(Guid userId)
     {
-        if (string.IsNullOrWhiteSpace(identitySubject))
-            throw new DomainValidationException("Identity subject cannot be empty.", nameof(identitySubject));
+        if (!DataValidator.IsValidGuid(userId))
+            throw new DomainValidationException("User ID must be a non-empty GUID.", nameof(userId));
 
-        IdentitySubject = identitySubject.Trim();
+        UserId = userId;
         UpdatedAtUtc = DateTime.UtcNow;
     }
 

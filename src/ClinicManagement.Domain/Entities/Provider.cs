@@ -12,7 +12,7 @@ public class Provider : BaseEntity
     public Clinic? Clinic { get; private set; }
     public Guid? ClinicId { get; private set; }
     public ProviderVerificationStatus VerificationStatus { get; private set; }
-    public string? IdentitySubject { get; private set; }
+    public Guid? UserId { get; private set; }
     public decimal? Fee { get; private set; }
     public Gender? Gender { get; private set; }
     public ICollection<Appointment> Appointments { get; private set; } = new List<Appointment>();
@@ -140,12 +140,12 @@ public class Provider : BaseEntity
         UpdatedAtUtc = DateTime.UtcNow;
     }
 
-    public void AssignIdentitySubject(string identitySubject)
+    public void AssignUser(Guid userId)
     {
-        if (string.IsNullOrWhiteSpace(identitySubject))
-            throw new DomainValidationException("Identity subject cannot be empty.", nameof(identitySubject));
+        if (!DataValidator.IsValidGuid(userId))
+            throw new DomainValidationException("User ID must be a non-empty GUID.", nameof(userId));
 
-        IdentitySubject = identitySubject.Trim();
+        UserId = userId;
         UpdatedAtUtc = DateTime.UtcNow;
     }
 

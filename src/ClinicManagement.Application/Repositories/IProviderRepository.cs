@@ -42,5 +42,5 @@ public interface IProviderRepository
         Guid providerId,
         ProviderVerificationStatus expected,
         ProviderVerificationStatus next);
-    Task<Provider?> GetByIdentitySubjectAsync(string identitySubject);
+    Task<Provider?> GetByUserIdAsync(Guid userId);
 }

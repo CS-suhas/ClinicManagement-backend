@@ -33,7 +33,7 @@ public static class DependencyInjection
         services.AddScoped<IStatusRepository, StatusRepository>();
         services.AddScoped<ISearchRepository, SearchRepository>();
         services.AddScoped<IClinicAdminRepository, ClinicAdminRepository>();
-        services.AddScoped<IPlatformAdminRepository, PlatformAdminRepository>();
+        services.AddScoped<IUserRepository, UserRepository>();
 
         return services;
     }

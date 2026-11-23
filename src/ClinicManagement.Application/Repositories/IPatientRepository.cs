@@ -30,7 +30,7 @@ public interface IPatientRepository
         AllergySeverity severity,
         string? notes);
     Task<Guid> DeletePatientAllergyAsync(Guid patientId, Guid allergyId);
-    Task<Patient?> GetByIdentitySubjectAsync(string identitySubject);
+    Task<Patient?> GetByUserIdAsync(Guid userId);
     /// <summary>Allergy summaries keyed by patient. Patients without allergies are absent. Null ids means every patient.</summary>
     Task<IReadOnlyDictionary<Guid, PatientAllergySummary>> GetAllergySummariesAsync(IReadOnlyCollection<Guid>? patientIds);
 }

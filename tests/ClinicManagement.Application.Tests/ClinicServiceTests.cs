@@ -135,16 +135,20 @@ public class ClinicServiceTests
     {
         var clinic = Clinic.Create(Guid.NewGuid(), "Downtown Clinic", "10 Main St", "555-0100");
         var adminRepository = new FakeClinicAdminRepository();
+        var userRepository = new FakeUserRepository();
         var service = CreateService(
             new FakeClinicRepository { ExistingClinic = clinic },
-            clinicAdminRepository: adminRepository);
+            clinicAdminRepository: adminRepository,
+            userRepository: userRepository);
 
         var id = await service.AddClinicAdminAsync(clinic.Id, " subject-123 ");
 
         Assert.NotNull(adminRepository.Added);
         Assert.Equal(id, adminRepository.Added.Id);
         Assert.Equal(clinic.Id, adminRepository.Added.ClinicId);
-        Assert.Equal("subject-123", adminRepository.Added.IdentitySubject);
+        var user = Assert.Single(userRepository.Users);
+        Assert.Equal("subject-123", user.IdentitySubject);
+        Assert.Equal(user.Id, adminRepository.Added.UserId);
     }
 
     [Fact]
@@ -346,12 +350,14 @@ public class ClinicServiceTests
         FakeClinicAdminRepository? clinicAdminRepository = null,
         TestCurrentUser? currentUser = null,
         FakeStatusRepository? statusRepository = null,
-        DateTimeOffset? now = null) =>
+        DateTimeOffset? now = null,
+        FakeUserRepository? userRepository = null) =>
         new(
             clinicRepository,
             providerRepository ?? new FakeProviderRepository(),
             appointmentRepository ?? new FakeAppointmentRepository(),
             clinicAdminRepository ?? new FakeClinicAdminRepository(),
+            userRepository ?? new FakeUserRepository(),
             statusRepository ?? new FakeStatusRepository(),
             currentUser ?? new TestCurrentUser { Roles = ["admin"] },
             new FixedTimeProvider(now ?? DefaultNow));
@@ -405,12 +411,10 @@ public class ClinicServiceTests
         public bool AlreadyAdmin { get; init; }
         public ClinicAdmin? Added { get; private set; }
 
-        public Task<bool> IsAdminOfClinicAsync(string identitySubject, Guid clinicId) =>
+        public Task<bool> IsAdminOfClinicAsync(Guid userId, Guid clinicId) =>
             Task.FromResult(AlreadyAdmin);
 
-        public Task<bool> IsAnyAdminAsync(string identitySubject) => Task.FromResult(AlreadyAdmin);
-
-        public Task<IReadOnlyList<Guid>> GetClinicIdsAsync(string identitySubject) =>
+        public Task<IReadOnlyList<Guid>> GetClinicIdsAsync(Guid userId) =>
             Task.FromResult<IReadOnlyList<Guid>>([]);
 
         public Task AddAsync(ClinicAdmin clinicAdmin)
@@ -470,7 +474,7 @@ public class ClinicServiceTests
                 ClinicManagement.Application.Models.PageQuery query,
                 int offset,
                 DateTimeOffset now) => throw new NotSupportedException();
-        public Task<Provider?> GetByIdentitySubjectAsync(string identitySubject) => Task.FromResult<Provider?>(null);
+        public Task<Provider?> GetByUserIdAsync(Guid userId) => Task.FromResult<Provider?>(null);
         public Task<(IReadOnlyList<Provider> Items, int TotalCount)> SearchPublicProvidersAsync(
             ClinicManagement.Application.Models.PageQuery query,
             int offset,

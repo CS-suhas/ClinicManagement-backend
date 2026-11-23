@@ -75,7 +75,7 @@ public sealed class ClinicApiFactory : WebApplicationFactory<Program>
             services.RemoveAll<IAppointmentRepository>();
             services.RemoveAll<IClinicJoinRequestRepository>();
             services.RemoveAll<IClinicAdminRepository>();
-            services.RemoveAll<IPlatformAdminRepository>();
+            services.RemoveAll<IUserRepository>();
             services.RemoveAll<IAllergyTypeRepository>();
             services.RemoveAll<IStatusRepository>();
             services.RemoveAll<ISearchRepository>();
@@ -86,7 +86,7 @@ public sealed class ClinicApiFactory : WebApplicationFactory<Program>
             services.AddSingleton<IAppointmentRepository>(new InMemoryAppointmentRepository(Store));
             services.AddSingleton<IClinicJoinRequestRepository>(new InMemoryClinicJoinRequestRepository(Store));
             services.AddSingleton<IClinicAdminRepository>(new InMemoryClinicAdminRepository(Store));
-            services.AddSingleton<IPlatformAdminRepository>(new InMemoryPlatformAdminRepository(Store));
+            services.AddSingleton<IUserRepository>(new InMemoryUserRepository(Store));
             services.AddSingleton<IAllergyTypeRepository>(new InMemoryAllergyTypeRepository(Store));
             services.AddSingleton<IStatusRepository>(new InMemoryStatusRepository(Store));
             services.AddSingleton<ISearchRepository>(new InMemorySearchRepository(Store));

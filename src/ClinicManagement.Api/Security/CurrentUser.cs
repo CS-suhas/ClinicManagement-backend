@@ -18,6 +18,9 @@ public sealed class CurrentUser(
     public string? Subject =>
         Principal?.FindFirst("sub")?.Value ?? Principal?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
+    public Guid? UserId =>
+        Guid.TryParse(Principal?.FindFirst(ClinicClaimTypes.UserId)?.Value, out var userId) ? userId : null;
+
     public bool IsAuthenticated => Principal?.Identity?.IsAuthenticated == true;
 
     public IReadOnlyCollection<string> Roles =>
@@ -39,32 +42,21 @@ public sealed class CurrentUser(
 
     public async Task<Patient?> GetPatientAsync()
     {
-        var subject = Subject;
-        return string.IsNullOrWhiteSpace(subject)
-            ? null
-            : await patientRepository.GetByIdentitySubjectAsync(subject);
+        return UserId is { } userId ? await patientRepository.GetByUserIdAsync(userId) : null;
     }
 
     public async Task<Provider?> GetProviderAsync()
     {
-        var subject = Subject;
-        return string.IsNullOrWhiteSpace(subject)
-            ? null
-            : await providerRepository.GetByIdentitySubjectAsync(subject);
+        return UserId is { } userId ? await providerRepository.GetByUserIdAsync(userId) : null;
     }
 
     public async Task<bool> IsClinicAdminOfAsync(Guid clinicId)
     {
-        var subject = Subject;
-        return !string.IsNullOrWhiteSpace(subject)
-            && await clinicAdminRepository.IsAdminOfClinicAsync(subject, clinicId);
+        return UserId is { } userId && await clinicAdminRepository.IsAdminOfClinicAsync(userId, clinicId);
     }
 
     public async Task<IReadOnlyList<Guid>> GetAdministeredClinicIdsAsync()
     {
-        var subject = Subject;
-        return string.IsNullOrWhiteSpace(subject)
-            ? []
-            : await clinicAdminRepository.GetClinicIdsAsync(subject);
+        return UserId is { } userId ? await clinicAdminRepository.GetClinicIdsAsync(userId) : [];
     }
 }

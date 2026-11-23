@@ -333,7 +333,7 @@ public class ClinicJoinRequestServiceTests
                 ClinicManagement.Application.Models.PageQuery query,
                 int offset,
                 DateTimeOffset now) => throw new NotSupportedException();
-        public Task<Provider?> GetByIdentitySubjectAsync(string identitySubject) => Task.FromResult<Provider?>(null);
+        public Task<Provider?> GetByUserIdAsync(Guid userId) => Task.FromResult<Provider?>(null);
         public Task<Provider?> GetProviderByIdAsync(Guid providerId) =>
             Task.FromResult(provider?.Id == providerId ? provider : null);
         public Task<IEnumerable<Provider>> GetAllProvidersAsync() => throw new NotSupportedException();

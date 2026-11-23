@@ -23,6 +23,7 @@ public class ClinicService(
     IProviderRepository providerRepository,
     IAppointmentRepository appointmentRepository,
     IClinicAdminRepository clinicAdminRepository,
+    IUserRepository userRepository,
     IStatusRepository statusRepository,
     ICurrentUser currentUser,
     TimeProvider timeProvider) : IClinicService
@@ -167,9 +168,15 @@ public class ClinicService(
         _ = await clinicRepository.GetClinicByIdAsync(clinicId)
             ?? throw new ResourceNotFoundException("Clinic", clinicId);
 
-        var clinicAdmin = ClinicAdmin.Create(Guid.NewGuid(), clinicId, identitySubject);
-        if (await clinicAdminRepository.IsAdminOfClinicAsync(clinicAdmin.IdentitySubject, clinicId))
-            throw new ClinicAdminAlreadyAssignedException(clinicAdmin.IdentitySubject, clinicId);
+        RequestValidator.EnsureText(identitySubject, nameof(identitySubject), "Identity subject");
+
+        // The person may not have signed in yet, so their user row is created here if needed. Their email and
+        // display name are filled in from their token on first sign-in.
+        var user = await userRepository.GetOrCreateAsync(identitySubject.Trim());
+        if (await clinicAdminRepository.IsAdminOfClinicAsync(user.Id, clinicId))
+            throw new ClinicAdminAlreadyAssignedException(user.IdentitySubject, clinicId);
+
+        var clinicAdmin = ClinicAdmin.Create(Guid.NewGuid(), clinicId, user.Id);
 
         await clinicAdminRepository.AddAsync(clinicAdmin);
         return clinicAdmin.Id;

@@ -26,7 +26,7 @@ public class PatientRepository(IDbConnectionFactory connectionFactory) : IPatien
     public async Task<Guid> AddPatientAsync(Patient patient)
     {
         using var connection = connectionFactory.CreateConnection();
-        const string sql = "INSERT INTO Patients (Id, FirstName, LastName, DateOfBirth, PhoneNumber, Email, IdentitySubject) VALUES (:Id, :FirstName, :LastName, :DateOfBirth, :PhoneNumber, :Email, :IdentitySubject)";
+        const string sql = "INSERT INTO Patients (Id, FirstName, LastName, DateOfBirth, PhoneNumber, Email, UserId) VALUES (:Id, :FirstName, :LastName, :DateOfBirth, :PhoneNumber, :Email, :UserId)";
         await connection.ExecuteAsync(sql, new
         {
             Id = patient.Id.ToString(),
@@ -35,7 +35,7 @@ public class PatientRepository(IDbConnectionFactory connectionFactory) : IPatien
             patient.DateOfBirth,
             patient.PhoneNumber,
             patient.Email,
-            patient.IdentitySubject
+            UserId = patient.UserId?.ToString()
         });
         return patient.Id;
     }
@@ -317,10 +317,10 @@ public class PatientRepository(IDbConnectionFactory connectionFactory) : IPatien
 
     private sealed record AllergySummaryRow(Guid PatientId, decimal AllergyCount, decimal? SeverityRank);
 
-    public async Task<Patient?> GetByIdentitySubjectAsync(string identitySubject)
+    public async Task<Patient?> GetByUserIdAsync(Guid userId)
     {
         using var connection = connectionFactory.CreateConnection();
-        const string sql = "SELECT Id, FirstName, LastName, DateOfBirth, PhoneNumber, Email, IdentitySubject, CreatedAtUtc, UpdatedAtUtc FROM Patients WHERE IdentitySubject = :IdentitySubject";
-        return await connection.QuerySingleOrDefaultAsync<Patient>(sql, new { IdentitySubject = identitySubject });
+        const string sql = "SELECT Id, FirstName, LastName, DateOfBirth, PhoneNumber, Email, UserId, CreatedAtUtc, UpdatedAtUtc FROM Patients WHERE UserId = :UserId";
+        return await connection.QuerySingleOrDefaultAsync<Patient>(sql, new { UserId = userId.ToString() });
     }
 }
