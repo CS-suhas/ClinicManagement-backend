@@ -24,7 +24,7 @@ public static class AppointmentEndpoints
             .WithName("SearchAppointments")
             .RequireAuthorization(AuthorizationPolicies.Authenticated)
             .WithSummary("Search and filter appointments")
-            .WithDescription("Filters appointments by text, date range (from < to when both are given), clinic, provider, providerIds (repeatable, up to 100), or patient, and returns a page. Patients see only their own appointments and providers only their own; clinic administrators are limited to their clinic.")
+            .WithDescription("Filters appointments by text, date range (from < to when both are given), clinic, provider, providerIds (repeatable, up to 100), or patient, and returns a page. Patients see only their own appointments and providers only their own; clinic administrators are limited to their clinic. Each item includes the patient's allergy summary (patientAllergyCount and patientHighestAllergySeverity, null when none) and timestamps: createdAtUtc is when the appointment was booked, and statusChangedAtUtc is when its status last changed (equal to createdAtUtc if it never has).")
             .Produces<PagedResponse<AppointmentListResponse>>(StatusCodes.Status200OK)
             .Produces(StatusCodes.Status400BadRequest)
             .Produces(StatusCodes.Status403Forbidden);

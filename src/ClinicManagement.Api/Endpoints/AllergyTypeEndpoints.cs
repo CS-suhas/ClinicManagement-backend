@@ -12,6 +12,8 @@ public static class AllergyTypeEndpoints
     {
         app.MapGet("/api/allergy-types", async ([FromServices] IAllergyTypeService service) =>
             Results.Ok(await service.GetAllAllergyTypesAsync()))
+            .WithSummary("List allergy types")
+            .WithDescription("Returns every allergy type. Each item carries patientCount, the number of patients with that allergy recorded.")
             .RequireAuthorization(AuthorizationPolicies.Authenticated);
 
         app.MapGet("/api/allergy-types/search", async (
@@ -20,11 +22,14 @@ public static class AllergyTypeEndpoints
             Results.Ok(await service.SearchAllergyTypesAsync(query)))
             .WithName("SearchAllergyTypes")
             .WithSummary("Search allergy types")
+            .WithDescription("Searches allergy type names and returns a page. Each item carries patientCount, the number of patients with that allergy recorded.")
             .RequireAuthorization(AuthorizationPolicies.Authenticated)
             .Produces<PagedResponse<AllergyTypeResponse>>(StatusCodes.Status200OK);
 
         app.MapGet("/api/allergy-types/{id}", async (Guid id, [FromServices] IAllergyTypeService service) =>
             Results.Ok(await service.GetAllergyTypeByIdAsync(id)))
+            .WithSummary("Get an allergy type")
+            .WithDescription("Returns one allergy type with patientCount, the number of patients with that allergy recorded.")
             .RequireAuthorization(AuthorizationPolicies.Authenticated);
 
         app.MapGet("/api/allergy-types/{id}/patients", async (Guid id, [FromServices] IAllergyTypeService service) =>

@@ -18,6 +18,8 @@ public static class PatientEndpoints
             var patients = await patientService.GetAllPatientsAsync();
             return Results.Ok(patients);
         })
+            .WithSummary("List all patients (admin)")
+            .WithDescription("Returns every patient. Each item carries allergyCount (the number of recorded allergies) and highestSeverity (MILD, MODERATE or SEVERE, null when there are none).")
             .RequireAuthorization(AuthorizationPolicies.AdminOnly);
 
         app.MapGet("/api/patients/search", async (
@@ -27,7 +29,7 @@ public static class PatientEndpoints
             .WithName("SearchPatients")
             .RequireAuthorization(AuthorizationPolicies.AdminOnly)
             .WithSummary("Search patients")
-            .WithDescription("Searches patient names, email, and phone number, and returns a page.")
+            .WithDescription("Searches patient names, email, and phone number, and returns a page. Each item carries allergyCount (the number of recorded allergies) and highestSeverity (MILD, MODERATE or SEVERE, null when there are none).")
             .Produces<PagedResponse<PatientResponse>>(StatusCodes.Status200OK);
 
         app.MapGet("/api/patients/{id}", async (Guid id, [FromServices] IPatientService patientService) =>

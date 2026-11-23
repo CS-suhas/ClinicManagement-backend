@@ -15,7 +15,7 @@ public static class MeEndpoints
             .WithName("GetCurrentUser")
             .RequireAuthorization(AuthorizationPolicies.Authenticated)
             .WithSummary("Get the signed-in user")
-            .WithDescription("Returns the token subject, roles, and the linked patient and provider, or nulls when none exist.")
+            .WithDescription("Returns the token subject, roles, and the linked patient and provider, or nulls when none exist. provider.clinicId is the provider's clinic, or null while the provider has none.")
             .Produces<MeResponse>(StatusCodes.Status200OK);
 
         app.MapGet("/api/me/dashboard", async ([FromServices] IMeDashboardService service) =>
@@ -23,7 +23,7 @@ public static class MeEndpoints
             .WithName("GetMyDashboard")
             .RequireAuthorization(AuthorizationPolicies.Authenticated)
             .WithSummary("Get the role-aware dashboard for the signed-in user")
-            .WithDescription("Returns one section per role the caller holds: admin (platform counts), clinicAdmin (counts for the caller's clinics plus pending join requests), doctor (today, this week in UTC, and the next appointment), and patient (next appointment and upcoming count). Sections for roles the caller does not hold are null.")
+            .WithDescription("Returns one section per role the caller holds: admin (platform counts plus pendingJoinRequestCount), clinicAdmin (counts for the caller's clinics plus pendingJoinRequestCount), doctor (today, this week in UTC, the next appointment, and pendingRequestCount: REQUESTED appointments starting now or later), and patient (next appointment, upcoming count, and recentDecisions: up to five CONFIRMED or DECLINED appointments, newest decision first). Sections for roles the caller does not hold are null.")
             .Produces<MeDashboardResponse>(StatusCodes.Status200OK)
             .Produces(StatusCodes.Status401Unauthorized);
 
