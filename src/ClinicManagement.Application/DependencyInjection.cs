@@ -31,6 +31,7 @@ public static class DependencyInjection
         services.AddScoped<IStatusService, StatusService>();
         services.AddScoped<IMeService, MeService>();
         services.AddScoped<IMeDashboardService, MeDashboardService>();
+        services.AddScoped<ISearchService, SearchService>();
 
         return services;
     }

@@ -60,6 +60,7 @@ app.MapProviderEndpoints();
 app.MapClinicJoinRequestEndpoints();
 app.MapReferenceDataEndpoints();
 app.MapStatusEndpoints();
+app.MapSearchEndpoints();
 app.MapControllers();
 app.MapHealthChecks("/health");
 app.Run();

@@ -78,6 +78,7 @@ public sealed class ClinicApiFactory : WebApplicationFactory<Program>
             services.RemoveAll<IPlatformAdminRepository>();
             services.RemoveAll<IAllergyTypeRepository>();
             services.RemoveAll<IStatusRepository>();
+            services.RemoveAll<ISearchRepository>();
 
             services.AddSingleton<IPatientRepository>(new InMemoryPatientRepository(Store));
             services.AddSingleton<IProviderRepository>(new InMemoryProviderRepository(Store));
@@ -88,6 +89,7 @@ public sealed class ClinicApiFactory : WebApplicationFactory<Program>
             services.AddSingleton<IPlatformAdminRepository>(new InMemoryPlatformAdminRepository(Store));
             services.AddSingleton<IAllergyTypeRepository>(new InMemoryAllergyTypeRepository(Store));
             services.AddSingleton<IStatusRepository>(new InMemoryStatusRepository(Store));
+            services.AddSingleton<ISearchRepository>(new InMemorySearchRepository(Store));
 
             services.PostConfigure<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme, options =>
             {
