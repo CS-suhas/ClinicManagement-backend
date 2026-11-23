@@ -1,0 +1,14 @@
+{
+  "name": "clinic-management-fake-data",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node generate.js",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@faker-js/faker": "10.6.0",
+    "oracledb": "6.10.0"
+  }
+}

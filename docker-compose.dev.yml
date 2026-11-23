@@ -1,0 +1,17 @@
+services:
+  api:
+    depends_on:
+      seeder:
+        condition: service_completed_successfully
+
+  seeder:
+    build:
+      context: ./faker
+      dockerfile: Dockerfile
+    depends_on:
+      liquibase:
+        condition: service_completed_successfully
+    environment:
+      ORACLE_USER: SYSTEM
+      ORACLE_PASSWORD: ${ORACLE_PASSWORD:?Set ORACLE_PASSWORD in your environment}
+      ORACLE_CONNECT_STRING: oracle:1521/FREEPDB1
