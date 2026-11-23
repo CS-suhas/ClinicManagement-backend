@@ -828,6 +828,89 @@ public sealed class ApiAuthorizationTests(ClinicApiFactory factory)
     }
 
     [Fact]
+    public async Task AppointmentStatus_IsTheEnumNameOnDetailAndProviderListings()
+    {
+        var world = SeedWorld();
+
+        using var detail = await SendAsync(HttpMethod.Get, $"/api/appointments/{world.Appointment.Id}", world.PatientSubject);
+        using var listing = await SendAsync(HttpMethod.Get, $"/api/providers/{world.Doctor.Id}/appointments", world.DoctorSubject);
+        using var detailDocument = System.Text.Json.JsonDocument.Parse(await detail.Content.ReadAsStringAsync());
+        using var listingDocument = System.Text.Json.JsonDocument.Parse(await listing.Content.ReadAsStringAsync());
+        var listed = listingDocument.RootElement.EnumerateArray()
+            .Single(item => item.GetProperty("id").GetGuid() == world.Appointment.Id);
+
+        Assert.Equal(HttpStatusCode.OK, detail.StatusCode);
+        Assert.Equal("REQUESTED", detailDocument.RootElement.GetProperty("status").GetString());
+        Assert.Equal("REQUESTED", listed.GetProperty("status").GetString());
+    }
+
+    [Fact]
+    public async Task AppointmentStatus_ConfirmThenCompleteFollowsTheRoutes()
+    {
+        var world = SeedWorld();
+        var id = world.Appointment.Id;
+
+        using var confirm = await SendAsync(HttpMethod.Post, $"/api/appointments/{id}/confirm", world.DoctorSubject);
+        var afterConfirm = await ReadStatusAsync(id, world.PatientSubject);
+        using var complete = await SendAsync(HttpMethod.Post, $"/api/appointments/{id}/complete", world.DoctorSubject);
+        var afterComplete = await ReadStatusAsync(id, world.PatientSubject);
+
+        Assert.Equal(HttpStatusCode.NoContent, confirm.StatusCode);
+        Assert.Equal("CONFIRMED", afterConfirm);
+        Assert.Equal(HttpStatusCode.NoContent, complete.StatusCode);
+        Assert.Equal("COMPLETED", afterComplete);
+    }
+
+    [Fact]
+    public async Task AppointmentStatus_DeclineRouteMovesRequestedToDeclined()
+    {
+        var world = SeedWorld();
+
+        using var decline = await SendAsync(HttpMethod.Post, $"/api/appointments/{world.Appointment.Id}/decline", world.DoctorSubject);
+        var status = await ReadStatusAsync(world.Appointment.Id, world.PatientSubject);
+
+        Assert.Equal(HttpStatusCode.NoContent, decline.StatusCode);
+        Assert.Equal("DECLINED", status);
+    }
+
+    [Fact]
+    public async Task AppointmentStatus_PatientCancelRouteMovesRequestedToCancelled()
+    {
+        var world = SeedWorld();
+        var appointment = Appointment.Create(
+            DateTimeOffset.UtcNow.AddDays(32),
+            "Cancel me",
+            world.Patient,
+            world.Doctor,
+            DateTimeOffset.UtcNow);
+        Factory.Store.Appointments.Add(appointment);
+
+        using var cancel = await SendAsync(HttpMethod.Post, $"/api/appointments/{appointment.Id}/cancel", world.PatientSubject);
+        var status = await ReadStatusAsync(appointment.Id, world.PatientSubject);
+
+        Assert.Equal(HttpStatusCode.NoContent, cancel.StatusCode);
+        Assert.Equal("CANCELLED", status);
+    }
+
+    [Fact]
+    public async Task AppointmentStatus_CompleteOnRequestedAppointmentIsConflict()
+    {
+        var world = SeedWorld();
+
+        using var response = await SendAsync(HttpMethod.Post, $"/api/appointments/{world.Appointment.Id}/complete", world.DoctorSubject);
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Equal("REQUESTED", await ReadStatusAsync(world.Appointment.Id, world.PatientSubject));
+    }
+
+    private async Task<string?> ReadStatusAsync(Guid appointmentId, string subject)
+    {
+        using var response = await SendAsync(HttpMethod.Get, $"/api/appointments/{appointmentId}", subject);
+        using var document = System.Text.Json.JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        return document.RootElement.GetProperty("status").GetString();
+    }
+
+    [Fact]
     public async Task CalendarSearch_RequiresSignIn()
     {
         using var response = await SendAsync(HttpMethod.Get, "/api/appointments/search?pageSize=100", subject: null);
