@@ -826,6 +826,9 @@ public class AppointmentServiceTests
 
     private sealed class FakePatientRepository : IPatientRepository
     {
+        public Task<IReadOnlyDictionary<Guid, ClinicManagement.Application.Models.PatientAllergySummary>> GetAllergySummariesAsync(
+            IReadOnlyCollection<Guid>? patientIds) => throw new NotSupportedException();
+
         public Task<Patient?> GetByIdentitySubjectAsync(string identitySubject) => Task.FromResult<Patient?>(null);
         public bool Exists { get; init; }
         public int PatientLookupCount { get; private set; }

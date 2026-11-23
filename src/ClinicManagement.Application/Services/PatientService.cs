@@ -32,18 +32,20 @@ public class PatientService(
         return patient.ToResponse();
     }
 
-    public async Task<List<PatientResponse>> GetAllPatientsAsync()
+    public async Task<List<PatientListItemResponse>> GetAllPatientsAsync()
     {
-        var patients = await patientRepository.GetAllPatientsAsync();
-        return patients.Select(p => p.ToResponse()).ToList();
+        var patients = (await patientRepository.GetAllPatientsAsync()).ToList();
+        var summaries = await patientRepository.GetAllergySummariesAsync(null);
+        return patients.Select(patient => patient.ToListItem(summaries)).ToList();
     }
 
-    public async Task<PagedResponse<PatientResponse>> SearchPatientsAsync(PageQuery query)
+    public async Task<PagedResponse<PatientListItemResponse>> SearchPatientsAsync(PageQuery query)
     {
         var offset = query.GetOffset();
         var (items, totalCount) = await patientRepository.SearchPatientsAsync(query, offset);
-        return new PagedResponse<PatientResponse>(
-            items.Select(item => item.ToResponse()).ToArray(),
+        var summaries = await patientRepository.GetAllergySummariesAsync(items.Select(item => item.Id).ToArray());
+        return new PagedResponse<PatientListItemResponse>(
+            items.Select(item => item.ToListItem(summaries)).ToArray(),
             totalCount,
             query.Page,
             query.PageSize);
@@ -97,8 +99,9 @@ public class PatientService(
             selectedAllergyId,
             query,
             offset);
+        var counts = await allergyTypeRepository.GetPatientCountsByAllergyTypeAsync();
         return new PagedResponse<AllergyTypeResponse>(
-            items.Select(item => item.ToResponse()).ToArray(),
+            items.Select(item => item.ToResponse(counts.GetValueOrDefault(item.Id))).ToArray(),
             totalCount,
             query.Page,
             query.PageSize);

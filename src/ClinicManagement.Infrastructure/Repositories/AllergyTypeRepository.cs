@@ -68,6 +68,20 @@ public class AllergyTypeRepository(IDbConnectionFactory connectionFactory) : IAl
         return allergyType.Id;
     }
 
+    public async Task<IReadOnlyDictionary<Guid, int>> GetPatientCountsByAllergyTypeAsync()
+    {
+        using var connection = connectionFactory.CreateConnection();
+        const string sql = """
+            SELECT AllergyId, COUNT(1) AS PatientCount
+            FROM PatientAllergies
+            GROUP BY AllergyId
+            """;
+        var rows = await connection.QueryAsync<AllergyPatientCountRow>(sql);
+        return rows.ToDictionary(row => row.AllergyId, row => checked((int)row.PatientCount));
+    }
+
+    private sealed record AllergyPatientCountRow(Guid AllergyId, decimal PatientCount);
+
     public async Task<(IReadOnlyList<AllergyType> Items, int TotalCount)> SearchAllergyTypesAsync(
         PageQuery query,
         int offset)

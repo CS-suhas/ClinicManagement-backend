@@ -8,13 +8,13 @@ namespace ClinicManagement.Application.Patients.Interfaces;
 public interface IPatientService
 {
     Task<PatientResponse> GetPatientByIdAsync(Guid patientId);
-    Task<List<PatientResponse>> GetAllPatientsAsync();
+    Task<List<PatientListItemResponse>> GetAllPatientsAsync();
     Task<IEnumerable<PatientAllergyResponse>> GetPatientAllergiesAsync(Guid patientId);
     Task<List<AppointmentResponse>> GetAppointmentsByPatientIdAsync(Guid patientId);
     Task<Guid> AddPatientAsync(PatientRequest patient);
     Task<Guid> UpdatePatientAsync(PatientRequest patient);
     Task<Guid> DeletePatientAsync(Guid patientId);
-    Task<PagedResponse<PatientResponse>> SearchPatientsAsync(PageQuery query);
+    Task<PagedResponse<PatientListItemResponse>> SearchPatientsAsync(PageQuery query);
     Task<PagedResponse<PatientAllergyResponse>> SearchPatientAllergiesAsync(Guid patientId, PageQuery query);
     Task<PagedResponse<AllergyTypeResponse>> GetSelectableAllergyTypesAsync(
         Guid patientId,

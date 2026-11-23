@@ -19,22 +19,25 @@ public class AllergyTypeService(IAllergyTypeRepository allergyTypeRepository) : 
 
         var allergyType = await allergyTypeRepository.GetAllergyTypeByIdAsync(allergyTypeId)
             ?? throw new ResourceNotFoundException("Allergy type", allergyTypeId);
-        return allergyType.ToResponse();
+        var counts = await allergyTypeRepository.GetPatientCountsByAllergyTypeAsync();
+        return allergyType.ToResponse(counts.GetValueOrDefault(allergyType.Id));
     }
 
     public async Task<IEnumerable<AllergyTypeResponse>> GetAllAllergyTypesAsync()
     {
-        var allergyTypes = await allergyTypeRepository.GetAllAllergyTypesAsync();
+        var allergyTypes = (await allergyTypeRepository.GetAllAllergyTypesAsync()).ToList();
+        var counts = await allergyTypeRepository.GetPatientCountsByAllergyTypeAsync();
 
-        return allergyTypes.Select(item => item.ToResponse());
+        return allergyTypes.Select(item => item.ToResponse(counts.GetValueOrDefault(item.Id)));
     }
 
     public async Task<PagedResponse<AllergyTypeResponse>> SearchAllergyTypesAsync(PageQuery query)
     {
         var offset = query.GetOffset();
         var (items, totalCount) = await allergyTypeRepository.SearchAllergyTypesAsync(query, offset);
+        var counts = await allergyTypeRepository.GetPatientCountsByAllergyTypeAsync();
         return new PagedResponse<AllergyTypeResponse>(
-            items.Select(item => item.ToResponse()).ToArray(),
+            items.Select(item => item.ToResponse(counts.GetValueOrDefault(item.Id))).ToArray(),
             totalCount,
             query.Page,
             query.PageSize);

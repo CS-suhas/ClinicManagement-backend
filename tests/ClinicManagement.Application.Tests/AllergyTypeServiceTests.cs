@@ -80,6 +80,9 @@ public class AllergyTypeServiceTests
 
     private sealed class FakeAllergyTypeRepository : IAllergyTypeRepository
     {
+        public Task<IReadOnlyDictionary<Guid, int>> GetPatientCountsByAllergyTypeAsync() =>
+            throw new NotSupportedException();
+
         public AllergyType? AddedAllergyType { get; private set; }
         public AllergyType? UpdatedAllergyType { get; private set; }
         public AllergyType? ExistingAllergyType { get; set; }

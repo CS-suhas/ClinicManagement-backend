@@ -26,6 +26,18 @@ public sealed class InMemoryStore
     public Dictionary<Guid, DateTimeOffset> StatusChangedAt { get; } = [];
 }
 
+/// <summary>Allergy summary of a patient, computed the way the SQL summaries are.</summary>
+internal static class InMemoryAllergySummary
+{
+    public static PatientAllergySummary From(Patient patient)
+    {
+        var highest = patient.Allergies.Count == 0
+            ? (AllergySeverity?)null
+            : patient.Allergies.Max(allergy => allergy.Severity);
+        return new PatientAllergySummary(patient.Allergies.Count, highest?.ToString());
+    }
+}
+
 /// <summary>Maps appointments to list items the same way the SQL list query does.</summary>
 internal static class InMemoryAppointmentListItems
 {
@@ -91,8 +103,28 @@ internal sealed class InMemoryPatientRepository(InMemoryStore store) : IPatientR
     public Task<Patient?> GetByIdentitySubjectAsync(string identitySubject) =>
         Task.FromResult(store.Patients.FirstOrDefault(patient => patient.IdentitySubject == identitySubject));
 
-    public Task<(IReadOnlyList<Patient> Items, int TotalCount)> SearchPatientsAsync(PageQuery query, int offset) =>
-        throw new NotSupportedException();
+    public Task<(IReadOnlyList<Patient> Items, int TotalCount)> SearchPatientsAsync(PageQuery query, int offset)
+    {
+        var search = query.NormalizedSearch;
+        var matches = store.Patients
+            .Where(patient => search is null
+                || patient.FirstName.Contains(search, StringComparison.OrdinalIgnoreCase)
+                || patient.LastName.Contains(search, StringComparison.OrdinalIgnoreCase)
+                || $"{patient.FirstName} {patient.LastName}".Contains(search, StringComparison.OrdinalIgnoreCase)
+                || patient.Email.Contains(search, StringComparison.OrdinalIgnoreCase)
+                || patient.PhoneNumber.Contains(search, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(patient => patient.LastName).ThenBy(patient => patient.FirstName).ThenBy(patient => patient.Id)
+            .ToList();
+        IReadOnlyList<Patient> items = matches.Skip(offset).Take(query.PageSize).ToList();
+        return Task.FromResult((items, matches.Count));
+    }
+
+    public Task<IReadOnlyDictionary<Guid, PatientAllergySummary>> GetAllergySummariesAsync(
+        IReadOnlyCollection<Guid>? patientIds) =>
+        Task.FromResult<IReadOnlyDictionary<Guid, PatientAllergySummary>>(store.Patients
+            .Where(patient => patientIds is null || patientIds.Contains(patient.Id))
+            .Where(patient => patient.Allergies.Count > 0)
+            .ToDictionary(patient => patient.Id, InMemoryAllergySummary.From));
 
     public Task<(IReadOnlyList<PatientAllergy> Items, int TotalCount)> SearchPatientAllergiesAsync(
         Guid patientId,
@@ -152,7 +184,15 @@ internal sealed class InMemoryProviderRepository(InMemoryStore store) : IProvide
             var next = visits.Where(visit => visit.AppointmentDateTime >= now)
                 .OrderBy(visit => visit.AppointmentDateTime).FirstOrDefault();
             return new ProviderPatientRosterItem(
-                new RosterPatient(patient.Id, patient.FirstName, patient.LastName, patient.DateOfBirth, patient.Email, patient.PhoneNumber),
+                new RosterPatient(
+                    patient.Id,
+                    patient.FirstName,
+                    patient.LastName,
+                    patient.DateOfBirth,
+                    patient.Email,
+                    patient.PhoneNumber,
+                    patient.Allergies.Count,
+                    InMemoryAllergySummary.From(patient).HighestSeverity),
                 last is null ? null : new RosterVisit(last.Id, last.AppointmentDateTime, last.ReasonForVisit),
                 next is null ? null : new RosterVisit(next.Id, next.AppointmentDateTime, next.ReasonForVisit),
                 providerAppointments.Count(appointment => appointment.PatientId == patient.Id));
@@ -457,6 +497,12 @@ internal sealed class InMemoryAllergyTypeRepository(InMemoryStore store) : IAlle
         store.AllergyTypes.RemoveAll(allergyType => allergyType.Id == allergyTypeId);
         return Task.FromResult(allergyTypeId);
     }
+
+    public Task<IReadOnlyDictionary<Guid, int>> GetPatientCountsByAllergyTypeAsync() =>
+        Task.FromResult<IReadOnlyDictionary<Guid, int>>(store.Patients
+            .SelectMany(patient => patient.Allergies)
+            .GroupBy(allergy => allergy.AllergyId)
+            .ToDictionary(group => group.Key, group => group.Count()));
 
     public Task<(IReadOnlyList<AllergyType> Items, int TotalCount)> SearchAllergyTypesAsync(PageQuery query, int offset)
     {

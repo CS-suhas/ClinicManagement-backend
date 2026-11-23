@@ -222,6 +222,13 @@ public class ProviderRepository(IDbConnectionFactory connectionFactory) : IProvi
                 WHERE ProviderId = :ProviderId
                 GROUP BY PatientId
             ) counts ON counts.PatientId = p.Id
+            LEFT JOIN (
+                SELECT PatientId,
+                       COUNT(1) AS AllergyCount,
+                       MAX(CASE Severity WHEN 'SEVERE' THEN 3 WHEN 'MODERATE' THEN 2 WHEN 'MILD' THEN 1 ELSE 0 END) AS SeverityRank
+                FROM PatientAllergies
+                GROUP BY PatientId
+            ) allergySummary ON allergySummary.PatientId = p.Id
             """;
         var parameters = new
         {
@@ -236,7 +243,13 @@ public class ProviderRepository(IDbConnectionFactory connectionFactory) : IProvi
             parameters);
         var patientRows = (await connection.QueryAsync<RosterPatientRow>(
             $"""
-            SELECT p.Id, p.FirstName, p.LastName, p.DateOfBirth, p.Email, p.PhoneNumber, counts.AppointmentCount
+            SELECT p.Id, p.FirstName, p.LastName, p.DateOfBirth, p.Email, p.PhoneNumber, counts.AppointmentCount,
+                   NVL(allergySummary.AllergyCount, 0) AS AllergyCount,
+                   CASE allergySummary.SeverityRank
+                       WHEN 3 THEN 'SEVERE'
+                       WHEN 2 THEN 'MODERATE'
+                       WHEN 1 THEN 'MILD'
+                   END AS HighestSeverity
             {patientJoin}
             {patientFilter}
             ORDER BY p.LastName, p.FirstName, p.Id
@@ -279,7 +292,15 @@ public class ProviderRepository(IDbConnectionFactory connectionFactory) : IProvi
         var lastVisits = visitRows.Where(visit => visit.Kind == "LAST").ToDictionary(visit => visit.PatientId);
         var nextVisits = visitRows.Where(visit => visit.Kind == "NEXT").ToDictionary(visit => visit.PatientId);
         var items = patientRows.Select(row => new ProviderPatientRosterItem(
-            new RosterPatient(row.Id, row.FirstName, row.LastName, row.DateOfBirth, row.Email, row.PhoneNumber),
+            new RosterPatient(
+                row.Id,
+                row.FirstName,
+                row.LastName,
+                row.DateOfBirth,
+                row.Email,
+                row.PhoneNumber,
+                checked((int)row.AllergyCount),
+                row.HighestSeverity),
             lastVisits.TryGetValue(row.Id, out var last) ? ToRosterVisit(last) : null,
             nextVisits.TryGetValue(row.Id, out var next) ? ToRosterVisit(next) : null,
             checked((int)row.AppointmentCount))).ToList();
@@ -303,7 +324,9 @@ public class ProviderRepository(IDbConnectionFactory connectionFactory) : IProvi
         DateOnly DateOfBirth,
         string Email,
         string PhoneNumber,
-        decimal AppointmentCount);
+        decimal AppointmentCount,
+        decimal AllergyCount,
+        string? HighestSeverity);
 
     private sealed record RosterVisitRow(
         string Kind,

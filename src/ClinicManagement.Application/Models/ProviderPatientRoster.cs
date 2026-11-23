@@ -7,13 +7,16 @@ public sealed record ProviderPatientRosterItem(
     RosterVisit? NextVisit,
     int AppointmentCount);
 
+/// <summary>AllergyCount and HighestSeverity (null when none) summarize the patient's recorded allergies.</summary>
 public sealed record RosterPatient(
     Guid Id,
     string FirstName,
     string LastName,
     DateOnly DateOfBirth,
     string Email,
-    string PhoneNumber);
+    string PhoneNumber,
+    int AllergyCount,
+    string? HighestSeverity);
 
 public sealed record RosterVisit(
     Guid Id,

@@ -115,6 +115,9 @@ public class MeServiceTests
 
     private sealed class FakePatientRepository : IPatientRepository
     {
+        public Task<IReadOnlyDictionary<Guid, PatientAllergySummary>> GetAllergySummariesAsync(
+            IReadOnlyCollection<Guid>? patientIds) => throw new NotSupportedException();
+
         public Patient? AddedPatient { get; private set; }
 
         public Task<Guid> AddPatientAsync(Patient patient)

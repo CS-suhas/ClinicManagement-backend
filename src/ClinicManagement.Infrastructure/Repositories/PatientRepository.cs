@@ -276,6 +276,47 @@ public class PatientRepository(IDbConnectionFactory connectionFactory) : IPatien
         return rowsAffected == 0 ? Guid.Empty : allergyId;
     }
 
+    public async Task<IReadOnlyDictionary<Guid, PatientAllergySummary>> GetAllergySummariesAsync(
+        IReadOnlyCollection<Guid>? patientIds)
+    {
+        if (patientIds is { Count: 0 })
+            return new Dictionary<Guid, PatientAllergySummary>();
+
+        using var connection = connectionFactory.CreateConnection();
+        var parameters = new DynamicParameters();
+        var filter = string.Empty;
+        if (patientIds is not null)
+        {
+            filter = "WHERE PatientId IN :PatientIds";
+            parameters.Add("PatientIds", patientIds.Select(id => id.ToString()).ToArray());
+        }
+
+        var rows = await connection.QueryAsync<AllergySummaryRow>(
+            $"""
+            SELECT PatientId,
+                   COUNT(1) AS AllergyCount,
+                   MAX(CASE Severity WHEN 'SEVERE' THEN 3 WHEN 'MODERATE' THEN 2 WHEN 'MILD' THEN 1 ELSE 0 END) AS SeverityRank
+            FROM PatientAllergies
+            {filter}
+            GROUP BY PatientId
+            """,
+            parameters);
+        return rows.ToDictionary(
+            row => row.PatientId,
+            row => new PatientAllergySummary(checked((int)row.AllergyCount), SeverityName(row.SeverityRank)));
+    }
+
+    /// <summary>Maps the rank used by the SQL severity summaries back to its name.</summary>
+    internal static string? SeverityName(decimal? rank) => rank switch
+    {
+        3 => "SEVERE",
+        2 => "MODERATE",
+        1 => "MILD",
+        _ => null
+    };
+
+    private sealed record AllergySummaryRow(Guid PatientId, decimal AllergyCount, decimal? SeverityRank);
+
     public async Task<Patient?> GetByIdentitySubjectAsync(string identitySubject)
     {
         using var connection = connectionFactory.CreateConnection();

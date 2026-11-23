@@ -277,6 +277,9 @@ public class PatientServiceTests
 
     private sealed class FakePatientRepository : IPatientRepository
     {
+        public Task<IReadOnlyDictionary<Guid, PatientAllergySummary>> GetAllergySummariesAsync(
+            IReadOnlyCollection<Guid>? patientIds) => throw new NotSupportedException();
+
         public Task<Patient?> GetByIdentitySubjectAsync(string identitySubject) => Task.FromResult<Patient?>(null);
         public Patient? AddedPatient { get; private set; }
         public Patient? UpdatedPatient { get; private set; }
@@ -382,6 +385,9 @@ public class PatientServiceTests
 
     private sealed class FakeAllergyTypeRepository : IAllergyTypeRepository
     {
+        public Task<IReadOnlyDictionary<Guid, int>> GetPatientCountsByAllergyTypeAsync() =>
+            throw new NotSupportedException();
+
         public Task<AllergyType?> GetAllergyTypeByIdAsync(Guid allergyTypeId) => Task.FromResult<AllergyType?>(null);
         public Task<IEnumerable<AllergyType>> GetAllAllergyTypesAsync() =>
             Task.FromResult<IEnumerable<AllergyType>>(Array.Empty<AllergyType>());

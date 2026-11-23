@@ -13,4 +13,6 @@ public interface IAllergyTypeRepository
     Task<Guid> UpdateAllergyTypeAsync(AllergyType request);
     Task<Guid> DeleteAllergyTypeAsync(Guid allergyTypeId);
     Task<(IReadOnlyList<AllergyType> Items, int TotalCount)> SearchAllergyTypesAsync(PageQuery query, int offset);
+    /// <summary>Number of patients with each allergy type. Allergy types nobody has recorded are absent.</summary>
+    Task<IReadOnlyDictionary<Guid, int>> GetPatientCountsByAllergyTypeAsync();
 }

@@ -8,8 +8,8 @@ public static class AllergyTypeMappings
     public static AllergyType ToEntity(this AllergyTypeRequest request) =>
         AllergyType.Create(request.Id, request.Name);
 
-    public static AllergyTypeResponse ToResponse(this AllergyType allergyType) =>
-        new(allergyType.Id, allergyType.Name);
+    public static AllergyTypeResponse ToResponse(this AllergyType allergyType, int patientCount) =>
+        new(allergyType.Id, allergyType.Name, patientCount);
 
     public static void ApplyTo(this AllergyTypeRequest request, AllergyType allergyType)
     {

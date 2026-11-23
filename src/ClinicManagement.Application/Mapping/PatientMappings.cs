@@ -1,4 +1,5 @@
 using ClinicManagement.Application.Patients.Models;
+using ClinicManagement.Application.Models;
 using ClinicManagement.Domain.Entities;
 
 namespace ClinicManagement.Application.Patients.Mapping;
@@ -22,6 +23,23 @@ public static class PatientMappings
             patient.DateOfBirth,
             patient.PhoneNumber,
             patient.Email);
+
+    /// <summary>Lists show the allergy summary; a patient missing from the summaries has no allergies.</summary>
+    public static PatientListItemResponse ToListItem(
+        this Patient patient,
+        IReadOnlyDictionary<Guid, PatientAllergySummary> allergySummaries)
+    {
+        var summary = allergySummaries.GetValueOrDefault(patient.Id) ?? new PatientAllergySummary(0, null);
+        return new PatientListItemResponse(
+            patient.Id,
+            patient.FirstName,
+            patient.LastName,
+            patient.DateOfBirth,
+            patient.PhoneNumber,
+            patient.Email,
+            summary.AllergyCount,
+            summary.HighestSeverity);
+    }
 
     public static void ApplyTo(this PatientRequest request, Patient patient)
     {
