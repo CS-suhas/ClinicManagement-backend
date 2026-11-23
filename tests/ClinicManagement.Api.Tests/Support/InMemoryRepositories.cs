@@ -22,6 +22,38 @@ public sealed class InMemoryStore
     public List<ClinicAdmin> ClinicAdmins { get; } = [];
     public List<string> PlatformAdminSubjects { get; } = [];
     public List<AllergyType> AllergyTypes { get; } = [];
+    /// <summary>When each appointment last changed status, mirroring Appointments.StatusChangedAtUtc.</summary>
+    public Dictionary<Guid, DateTimeOffset> StatusChangedAt { get; } = [];
+}
+
+/// <summary>Maps appointments to list items the same way the SQL list query does.</summary>
+internal static class InMemoryAppointmentListItems
+{
+    public static AppointmentListResponse ToListItem(Appointment appointment, InMemoryStore store)
+    {
+        var allergies = appointment.Patient.Allergies;
+        var highest = allergies.Count == 0 ? (AllergySeverity?)null : allergies.Max(allergy => allergy.Severity);
+        var statusChangedAt = store.StatusChangedAt.TryGetValue(appointment.Id, out var changed)
+            ? changed
+            : appointment.CreatedAtUtc;
+
+        return new AppointmentListResponse(
+            appointment.Id,
+            appointment.PatientId,
+            $"{appointment.Patient.FirstName} {appointment.Patient.LastName}",
+            appointment.ProviderId,
+            $"{appointment.Provider.FirstName} {appointment.Provider.LastName}",
+            appointment.Provider.Specialty,
+            appointment.Provider.ClinicId ?? Guid.Empty,
+            store.Clinics.FirstOrDefault(clinic => clinic.Id == appointment.Provider.ClinicId)?.Name ?? string.Empty,
+            appointment.AppointmentDateTime,
+            appointment.ReasonForVisit,
+            appointment.Status.ToString(),
+            allergies.Count,
+            highest?.ToString(),
+            appointment.CreatedAtUtc,
+            statusChangedAt);
+    }
 }
 
 internal sealed class InMemoryPatientRepository(InMemoryStore store) : IPatientRepository
@@ -265,8 +297,13 @@ internal sealed class InMemoryAppointmentRepository(InMemoryStore store) : IAppo
         Task.FromResult<IEnumerable<Appointment>>(
             store.Appointments.Where(appointment => appointment.Provider?.ClinicId == clinicId).ToList());
 
-    public Task<bool> TryUpdateStatusAsync(Guid appointmentId, AppointmentStatus expected, AppointmentStatus next) =>
-        Task.FromResult(store.Appointments.Any(appointment => appointment.Id == appointmentId && appointment.Status == next));
+    public Task<bool> TryUpdateStatusAsync(Guid appointmentId, AppointmentStatus expected, AppointmentStatus next)
+    {
+        var updated = store.Appointments.Any(appointment => appointment.Id == appointmentId && appointment.Status == next);
+        if (updated)
+            store.StatusChangedAt[appointmentId] = DateTimeOffset.UtcNow;
+        return Task.FromResult(updated);
+    }
 
     public Task<IReadOnlyList<AppointmentListResponse>> GetProviderAppointmentsInRangeAsync(
         Guid providerId,
@@ -315,18 +352,7 @@ internal sealed class InMemoryAppointmentRepository(InMemoryStore store) : IAppo
         var items = ordered
             .Skip(offset)
             .Take(query.PageSize)
-            .Select(appointment => new AppointmentListResponse(
-                appointment.Id,
-                appointment.PatientId,
-                $"{appointment.Patient.FirstName} {appointment.Patient.LastName}",
-                appointment.ProviderId,
-                $"{appointment.Provider.FirstName} {appointment.Provider.LastName}",
-                appointment.Provider.Specialty,
-                appointment.Provider.ClinicId ?? Guid.Empty,
-                store.Clinics.FirstOrDefault(clinic => clinic.Id == appointment.Provider.ClinicId)?.Name ?? string.Empty,
-                appointment.AppointmentDateTime,
-                appointment.ReasonForVisit,
-                appointment.Status.ToString()))
+            .Select(appointment => InMemoryAppointmentListItems.ToListItem(appointment, store))
             .ToList();
         return Task.FromResult<(IReadOnlyList<AppointmentListResponse>, int)>((items, ordered.Count));
     }
@@ -530,17 +556,6 @@ internal sealed class InMemoryStatusRepository(InMemoryStore store) : IStatusRep
             .OrderBy(appointment => appointment.AppointmentDateTime)
             .ThenBy(appointment => appointment.Id)
             .FirstOrDefault();
-        return next is null ? null : new AppointmentListResponse(
-            next.Id,
-            next.PatientId,
-            $"{next.Patient.FirstName} {next.Patient.LastName}",
-            next.ProviderId,
-            $"{next.Provider.FirstName} {next.Provider.LastName}",
-            next.Provider.Specialty,
-            next.Provider.ClinicId ?? Guid.Empty,
-            store.Clinics.FirstOrDefault(clinic => clinic.Id == next.Provider.ClinicId)?.Name ?? string.Empty,
-            next.AppointmentDateTime,
-            next.ReasonForVisit,
-            next.Status.ToString());
+        return next is null ? null : InMemoryAppointmentListItems.ToListItem(next, store);
     }
 }

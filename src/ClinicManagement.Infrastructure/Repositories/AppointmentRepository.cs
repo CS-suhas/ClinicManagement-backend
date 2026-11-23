@@ -18,26 +18,9 @@ public class AppointmentRepository(IDbConnectionFactory connectionFactory) : IAp
         INNER JOIN Providers pr ON pr.Id = a.ProviderId
         """;
 
-    private const string SelectAppointmentListItem = """
-        SELECT a.Id,
-               a.PatientId,
-               p.FirstName || ' ' || p.LastName AS PatientName,
-               a.ProviderId,
-               pr.FirstName || ' ' || pr.LastName AS ProviderName,
-               pr.Specialty AS ProviderSpecialty,
-               pr.ClinicId,
-               c.Name AS ClinicName,
-               a.AppointmentDateTime,
-               a.ReasonForVisit,
-               a.Status
-        """;
+    private const string SelectAppointmentListItem = AppointmentListSql.Columns;
 
-    private const string ListItemJoins = """
-        FROM Appointments a
-        INNER JOIN Patients p ON p.Id = a.PatientId
-        INNER JOIN Providers pr ON pr.Id = a.ProviderId
-        INNER JOIN Clinics c ON c.Id = pr.ClinicId
-        """;
+    private const string ListItemJoins = AppointmentListSql.Joins;
 
     // Requested and confirmed appointments occupy the provider's time slot.
     private const string ActiveStatuses = "('REQUESTED', 'CONFIRMED')";
@@ -102,7 +85,9 @@ public class AppointmentRepository(IDbConnectionFactory connectionFactory) : IAp
         using var connection = connectionFactory.CreateConnection();
         const string sql = """
             UPDATE Appointments
-            SET Status = :Next, UpdatedAtUtc = SYSTIMESTAMP
+            SET Status = :Next,
+                StatusChangedAtUtc = SYSTIMESTAMP,
+                UpdatedAtUtc = SYSTIMESTAMP
             WHERE Id = :Id AND Status = :Expected
             """;
         var rows = await connection.ExecuteAsync(sql, new

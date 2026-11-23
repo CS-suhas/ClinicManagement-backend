@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- When the appointment last changed status. Nullable: appointments that have never changed status have
+         no value, and readers fall back to CreatedAtUtc. Set by the status-transition update. -->
+    <changeSet id="1.7-appointments-status-changed-at" author="clinic-management">
+        <addColumn tableName="Appointments">
+            <column name="StatusChangedAtUtc" type="TIMESTAMP WITH TIME ZONE"/>
+        </addColumn>
+        <rollback>
+            <dropColumn tableName="Appointments" columnName="StatusChangedAtUtc"/>
+        </rollback>
+    </changeSet>
+</databaseChangeLog>

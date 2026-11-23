@@ -22,7 +22,11 @@ public class MeDashboardServiceTests
         "Riverside Clinic",
         new DateTimeOffset(2030, 3, 11, 9, 0, 0, TimeSpan.Zero),
         "Checkup",
-        "CONFIRMED");
+        "CONFIRMED",
+        0,
+        null,
+        new DateTimeOffset(2030, 3, 1, 9, 0, 0, TimeSpan.Zero),
+        new DateTimeOffset(2030, 3, 1, 9, 0, 0, TimeSpan.Zero));
 
     [Fact]
     public async Task GetDashboardAsync_RequiresSignedInUser()
