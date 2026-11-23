@@ -1,5 +1,6 @@
 using ClinicManagement.Application.Patients.Interfaces;
 using ClinicManagement.Application.Patients.Models;
+using ClinicManagement.Application.Patients.Models;
 using ClinicManagement.Application.AllergyTypes.Models;
 using ClinicManagement.Application.Appointments.Models;
 using ClinicManagement.Application.Models;
@@ -32,6 +33,19 @@ public static class PatientEndpoints
         app.MapGet("/api/patients/{id}", async (Guid id, [FromServices] IPatientService patientService) =>
             Results.Ok(await patientService.GetPatientByIdAsync(id)))
             .RequireAuthorization(AuthorizationPolicies.Authenticated);
+
+        app.MapGet("/api/patients/{id}/summary", async (
+            Guid id,
+            [FromServices] IPatientService patientService) =>
+            Results.Ok(await patientService.GetPatientSummaryAsync(id)))
+            .WithName("GetPatientSummary")
+            .RequireAuthorization(AuthorizationPolicies.Authenticated)
+            .WithSummary("Get a patient's summary")
+            .WithDescription("Returns the patient, their allergies, last and next visit (ignoring declined and cancelled appointments), appointment counts by status, and the three most recent visits. Visible to administrators, the patient, a clinic administrator of a clinic where the patient has an appointment (sees appointments at that clinic only), and a verified doctor with an appointment with the patient (sees their own appointments only). Other callers get 403, including for unknown ids; administrators get 404 for an unknown id.")
+            .Produces<PatientSummaryResponse>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status401Unauthorized)
+            .Produces(StatusCodes.Status403Forbidden)
+            .Produces(StatusCodes.Status404NotFound);
 
         app.MapGet("/api/patients/{id}/allergies", async (
             Guid id,

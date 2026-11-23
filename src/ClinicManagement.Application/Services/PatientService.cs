@@ -12,6 +12,7 @@ using ClinicManagement.Application.Allergies.Interfaces;
 using ClinicManagement.Application.AllergyTypes.Mapping;
 using ClinicManagement.Application.AllergyTypes.Models;
 using ClinicManagement.Application.Models;
+using ClinicManagement.Domain.Entities;
 using ClinicManagement.Domain.Enums;
 
 namespace ClinicManagement.Application.Patients.Services;
@@ -20,8 +21,13 @@ public class PatientService(
     IPatientRepository patientRepository,
     IAppointmentRepository appointmentRepository,
     IAllergyTypeRepository allergyTypeRepository,
-    ICurrentUser currentUser) : IPatientService
+    ICurrentUser currentUser,
+    TimeProvider? timeProvider = null) : IPatientService
 {
+    private const int RecentVisitCount = 3;
+
+    private TimeProvider Clock => timeProvider ?? TimeProvider.System;
+
     public async Task<PatientResponse> GetPatientByIdAsync(Guid patientId)
     {
         RequestValidator.EnsureGuid(patientId, nameof(patientId), "Patient ID");
@@ -30,6 +36,128 @@ public class PatientService(
         var patient = await patientRepository.GetPatientByIdAsync(patientId)
             ?? throw new ResourceNotFoundException("Patient", patientId);
         return patient.ToResponse();
+    }
+
+    /// <summary>
+    /// Summary of one patient. Who may call and what they see:
+    /// administrators and the patient themself see every appointment; a clinic administrator sees appointments at
+    /// clinics they administer; a verified doctor sees only their own appointments with the patient. Visit fields
+    /// are scoped the same way. Other callers, and unknown ids for anyone but an administrator, get 403, so the
+    /// response never reveals whether an unrelated patient exists. Administrators get 404 for an unknown id.
+    /// </summary>
+    public async Task<PatientSummaryResponse> GetPatientSummaryAsync(Guid patientId)
+    {
+        RequestValidator.EnsureGuid(patientId, nameof(patientId), "Patient ID");
+        CurrentUserGuard.RequireAuthenticated(currentUser);
+
+        var appointments = (await appointmentRepository.GetAppointmentsByPatientIdAsync(patientId)).ToList();
+        var scope = await ResolvePatientSummaryScopeAsync(patientId, appointments);
+
+        var patient = await patientRepository.GetPatientByIdAsync(patientId)
+            ?? throw new ResourceNotFoundException("Patient", patientId);
+
+        var visible = appointments.Where(scope.Includes).ToList();
+        var now = Clock.GetUtcNow();
+        var active = visible
+            .Where(appointment => appointment.Status is not (AppointmentStatus.DECLINED or AppointmentStatus.CANCELLED))
+            .ToList();
+
+        var lastVisit = active
+            .Where(appointment => appointment.AppointmentDateTime < now)
+            .OrderByDescending(appointment => appointment.AppointmentDateTime)
+            .ThenBy(appointment => appointment.Id)
+            .FirstOrDefault();
+        var nextVisit = active
+            .Where(appointment => appointment.AppointmentDateTime >= now)
+            .OrderBy(appointment => appointment.AppointmentDateTime)
+            .ThenBy(appointment => appointment.Id)
+            .FirstOrDefault();
+        var recent = visible
+            .OrderByDescending(appointment => appointment.AppointmentDateTime)
+            .ThenBy(appointment => appointment.Id)
+            .Take(RecentVisitCount)
+            .Select(ToVisitResponse)
+            .ToList();
+
+        var allergies = (await patientRepository.GetAllergiesByPatientIdAsync(patientId))
+            .Select(allergy => new PatientSummaryAllergy(
+                allergy.AllergyId,
+                allergy.AllergyType.Name,
+                allergy.Severity.ToString()))
+            .ToList();
+
+        return new PatientSummaryResponse(
+            new PatientSummaryPatient(
+                patient.Id,
+                patient.FirstName,
+                patient.LastName,
+                patient.DateOfBirth,
+                patient.Email,
+                patient.PhoneNumber),
+            allergies,
+            lastVisit is null ? null : ToVisitResponse(lastVisit),
+            nextVisit is null ? null : ToVisitResponse(nextVisit),
+            new PatientVisitCounts(
+                visible.Count,
+                visible.Count(appointment => appointment.Status == AppointmentStatus.REQUESTED),
+                visible.Count(appointment => appointment.Status == AppointmentStatus.CONFIRMED),
+                visible.Count(appointment => appointment.Status == AppointmentStatus.COMPLETED),
+                visible.Count(appointment => appointment.Status == AppointmentStatus.CANCELLED),
+                visible.Count(appointment => appointment.Status == AppointmentStatus.DECLINED)),
+            recent);
+    }
+
+    private async Task<PatientSummaryScope> ResolvePatientSummaryScopeAsync(
+        Guid patientId,
+        IReadOnlyCollection<Appointment> appointments)
+    {
+        // The broadest applicable role wins: administrator, then the patient, then clinic administrator, then doctor.
+        if (CurrentUserGuard.IsAdministrator(currentUser))
+            return PatientSummaryScope.All;
+
+        if (await currentUser.GetPatientAsync() is { } self && self.Id == patientId)
+            return PatientSummaryScope.All;
+
+        var administeredClinicIds = (await currentUser.GetAdministeredClinicIdsAsync()).ToHashSet();
+        if (administeredClinicIds.Count > 0
+            && appointments.Any(appointment => appointment.Provider.ClinicId is { } clinicId
+                && administeredClinicIds.Contains(clinicId)))
+        {
+            return PatientSummaryScope.ForClinics(administeredClinicIds);
+        }
+
+        if (await currentUser.GetProviderAsync() is { VerificationStatus: ProviderVerificationStatus.VERIFIED } doctor
+            && appointments.Any(appointment => appointment.ProviderId == doctor.Id))
+        {
+            return PatientSummaryScope.ForProvider(doctor.Id);
+        }
+
+        throw new ForbiddenException($"Patient '{patientId}' summary is not visible to the signed-in user.");
+    }
+
+    private static PatientVisitResponse ToVisitResponse(Appointment appointment) =>
+        new(
+            appointment.Id,
+            appointment.AppointmentDateTime,
+            appointment.ReasonForVisit,
+            appointment.Status.ToString(),
+            $"{appointment.Provider.FirstName} {appointment.Provider.LastName}");
+
+    private sealed class PatientSummaryScope
+    {
+        public static readonly PatientSummaryScope All = new(_ => true);
+
+        private readonly Func<Appointment, bool> _includes;
+
+        private PatientSummaryScope(Func<Appointment, bool> includes) => _includes = includes;
+
+        public static PatientSummaryScope ForClinics(IReadOnlySet<Guid> clinicIds) =>
+            new(appointment => appointment.Provider.ClinicId is { } clinicId && clinicIds.Contains(clinicId));
+
+        public static PatientSummaryScope ForProvider(Guid providerId) =>
+            new(appointment => appointment.ProviderId == providerId);
+
+        public bool Includes(Appointment appointment) => _includes(appointment);
     }
 
     public async Task<List<PatientListItemResponse>> GetAllPatientsAsync()

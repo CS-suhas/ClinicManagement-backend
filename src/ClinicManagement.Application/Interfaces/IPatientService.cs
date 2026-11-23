@@ -8,6 +8,7 @@ namespace ClinicManagement.Application.Patients.Interfaces;
 public interface IPatientService
 {
     Task<PatientResponse> GetPatientByIdAsync(Guid patientId);
+    Task<PatientSummaryResponse> GetPatientSummaryAsync(Guid patientId);
     Task<List<PatientListItemResponse>> GetAllPatientsAsync();
     Task<IEnumerable<PatientAllergyResponse>> GetPatientAllergiesAsync(Guid patientId);
     Task<List<AppointmentResponse>> GetAppointmentsByPatientIdAsync(Guid patientId);
