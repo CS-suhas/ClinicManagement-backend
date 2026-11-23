@@ -39,6 +39,7 @@ public class ClinicJoinRequestService(
     public async Task<IReadOnlyList<ClinicJoinRequestResponse>> GetByProviderIdAsync(Guid providerId)
     {
         RequestValidator.EnsureGuid(providerId, nameof(providerId), "Provider ID");
+        await CurrentUserGuard.RequireProviderOrAdministratorAsync(currentUser, providerId);
 
         if (await providerRepository.GetProviderByIdAsync(providerId) is null)
             throw new ResourceNotFoundException("Provider", providerId);
@@ -51,6 +52,7 @@ public class ClinicJoinRequestService(
         ClinicJoinRequestStatus? status)
     {
         RequestValidator.EnsureGuid(clinicId, nameof(clinicId), "Clinic ID");
+        await CurrentUserGuard.RequireClinicAdminOrAdministratorAsync(currentUser, clinicId);
 
         if (!await clinicRepository.ClinicExistsAsync(clinicId))
             throw new ResourceNotFoundException("Clinic", clinicId);
@@ -77,6 +79,7 @@ public class ClinicJoinRequestService(
     public async Task CancelAsync(Guid requestId)
     {
         var request = await GetRequiredAsync(requestId);
+        await CurrentUserGuard.RequireProviderAsync(currentUser, request.ProviderId);
         request.Cancel(timeProvider.GetUtcNow());
         await PersistDecisionAsync(request);
     }

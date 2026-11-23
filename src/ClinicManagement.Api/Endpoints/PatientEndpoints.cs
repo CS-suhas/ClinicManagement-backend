@@ -3,6 +3,7 @@ using ClinicManagement.Application.Patients.Models;
 using ClinicManagement.Application.AllergyTypes.Models;
 using ClinicManagement.Application.Appointments.Models;
 using ClinicManagement.Application.Models;
+using ClinicManagement.Api.Security;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ClinicManagement.Api.Endpoints;
@@ -15,24 +16,28 @@ public static class PatientEndpoints
         {
             var patients = await patientService.GetAllPatientsAsync();
             return Results.Ok(patients);
-        });
+        })
+            .RequireAuthorization(AuthorizationPolicies.AdminOnly);
 
         app.MapGet("/api/patients/search", async (
             [AsParameters] PageQuery query,
             [FromServices] IPatientService patientService) =>
             Results.Ok(await patientService.SearchPatientsAsync(query)))
             .WithName("SearchPatients")
+            .RequireAuthorization(AuthorizationPolicies.AdminOnly)
             .WithSummary("Search patients")
             .WithDescription("Searches patient names, email, and phone number, and returns a page.")
             .Produces<PagedResponse<PatientResponse>>(StatusCodes.Status200OK);
 
         app.MapGet("/api/patients/{id}", async (Guid id, [FromServices] IPatientService patientService) =>
-            Results.Ok(await patientService.GetPatientByIdAsync(id)));
+            Results.Ok(await patientService.GetPatientByIdAsync(id)))
+            .RequireAuthorization(AuthorizationPolicies.Authenticated);
 
         app.MapGet("/api/patients/{id}/allergies", async (
             Guid id,
             [FromServices] IPatientService patientService) =>
-            Results.Ok(await patientService.GetPatientAllergiesAsync(id)));
+            Results.Ok(await patientService.GetPatientAllergiesAsync(id)))
+            .RequireAuthorization(AuthorizationPolicies.Authenticated);
 
         app.MapGet("/api/patients/{id}/allergies/search", async (
             Guid id,
@@ -40,6 +45,7 @@ public static class PatientEndpoints
             [FromServices] IPatientService patientService) =>
             Results.Ok(await patientService.SearchPatientAllergiesAsync(id, query)))
             .WithName("SearchPatientAllergies")
+            .RequireAuthorization(AuthorizationPolicies.Authenticated)
             .WithSummary("Search a patient's recorded allergies")
             .Produces<PagedResponse<PatientAllergyResponse>>(StatusCodes.Status200OK);
 
@@ -50,6 +56,7 @@ public static class PatientEndpoints
             [FromServices] IPatientService patientService) =>
             Results.Ok(await patientService.GetSelectableAllergyTypesAsync(id, selectedAllergyId, query)))
             .WithName("GetPatientAllergyOptions")
+            .RequireAuthorization(AuthorizationPolicies.Authenticated)
             .WithSummary("Get allergy options not already recorded for a patient")
             .Produces<PagedResponse<AllergyTypeResponse>>(StatusCodes.Status200OK);
 
@@ -62,6 +69,7 @@ public static class PatientEndpoints
             return Results.Created($"/api/patients/{id}/allergies/{request.AllergyId}", new { allergyId });
         })
             .WithName("AddPatientAllergy")
+            .RequireAuthorization(AuthorizationPolicies.PatientOnly)
             .WithSummary("Add or upsert a patient's allergy")
             .Produces(StatusCodes.Status201Created);
 
@@ -77,6 +85,7 @@ public static class PatientEndpoints
             return Results.NoContent();
         })
             .WithName("UpdatePatientAllergy")
+            .RequireAuthorization(AuthorizationPolicies.PatientOnly)
             .WithSummary("Update a patient's recorded allergy")
             .Produces(StatusCodes.Status204NoContent);
 
@@ -89,6 +98,7 @@ public static class PatientEndpoints
             return Results.NoContent();
         })
             .WithName("DeletePatientAllergy")
+            .RequireAuthorization(AuthorizationPolicies.PatientOnly)
             .WithSummary("Delete a patient's recorded allergy")
             .Produces(StatusCodes.Status204NoContent);
 
@@ -97,6 +107,7 @@ public static class PatientEndpoints
             [FromServices] IPatientService patientService) =>
             Results.Ok(await patientService.GetAppointmentsByPatientIdAsync(id)))
             .WithName("GetPatientAppointments")
+            .RequireAuthorization(AuthorizationPolicies.Authenticated)
             .WithSummary("Get appointments for a patient")
             .Produces<List<AppointmentResponse>>(StatusCodes.Status200OK)
             .Produces(StatusCodes.Status404NotFound);
@@ -108,19 +119,22 @@ public static class PatientEndpoints
             var id = await patientService.AddPatientAsync(request with { Id = Guid.NewGuid() });
 
             return Results.Created($"/api/patients/{id}", new { id });
-        });
+        })
+            .RequireAuthorization(AuthorizationPolicies.AdminOnly);
 
         app.MapPut("/api/patients/{id}", async (Guid id, [FromBody] PatientRequest patientRequest, [FromServices] IPatientService patientService) =>
         {
             await patientService.UpdatePatientAsync(patientRequest with { Id = id });
             return Results.NoContent();
-        });
+        })
+        .RequireAuthorization(AuthorizationPolicies.PatientOnly);
 
         app.MapDelete("/api/patients/{id}", async (Guid id, [FromServices] IPatientService patientService) =>
         {
             await patientService.DeletePatientAsync(id);
             return Results.NoContent();
-        });
+        })
+        .RequireAuthorization(AuthorizationPolicies.AdminOnly);
         return app;
     }
 }

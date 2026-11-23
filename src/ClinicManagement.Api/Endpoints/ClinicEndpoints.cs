@@ -12,7 +12,7 @@ public static class ClinicEndpoints
 {
     public static IEndpointRouteBuilder MapClinicEndpoints(this WebApplication app)
     {
-        var clinics = app.MapGroup("/api/clinics").RequireAuthorization(AuthorizationPolicies.AdminOnly);
+        var clinics = app.MapGroup("/api/clinics").RequireAuthorization(AuthorizationPolicies.Authenticated);
 
         clinics.MapGet("", async ([FromServices] IClinicService service) =>
             Results.Ok(await service.GetAllClinicsAsync()));
@@ -51,19 +51,22 @@ public static class ClinicEndpoints
         {
             var id = await service.AddClinicAsync(request with { Id = Guid.NewGuid() });
             return Results.Created($"/api/clinics/{id}", new { id });
-        });
+        })
+        .RequireAuthorization(AuthorizationPolicies.AdminOnly);
 
         clinics.MapPut("/{id}", async (Guid id, [FromBody] ClinicRequest request, [FromServices] IClinicService service) =>
         {
             await service.UpdateClinicAsync(request with { Id = id });
             return Results.NoContent();
-        });
+        })
+        .RequireAuthorization(AuthorizationPolicies.AdminOnly);
 
         clinics.MapDelete("/{id}", async (Guid id, [FromServices] IClinicService service) =>
         {
             await service.DeleteClinicAsync(id);
             return Results.NoContent();
-        });
+        })
+        .RequireAuthorization(AuthorizationPolicies.AdminOnly);
 
         clinics.MapPost("/{clinicId}/admins", async (
             Guid clinicId,
@@ -74,6 +77,7 @@ public static class ClinicEndpoints
             return Results.Created($"/api/clinics/{clinicId}/admins", new { id });
         })
             .WithName("AddClinicAdmin")
+            .RequireAuthorization(AuthorizationPolicies.AdminOnly)
             .WithSummary("Assign an identity as an administrator of a clinic (admin)")
             .Produces(StatusCodes.Status201Created)
             .Produces(StatusCodes.Status404NotFound)

@@ -9,6 +9,7 @@ using ClinicManagement.Application.Appointments.Models;
 using ClinicManagement.Application.Providers.Interfaces;
 using ClinicManagement.Application.Providers.Mapping;
 using ClinicManagement.Application.Providers.Models;
+using ClinicManagement.Application.Interfaces;
 using ClinicManagement.Application.Models;
 using ClinicManagement.Application.Repositories;
 using ClinicManagement.Domain.Entities;
@@ -20,7 +21,8 @@ public class ClinicService(
     IClinicRepository clinicRepository,
     IProviderRepository providerRepository,
     IAppointmentRepository appointmentRepository,
-    IClinicAdminRepository clinicAdminRepository) : IClinicService
+    IClinicAdminRepository clinicAdminRepository,
+    ICurrentUser currentUser) : IClinicService
 {
     public async Task<ClinicResponse> GetClinicByIdAsync(Guid clinicId)
     {
@@ -62,6 +64,7 @@ public class ClinicService(
     public async Task<List<AppointmentResponse>> GetAppointmentsByClinicIdAsync(Guid clinicId)
     {
         RequestValidator.EnsureGuid(clinicId, nameof(clinicId), "Clinic ID");
+        await CurrentUserGuard.RequireClinicAdminOrAdministratorAsync(currentUser, clinicId);
 
         _ = await clinicRepository.GetClinicByIdAsync(clinicId)
             ?? throw new ResourceNotFoundException("Clinic", clinicId);

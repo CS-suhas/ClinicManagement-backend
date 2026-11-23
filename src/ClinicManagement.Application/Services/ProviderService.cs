@@ -114,8 +114,9 @@ public class ProviderService(
     {
         RequestValidator.EnsureGuid(providerId, nameof(providerId), "Provider ID");
 
-        _ = await providerRepository.GetProviderByIdAsync(providerId)
+        var provider = await providerRepository.GetProviderByIdAsync(providerId)
             ?? throw new ResourceNotFoundException("Provider", providerId);
+        await EnsureCanViewProviderAppointmentsAsync(provider);
 
         var appointments = await appointmentRepository.GetAppointmentsByProviderIdAsync(providerId);
         return appointments.Select(appointment => appointment.ToResponse()).ToList();
@@ -138,6 +139,7 @@ public class ProviderService(
     public async Task<Guid> UpdateProviderAsync(ProviderRequest request)
     {
         ValidateRequest(request);
+        await EnsureCanUpdateProviderAsync(request);
 
         var provider = await providerRepository.GetProviderByIdAsync(request.Id);
         if (provider == null)
@@ -194,6 +196,29 @@ public class ProviderService(
         int totalCount,
         PageQuery query) =>
         new(items.Select(item => item.ToResponse()).ToArray(), totalCount, query.Page, query.PageSize);
+
+    private async Task EnsureCanUpdateProviderAsync(ProviderRequest request)
+    {
+        if (CurrentUserGuard.IsAdministrator(currentUser))
+            return;
+
+        var self = await CurrentUserGuard.RequireProviderAsync(currentUser, request.Id);
+        if (self.ClinicId != request.ClinicId)
+            throw new ForbiddenException("Providers cannot change their own clinic.");
+    }
+
+    private async Task EnsureCanViewProviderAppointmentsAsync(Provider provider)
+    {
+        CurrentUserGuard.RequireAuthenticated(currentUser);
+        if (CurrentUserGuard.IsAdministrator(currentUser))
+            return;
+        if (await currentUser.GetProviderAsync() is { } self && self.Id == provider.Id)
+            return;
+        if (provider.ClinicId is { } clinicId && await currentUser.IsClinicAdminOfAsync(clinicId))
+            return;
+
+        throw new ForbiddenException($"Provider '{provider.Id}' appointments are not visible to the signed-in user.");
+    }
 
     private static void ValidateRequest(ProviderRequest request)
     {

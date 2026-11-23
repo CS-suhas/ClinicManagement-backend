@@ -31,6 +31,8 @@ public class AppointmentService(
 {
     public async Task<Guid> AddAppointmentAsync(AppointmentRequest request)
     {
+        var patient = await CurrentUserGuard.RequirePatientAsync(currentUser);
+        request = request with { PatientId = patient.Id };
         var currentTime = timeProvider.GetUtcNow();
         ValidateRequest(request, currentTime);
         EnsureAppointmentWithinClinicHours(request.AppointmentDateTime);
@@ -79,26 +81,27 @@ public class AppointmentService(
     public async Task<PagedResponse<AppointmentListResponse>> SearchAppointmentsAsync(
         AppointmentSearchQuery query)
     {
-        var offset = query.GetOffset();
-        var (items, totalCount) = await appointmentRepository.SearchAppointmentsAsync(query, offset);
-        return new PagedResponse<AppointmentListResponse>(items, totalCount, query.Page, query.PageSize);
+        var scoped = await ScopeSearchAsync(query);
+        var offset = scoped.GetOffset();
+        var (items, totalCount) = await appointmentRepository.SearchAppointmentsAsync(scoped, offset);
+        return new PagedResponse<AppointmentListResponse>(items, totalCount, scoped.Page, scoped.PageSize);
     }
 
     public async Task<AppointmentResponse> GetAppointmentByIdAsync(Guid appointmentId)
     {
-        var appointment = await GetRequiredAppointmentAsync(appointmentId);
+        var appointment = await GetViewableAppointmentAsync(appointmentId);
         return appointment.ToResponse();
     }
 
     public async Task<PatientResponse> GetPatientByAppointmentIdAsync(Guid appointmentId) =>
-        (await GetRequiredAppointmentAsync(appointmentId)).Patient.ToResponse();
+        (await GetViewableAppointmentAsync(appointmentId)).Patient.ToResponse();
 
     public async Task<ProviderResponse> GetProviderByAppointmentIdAsync(Guid appointmentId) =>
-        (await GetRequiredAppointmentAsync(appointmentId)).Provider.ToResponse();
+        (await GetViewableAppointmentAsync(appointmentId)).Provider.ToResponse();
 
     public async Task<ClinicResponse> GetClinicByAppointmentIdAsync(Guid appointmentId)
     {
-        var appointment = await GetRequiredAppointmentAsync(appointmentId);
+        var appointment = await GetViewableAppointmentAsync(appointmentId);
         if (appointment.Provider.ClinicId is not { } clinicId)
             throw new ResourceNotFoundException(
                 $"Provider '{appointment.ProviderId}' does not belong to a clinic.");
@@ -136,22 +139,22 @@ public class AppointmentService(
     public Task DeclineAppointmentAsync(Guid appointmentId) =>
         ChangeProviderStatusAsync(appointmentId, (appointment, now) => appointment.Decline(now));
 
-    public Task CancelAppointmentAsync(Guid appointmentId) =>
-        ChangeStatusAsync(appointmentId, (appointment, now) => appointment.Cancel(now));
+    public async Task CancelAppointmentAsync(Guid appointmentId)
+    {
+        var appointment = await GetRequiredAppointmentAsync(appointmentId);
+        CurrentUserGuard.RequireAuthenticated(currentUser);
+        if (!await IsParticipantAsync(appointment))
+            throw new ForbiddenException("Only the appointment's patient or provider can cancel it.");
+        await ApplyStatusChangeAsync(appointment, (item, now) => item.Cancel(now));
+    }
 
     public Task CompleteAppointmentAsync(Guid appointmentId) =>
-        ChangeStatusAsync(appointmentId, (appointment, now) => appointment.Complete(now));
+        ChangeProviderStatusAsync(appointmentId, (appointment, now) => appointment.Complete(now));
 
     private async Task ChangeProviderStatusAsync(Guid appointmentId, Action<Appointment, DateTimeOffset> transition)
     {
         var appointment = await GetRequiredAppointmentAsync(appointmentId);
         await CurrentUserGuard.RequireVerifiedProviderAsync(currentUser, appointment.ProviderId);
-        await ApplyStatusChangeAsync(appointment, transition);
-    }
-
-    private async Task ChangeStatusAsync(Guid appointmentId, Action<Appointment, DateTimeOffset> transition)
-    {
-        var appointment = await GetRequiredAppointmentAsync(appointmentId);
         await ApplyStatusChangeAsync(appointment, transition);
     }
 
@@ -181,6 +184,54 @@ public class AppointmentService(
 
         return await appointmentRepository.GetAppointmentByIdAsync(appointmentId)
             ?? throw new ResourceNotFoundException("Appointment", appointmentId);
+    }
+
+    private async Task<AppointmentSearchQuery> ScopeSearchAsync(AppointmentSearchQuery query)
+    {
+        CurrentUserGuard.RequireAuthenticated(currentUser);
+        if (CurrentUserGuard.IsAdministrator(currentUser))
+            return query;
+        if (await currentUser.GetPatientAsync() is { } patient)
+            return query with { PatientId = ScopeTo(query.PatientId, patient.Id) };
+        if (query.ClinicId is { } clinicId && await currentUser.IsClinicAdminOfAsync(clinicId))
+            return query;
+        if (await currentUser.GetProviderAsync() is { } provider)
+            return query with { ProviderId = ScopeTo(query.ProviderId, provider.Id) };
+
+        throw new ForbiddenException("Appointment search requires a patient, a provider, or a clinic administrator.");
+    }
+
+    private static Guid ScopeTo(Guid? requested, Guid owned)
+    {
+        if (requested is { } value && value != owned)
+            throw new ForbiddenException("Appointments of other patients or providers cannot be searched.");
+        return owned;
+    }
+
+    private async Task<Appointment> GetViewableAppointmentAsync(Guid appointmentId)
+    {
+        var appointment = await GetRequiredAppointmentAsync(appointmentId);
+        await EnsureCanViewAsync(appointment);
+        return appointment;
+    }
+
+    private async Task EnsureCanViewAsync(Appointment appointment)
+    {
+        CurrentUserGuard.RequireAuthenticated(currentUser);
+        if (CurrentUserGuard.IsAdministrator(currentUser) || await IsParticipantAsync(appointment))
+            return;
+        if (appointment.Provider.ClinicId is { } clinicId && await currentUser.IsClinicAdminOfAsync(clinicId))
+            return;
+
+        throw new ForbiddenException($"Appointment '{appointment.Id}' is not visible to the signed-in user.");
+    }
+
+    private async Task<bool> IsParticipantAsync(Appointment appointment)
+    {
+        if (await currentUser.GetPatientAsync() is { } patient && patient.Id == appointment.PatientId)
+            return true;
+
+        return await currentUser.GetProviderAsync() is { } provider && provider.Id == appointment.ProviderId;
     }
 
     private void EnsureAppointmentWithinClinicHours(DateTimeOffset appointmentDateTime)

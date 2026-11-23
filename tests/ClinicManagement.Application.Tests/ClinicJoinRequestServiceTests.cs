@@ -22,6 +22,27 @@ public class ClinicJoinRequestServiceTests
         return provider;
     }
 
+    [Fact]
+    public async Task GetByClinicIdAsync_RejectsUserWhoDoesNotAdministerTheClinic()
+    {
+        var clinicId = Guid.NewGuid();
+        var (service, _) = CreateService(currentUser: new TestCurrentUser());
+
+        await Assert.ThrowsAsync<ForbiddenException>(() => service.GetByClinicIdAsync(clinicId, null));
+    }
+
+    [Fact]
+    public async Task CancelAsync_RejectsProviderThatDidNotRequestTheJoin()
+    {
+        var cancellingProvider = Provider.Create(Guid.NewGuid(), Guid.NewGuid(), "Grace", "Hopper", "Computing");
+        var toCancel = ClinicJoinRequest.Create(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
+        var (service, requests) = CreateService(cancellingProvider, requests: new FakeRequestRepository { Existing = toCancel });
+
+        await Assert.ThrowsAsync<ForbiddenException>(() => service.CancelAsync(toCancel.Id));
+
+        Assert.Null(requests.Decided);
+    }
+
     private static TestCurrentUser AdministratorOf(Guid clinicId) =>
         new() { AdministeredClinicIds = [clinicId] };
 
@@ -193,8 +214,11 @@ public class ClinicJoinRequestServiceTests
         var (rejectService, rejectRequests) = CreateService(
             requests: new FakeRequestRepository { Existing = toReject },
             currentUser: AdministratorOf(clinicId));
-        var toCancel = ClinicJoinRequest.Create(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
-        var (cancelService, cancelRequests) = CreateService(requests: new FakeRequestRepository { Existing = toCancel });
+        var cancellingProvider = Provider.Create(Guid.NewGuid(), Guid.NewGuid(), "Grace", "Hopper", "Computing");
+        var toCancel = ClinicJoinRequest.Create(Guid.NewGuid(), cancellingProvider.Id, Guid.NewGuid());
+        var (cancelService, cancelRequests) = CreateService(
+            cancellingProvider,
+            requests: new FakeRequestRepository { Existing = toCancel });
 
         await rejectService.RejectAsync(toReject.Id);
         await cancelService.CancelAsync(toCancel.Id);

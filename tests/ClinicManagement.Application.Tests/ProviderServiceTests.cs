@@ -236,7 +236,7 @@ public class ProviderServiceTests
         var service = new ProviderService(
             new FakeProviderRepository { ExistingProvider = provider },
             new FakeClinicRepository { ExistingClinic = clinic },
-            appointments, new TestCurrentUser());
+            appointments, new TestCurrentUser { Roles = ["admin"] });
 
         var result = await service.GetAppointmentsByProviderIdAsync(provider.Id);
 

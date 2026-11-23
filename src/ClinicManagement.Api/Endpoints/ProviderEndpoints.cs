@@ -14,7 +14,8 @@ public static class ProviderEndpoints
     public static IEndpointRouteBuilder MapProviderEndpoints(this WebApplication app)
     {
         app.MapGet("/api/providers", async ([FromServices] IProviderService service) =>
-            Results.Ok(await service.GetAllProvidersAsync()));
+            Results.Ok(await service.GetAllProvidersAsync()))
+            .RequireAuthorization(AuthorizationPolicies.AdminOnly);
 
         app.MapGet("/api/providers/search", async (
             [AsParameters] PageQuery query,
@@ -105,6 +106,7 @@ public static class ProviderEndpoints
             [FromServices] IProviderService service) =>
             Results.Ok(await service.GetAppointmentsByProviderIdAsync(id)))
             .WithName("GetProviderAppointments")
+            .RequireAuthorization(AuthorizationPolicies.Authenticated)
             .WithSummary("Get appointments for a provider")
             .Produces<List<AppointmentResponse>>(StatusCodes.Status200OK)
             .Produces(StatusCodes.Status404NotFound);
@@ -113,19 +115,22 @@ public static class ProviderEndpoints
         {
             var id = await service.AddProviderAsync(request with { Id = Guid.NewGuid() });
             return Results.Created($"/api/providers/{id}", new { id });
-        });
+        })
+        .RequireAuthorization(AuthorizationPolicies.AdminOnly);
 
         app.MapPut("/api/providers/{id}", async (Guid id, [FromBody] ProviderRequest request, [FromServices] IProviderService service) =>
         {
             await service.UpdateProviderAsync(request with { Id = id });
             return Results.NoContent();
-        });
+        })
+        .RequireAuthorization(AuthorizationPolicies.Authenticated);
 
         app.MapDelete("/api/providers/{id}", async (Guid id, [FromServices] IProviderService service) =>
         {
             await service.DeleteProviderAsync(id);
             return Results.NoContent();
-        });
+        })
+        .RequireAuthorization(AuthorizationPolicies.AdminOnly);
 
         return app;
     }

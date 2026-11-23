@@ -176,12 +176,14 @@ public class ClinicServiceTests
         FakeClinicRepository clinicRepository,
         FakeProviderRepository? providerRepository = null,
         FakeAppointmentRepository? appointmentRepository = null,
-        FakeClinicAdminRepository? clinicAdminRepository = null) =>
+        FakeClinicAdminRepository? clinicAdminRepository = null,
+        TestCurrentUser? currentUser = null) =>
         new(
             clinicRepository,
             providerRepository ?? new FakeProviderRepository(),
             appointmentRepository ?? new FakeAppointmentRepository(),
-            clinicAdminRepository ?? new FakeClinicAdminRepository());
+            clinicAdminRepository ?? new FakeClinicAdminRepository(),
+            currentUser ?? new TestCurrentUser { Roles = ["admin"] });
 
     private sealed class FakeClinicAdminRepository : IClinicAdminRepository
     {

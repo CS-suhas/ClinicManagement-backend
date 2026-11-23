@@ -135,11 +135,12 @@ public class PatientServiceTests
     [Fact]
     public async Task UpdatePatientAsync_ThrowsWhenPatientDoesNotExist()
     {
+        var patientId = Guid.NewGuid();
         var repository = new FakePatientRepository();
-        var service = CreateService(repository);
+        var service = CreateService(repository, SignedInPatient(patientId));
 
         await Assert.ThrowsAsync<ResourceNotFoundException>(
-            () => service.UpdatePatientAsync(CreatePatientRequest(Guid.NewGuid())));
+            () => service.UpdatePatientAsync(CreatePatientRequest(patientId)));
 
         Assert.Null(repository.UpdatedPatient);
     }
@@ -204,7 +205,8 @@ public class PatientServiceTests
         var service = new PatientService(
             new FakePatientRepository { ExistingPatient = patient },
             appointmentRepository,
-            new FakeAllergyTypeRepository());
+            new FakeAllergyTypeRepository(),
+            new TestCurrentUser { Roles = ["admin"] });
 
         var result = await service.GetAppointmentsByPatientIdAsync(patient.Id);
 
@@ -214,14 +216,44 @@ public class PatientServiceTests
         Assert.Equal(provider.Id, response.ProviderId);
     }
 
+    [Fact]
+    public async Task GetPatientByIdAsync_RejectsAnotherPatient()
+    {
+        var other = Patient.Create(Guid.NewGuid(), "Grace", "Hopper", new DateOnly(1906, 12, 9), "grace@example.com", "555-0102");
+        var service = CreateService(
+            new FakePatientRepository { ExistingPatient = other },
+            SignedInPatient(Guid.NewGuid()));
+
+        await Assert.ThrowsAsync<ForbiddenException>(() => service.GetPatientByIdAsync(other.Id));
+    }
+
+    [Fact]
+    public async Task GetPatientByIdAsync_AllowsTheSignedInPatient()
+    {
+        var self = Patient.Create(Guid.NewGuid(), "Ada", "Lovelace", new DateOnly(1985, 12, 10), "ada@example.com", "555-0100");
+        var service = CreateService(
+            new FakePatientRepository { ExistingPatient = self },
+            SignedInPatient(self.Id));
+
+        var result = await service.GetPatientByIdAsync(self.Id);
+
+        Assert.Equal(self.Id, result.Id);
+    }
+
     private static PatientRequest CreatePatientRequest(Guid id) =>
         new(id, "Ada", "Lovelace", new DateOnly(1985, 12, 10), "555-0100", "ada@example.com");
 
     private static readonly DateTimeOffset CurrentTime =
         new(2030, 1, 1, 9, 0, 0, TimeSpan.Zero);
 
-    private static PatientService CreateService(FakePatientRepository repository) =>
-        new(repository, new FakeAppointmentRepository(), new FakeAllergyTypeRepository());
+    private static TestCurrentUser SignedInPatient(Guid patientId) =>
+        new()
+        {
+            Patient = Patient.Create(patientId, "Ada", "Lovelace", new DateOnly(1985, 12, 10), "ada@example.com", "555-0100")
+        };
+
+    private static PatientService CreateService(FakePatientRepository repository, TestCurrentUser? currentUser = null) =>
+        new(repository, new FakeAppointmentRepository(), new FakeAllergyTypeRepository(), currentUser ?? new TestCurrentUser { Roles = ["admin"] });
 
     private sealed class FakePatientRepository : IPatientRepository
     {
