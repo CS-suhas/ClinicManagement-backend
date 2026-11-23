@@ -134,6 +134,13 @@ public sealed class StatusRepository(IDbConnectionFactory connectionFactory) : I
             new { ClinicIds = clinicIds.Select(id => id.ToString()).ToArray() });
     }
 
+    public async Task<int> CountAllPendingJoinRequestsAsync()
+    {
+        using var connection = connectionFactory.CreateConnection();
+        return await connection.ExecuteScalarAsync<int>(
+            "SELECT COUNT(1) FROM ClinicJoinRequests WHERE Status = 'PENDING'");
+    }
+
     public async Task<DoctorDashboardSection> GetDoctorDashboardAsync(
         Guid providerId,
         DateTimeOffset now,
@@ -152,7 +159,11 @@ public sealed class StatusRepository(IDbConnectionFactory connectionFactory) : I
                  WHERE ProviderId = :ProviderId
                    AND AppointmentDateTime >= :TodayStart AND AppointmentDateTime < :WeekEnd
                    AND Status NOT IN ('DECLINED', 'CANCELLED')) AS WeekAppointmentCount,
-                (SELECT COUNT(DISTINCT PatientId) FROM Appointments WHERE ProviderId = :ProviderId) AS DistinctPatientCount
+                (SELECT COUNT(DISTINCT PatientId) FROM Appointments WHERE ProviderId = :ProviderId) AS DistinctPatientCount,
+                (SELECT COUNT(1) FROM Appointments
+                 WHERE ProviderId = :ProviderId
+                   AND Status = 'REQUESTED'
+                   AND AppointmentDateTime >= :Now) AS PendingRequestCount
             FROM DUAL
             """;
         var counts = await connection.QuerySingleAsync<DoctorCountsRow>(countsSql, new
@@ -160,7 +171,8 @@ public sealed class StatusRepository(IDbConnectionFactory connectionFactory) : I
             ProviderId = providerId.ToString(),
             TodayStart = todayStart,
             TodayEnd = todayEnd,
-            WeekEnd = weekEnd
+            WeekEnd = weekEnd,
+            Now = now
         });
         var nextAppointment = await connection.QueryFirstOrDefaultAsync<AppointmentListResponse>(
             $"""
@@ -176,7 +188,8 @@ public sealed class StatusRepository(IDbConnectionFactory connectionFactory) : I
             checked((int)counts.TodayAppointmentCount),
             checked((int)counts.WeekAppointmentCount),
             checked((int)counts.DistinctPatientCount),
-            nextAppointment);
+            nextAppointment,
+            checked((int)counts.PendingRequestCount));
     }
 
     public async Task<PatientDashboardSection> GetPatientDashboardAsync(Guid patientId, DateTimeOffset now)
@@ -201,7 +214,21 @@ public sealed class StatusRepository(IDbConnectionFactory connectionFactory) : I
             FETCH FIRST 1 ROWS ONLY
             """,
             parameters);
-        return new PatientDashboardSection(nextAppointment, upcomingCount);
+        var recentDecisions = (await connection.QueryAsync<PatientRecentDecision>(
+            """
+            SELECT a.Id AS AppointmentId,
+                   a.Status,
+                   COALESCE(a.StatusChangedAtUtc, a.CreatedAtUtc) AS DecidedAtUtc,
+                   pr.FirstName || ' ' || pr.LastName AS ProviderName
+            FROM Appointments a
+            INNER JOIN Providers pr ON pr.Id = a.ProviderId
+            WHERE a.PatientId = :PatientId
+              AND a.Status IN ('CONFIRMED', 'DECLINED')
+            ORDER BY COALESCE(a.StatusChangedAtUtc, a.CreatedAtUtc) DESC, a.Id
+            FETCH FIRST 5 ROWS ONLY
+            """,
+            parameters)).AsList();
+        return new PatientDashboardSection(nextAppointment, upcomingCount, recentDecisions);
     }
 
     private sealed record ScopeCountsRow(
@@ -220,7 +247,8 @@ public sealed class StatusRepository(IDbConnectionFactory connectionFactory) : I
     private sealed record DoctorCountsRow(
         decimal TodayAppointmentCount,
         decimal WeekAppointmentCount,
-        decimal DistinctPatientCount);
+        decimal DistinctPatientCount,
+        decimal PendingRequestCount);
 
     private sealed record StatisticsCounts(
         decimal Clinics,

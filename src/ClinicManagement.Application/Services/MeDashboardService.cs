@@ -35,7 +35,8 @@ public sealed class MeDashboardService(
                 counts.ProviderCount,
                 counts.PatientCount,
                 counts.PendingProviderVerificationCount,
-                counts.TodayAppointmentCount);
+                counts.TodayAppointmentCount,
+                await statusRepository.CountAllPendingJoinRequestsAsync());
         }
 
         ClinicAdminDashboardSection? clinicAdmin = null;

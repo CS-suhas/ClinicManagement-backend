@@ -509,6 +509,9 @@ internal sealed class InMemoryStatusRepository(InMemoryStore store) : IStatusRep
             CountToday(appointments, todayStart, todayEnd)));
     }
 
+    public Task<int> CountAllPendingJoinRequestsAsync() =>
+        Task.FromResult(store.JoinRequests.Count(request => request.Status == ClinicJoinRequestStatus.PENDING));
+
     public Task<int> CountPendingJoinRequestsAsync(IReadOnlyCollection<Guid> clinicIds) =>
         Task.FromResult(store.JoinRequests.Count(request =>
             clinicIds.Contains(request.ClinicId) && request.Status == ClinicJoinRequestStatus.PENDING));
@@ -524,18 +527,32 @@ internal sealed class InMemoryStatusRepository(InMemoryStore store) : IStatusRep
         var week = own.Count(appointment => IsCounted(appointment)
             && appointment.AppointmentDateTime >= todayStart
             && appointment.AppointmentDateTime < weekEnd);
+        var pendingRequests = own.Count(appointment => appointment.Status == AppointmentStatus.REQUESTED
+            && appointment.AppointmentDateTime >= now);
         return Task.FromResult(new DoctorDashboardSection(
             CountToday(own, todayStart, todayEnd),
             week,
             own.Select(appointment => appointment.PatientId).Distinct().Count(),
-            NextActive(own, now)));
+            NextActive(own, now),
+            pendingRequests));
     }
 
     public Task<PatientDashboardSection> GetPatientDashboardAsync(Guid patientId, DateTimeOffset now)
     {
         var own = store.Appointments.Where(appointment => appointment.PatientId == patientId).ToList();
         var upcoming = own.Count(appointment => IsActive(appointment) && appointment.AppointmentDateTime >= now);
-        return Task.FromResult(new PatientDashboardSection(NextActive(own, now), upcoming));
+        var recentDecisions = own
+            .Where(appointment => appointment.Status is AppointmentStatus.CONFIRMED or AppointmentStatus.DECLINED)
+            .Select(appointment => new PatientRecentDecision(
+                appointment.Id,
+                appointment.Status.ToString(),
+                store.StatusChangedAt.TryGetValue(appointment.Id, out var changed) ? changed : appointment.CreatedAtUtc,
+                $"{appointment.Provider.FirstName} {appointment.Provider.LastName}"))
+            .OrderByDescending(decision => decision.DecidedAtUtc)
+            .ThenBy(decision => decision.AppointmentId)
+            .Take(5)
+            .ToList();
+        return Task.FromResult(new PatientDashboardSection(NextActive(own, now), upcoming, recentDecisions));
     }
 
     private static bool IsCounted(Appointment appointment) =>

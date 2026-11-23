@@ -24,7 +24,7 @@ public class MeService(
             currentUser.Subject,
             currentUser.Roles,
             patient is null ? null : new MeLinkedPatient(patient.Id),
-            provider is null ? null : new MeLinkedProvider(provider.Id, provider.VerificationStatus.ToString()),
+            provider is null ? null : new MeLinkedProvider(provider.Id, provider.VerificationStatus.ToString(), provider.ClinicId),
             currentUser.DisplayName,
             clinicAdminOf);
     }
