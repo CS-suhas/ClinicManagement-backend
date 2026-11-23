@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using ClinicManagement.Application.Providers.Interfaces;
 using ClinicManagement.Application.Providers.Models;
+using ClinicManagement.Application.Appointments.Interfaces;
 using ClinicManagement.Application.Appointments.Models;
 using ClinicManagement.Application.Clinics.Models;
 using ClinicManagement.Domain.Enums;
@@ -96,6 +97,18 @@ public static class ProviderEndpoints
             .WithSummary("Get a provider's appointments in a date range")
             .WithDescription("Appointments starting in [from, to), at most 62 days, ordered by time. Declined and cancelled appointments are left out unless includeInactive is true.")
             .Produces<List<AppointmentListResponse>>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status400BadRequest)
+            .Produces(StatusCodes.Status404NotFound);
+
+        app.MapGet("/api/providers/{id}/busy-slots", async (
+            Guid id,
+            string? date,
+            [FromServices] IAppointmentService service) =>
+            Results.Ok(await service.GetProviderBusySlotsAsync(id, date)))
+            .WithName("GetProviderBusySlots")
+            .WithSummary("Get a provider's booked start times for a day")
+            .WithDescription("Public, with no patient data. date is a UTC calendar date in YYYY-MM-DD form. Returns the start times of the provider's REQUESTED and CONFIRMED appointments on that date, plus the appointment duration. A booking at time T conflicts when an active appointment starts strictly after T minus the duration and strictly before T plus the duration. Returns 404 for an unknown provider, or one that is not verified or has no clinic.")
+            .Produces<ProviderBusySlotsResponse>(StatusCodes.Status200OK)
             .Produces(StatusCodes.Status400BadRequest)
             .Produces(StatusCodes.Status404NotFound);
 

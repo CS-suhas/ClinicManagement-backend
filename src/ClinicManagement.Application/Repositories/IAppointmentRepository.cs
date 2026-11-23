@@ -26,6 +26,11 @@ public interface IAppointmentRepository
         DateTimeOffset start,
         DateTimeOffset end,
         bool includeInactive);
+    /// <summary>Start times of the provider's REQUESTED or CONFIRMED appointments starting in [start, end), earliest first.</summary>
+    Task<IReadOnlyList<DateTimeOffset>> GetActiveStartTimesInRangeAsync(
+        Guid providerId,
+        DateTimeOffset start,
+        DateTimeOffset end);
     Task<bool> HasProviderAppointmentOverlapAsync(
         Guid providerId,
         DateTimeOffset appointmentStart,

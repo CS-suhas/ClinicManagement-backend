@@ -1,3 +1,4 @@
+using System.Globalization;
 using ClinicManagement.Application.Appointments.Interfaces;
 using ClinicManagement.Application.Common;
 using ClinicManagement.Application.Common.Exceptions;
@@ -91,6 +92,39 @@ public class AppointmentService(
     {
         var appointment = await GetViewableAppointmentAsync(appointmentId);
         return appointment.ToResponse();
+    }
+
+    public async Task<ProviderBusySlotsResponse> GetProviderBusySlotsAsync(Guid providerId, string? date)
+    {
+        RequestValidator.EnsureGuid(providerId, nameof(providerId), "Provider ID");
+        var day = ParseBookingDate(date);
+
+        // Unverified providers and providers without a clinic are not bookable, so they must not be discoverable.
+        var provider = await providerRepository.GetProviderByIdAsync(providerId);
+        if (provider is null || !provider.IsAcceptingAppointments)
+            throw new ResourceNotFoundException("Provider", providerId);
+
+        // "That date" is the UTC calendar day. See ParseBookingDate and the endpoint description.
+        var dayStart = new DateTimeOffset(day.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero);
+        var busyStartTimes = await appointmentRepository.GetActiveStartTimesInRangeAsync(
+            providerId,
+            dayStart,
+            dayStart.AddDays(1));
+
+        return new ProviderBusySlotsResponse(
+            providerId,
+            day,
+            clinicSettings.DefaultAppointmentDurationMinutes,
+            busyStartTimes);
+    }
+
+    private static DateOnly ParseBookingDate(string? date)
+    {
+        if (string.IsNullOrWhiteSpace(date))
+            throw new DomainValidationException("Date is required in the format YYYY-MM-DD.", "date");
+        if (!DateOnly.TryParseExact(date, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var day))
+            throw new DomainValidationException("Date must be a valid calendar date in the format YYYY-MM-DD.", "date");
+        return day;
     }
 
     public async Task<PatientResponse> GetPatientByAppointmentIdAsync(Guid appointmentId) =>

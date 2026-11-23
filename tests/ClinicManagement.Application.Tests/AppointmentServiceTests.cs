@@ -428,6 +428,90 @@ public class AppointmentServiceTests
         Assert.Null(repository.UpdatedAppointment);
     }
 
+    [Fact]
+    public async Task GetProviderBusySlotsAsync_ReturnsActiveStartTimesOfTheUtcDayOnly()
+    {
+        var repository = new FakeAppointmentRepository();
+        repository.ActiveStartTimes.AddRange(
+        [
+            new DateTimeOffset(2030, 1, 1, 23, 40, 0, TimeSpan.Zero),
+            new DateTimeOffset(2030, 1, 2, 8, 0, 0, TimeSpan.Zero),
+            new DateTimeOffset(2030, 1, 2, 15, 40, 0, TimeSpan.Zero),
+            new DateTimeOffset(2030, 1, 3, 0, 0, 0, TimeSpan.Zero)
+        ]);
+        var service = CreateService(repository, new FakePatientRepository());
+
+        var result = await service.GetProviderBusySlotsAsync(Guid.NewGuid(), "2030-01-02");
+
+        Assert.Equal(new DateTimeOffset(2030, 1, 2, 0, 0, 0, TimeSpan.Zero), repository.ActiveStartTimeRange?.Start);
+        Assert.Equal(new DateTimeOffset(2030, 1, 3, 0, 0, 0, TimeSpan.Zero), repository.ActiveStartTimeRange?.End);
+        Assert.Equal(new DateOnly(2030, 1, 2), result.Date);
+        Assert.Equal(20, result.AppointmentDurationMinutes);
+        Assert.Equal(
+            [new DateTimeOffset(2030, 1, 2, 8, 0, 0, TimeSpan.Zero), new DateTimeOffset(2030, 1, 2, 15, 40, 0, TimeSpan.Zero)],
+            result.BusyStartTimes);
+    }
+
+    [Fact]
+    public async Task GetProviderBusySlotsAsync_ThrowsNotFoundForUnknownProvider()
+    {
+        var repository = new FakeAppointmentRepository();
+        var service = CreateService(
+            repository,
+            new FakePatientRepository(),
+            providerRepository: new FakeProviderRepository { ProviderMissing = true });
+
+        await Assert.ThrowsAsync<ResourceNotFoundException>(
+            () => service.GetProviderBusySlotsAsync(Guid.NewGuid(), "2030-01-02"));
+        Assert.Null(repository.ActiveStartTimeRange);
+    }
+
+    [Fact]
+    public async Task GetProviderBusySlotsAsync_ThrowsNotFoundForUnverifiedProvider()
+    {
+        var pending = Provider.Register(Guid.NewGuid(), "New", "Doctor", "General");
+        var service = CreateService(
+            new FakeAppointmentRepository(),
+            new FakePatientRepository(),
+            providerRepository: new FakeProviderRepository { ConfiguredProvider = pending });
+
+        await Assert.ThrowsAsync<ResourceNotFoundException>(
+            () => service.GetProviderBusySlotsAsync(pending.Id, "2030-01-02"));
+    }
+
+    [Fact]
+    public async Task GetProviderBusySlotsAsync_ThrowsNotFoundForVerifiedProviderWithoutClinic()
+    {
+        var unassigned = Provider.Register(Guid.NewGuid(), "New", "Doctor", "General");
+        unassigned.Verify();
+        var service = CreateService(
+            new FakeAppointmentRepository(),
+            new FakePatientRepository(),
+            providerRepository: new FakeProviderRepository { ConfiguredProvider = unassigned });
+
+        await Assert.ThrowsAsync<ResourceNotFoundException>(
+            () => service.GetProviderBusySlotsAsync(unassigned.Id, "2030-01-02"));
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("2030-02-30")]
+    [InlineData("2030-1-5")]
+    [InlineData("02/01/2030")]
+    [InlineData("tomorrow")]
+    public async Task GetProviderBusySlotsAsync_RejectsMissingOrInvalidDate(string? date)
+    {
+        var repository = new FakeAppointmentRepository();
+        var service = CreateService(repository, new FakePatientRepository());
+
+        var exception = await Assert.ThrowsAsync<DomainValidationException>(
+            () => service.GetProviderBusySlotsAsync(Guid.NewGuid(), date));
+
+        Assert.Equal("date", exception.PropertyName);
+        Assert.Null(repository.ActiveStartTimeRange);
+    }
+
     private static readonly Patient DefaultPatient = Patient.Create(
         Guid.NewGuid(),
         "Ada",
@@ -711,6 +795,19 @@ public class AppointmentServiceTests
 
     private sealed class FakeAppointmentRepository : IAppointmentRepository
     {
+        public List<DateTimeOffset> ActiveStartTimes { get; } = [];
+        public (DateTimeOffset Start, DateTimeOffset End)? ActiveStartTimeRange { get; private set; }
+
+        public Task<IReadOnlyList<DateTimeOffset>> GetActiveStartTimesInRangeAsync(
+            Guid providerId,
+            DateTimeOffset start,
+            DateTimeOffset end)
+        {
+            ActiveStartTimeRange = (start, end);
+            return Task.FromResult<IReadOnlyList<DateTimeOffset>>(
+                ActiveStartTimes.Where(time => time >= start && time < end).OrderBy(time => time).ToList());
+        }
+
         public bool StatusChangeSucceeds { get; init; } = true;
         public (AppointmentStatus Expected, AppointmentStatus Next)? StatusChange { get; private set; }
 

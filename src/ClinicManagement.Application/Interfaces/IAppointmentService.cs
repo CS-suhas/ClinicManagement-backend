@@ -9,6 +9,8 @@ namespace ClinicManagement.Application.Appointments.Interfaces;
 public interface IAppointmentService
 {
     Task<AppointmentResponse> GetAppointmentByIdAsync(Guid appointmentId);
+    /// <summary>Public. Booked start times for a provider on a UTC date (YYYY-MM-DD). Unbookable providers are not found.</summary>
+    Task<ProviderBusySlotsResponse> GetProviderBusySlotsAsync(Guid providerId, string? date);
     Task<List<AppointmentResponse>> GetAllAppointmentsAsync();
     Task<PatientResponse> GetPatientByAppointmentIdAsync(Guid appointmentId);
     Task<ProviderResponse> GetProviderByAppointmentIdAsync(Guid appointmentId);

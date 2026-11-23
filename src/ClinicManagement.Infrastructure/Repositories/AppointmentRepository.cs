@@ -273,6 +273,27 @@ public class AppointmentRepository(IDbConnectionFactory connectionFactory) : IAp
         return appointments.AsList();
     }
 
+    public async Task<IReadOnlyList<DateTimeOffset>> GetActiveStartTimesInRangeAsync(
+        Guid providerId,
+        DateTimeOffset start,
+        DateTimeOffset end)
+    {
+        using var connection = connectionFactory.CreateConnection();
+        const string sql = $"""
+            SELECT AppointmentDateTime
+            FROM Appointments
+            WHERE ProviderId = :ProviderId
+              AND AppointmentDateTime >= :StartDateTime
+              AND AppointmentDateTime < :EndDateTime
+              AND Status IN {ActiveStatuses}
+            ORDER BY AppointmentDateTime
+            """;
+        var rows = await connection.QueryAsync<ActiveStartTimeRow>(
+            sql,
+            new { ProviderId = providerId.ToString(), StartDateTime = start, EndDateTime = end });
+        return rows.Select(row => row.AppointmentDateTime).ToList();
+    }
+
     public async Task<bool> HasProviderAppointmentOverlapAsync(
         Guid providerId,
         DateTimeOffset appointmentStart,
@@ -298,6 +319,8 @@ public class AppointmentRepository(IDbConnectionFactory connectionFactory) : IAp
         });
         return count > 0;
     }
+
+    private sealed record ActiveStartTimeRow(DateTimeOffset AppointmentDateTime);
 
     private async Task<IEnumerable<Appointment>> QueryAppointmentsAsync(string sql, object? parameters = null)
     {

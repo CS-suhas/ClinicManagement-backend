@@ -1202,5 +1202,128 @@ public sealed class ApiAuthorizationTests(ClinicApiFactory factory)
 
         Assert.Empty(document.RootElement.GetProperty("clinicAdminOf").EnumerateArray());
     }
-}
 
+    [Fact]
+    public async Task BusySlots_IsPublicToAnonymousCallers()
+    {
+        var world = SeedWorld();
+        var day = BusyDay();
+
+        using var response = await SendAsync(
+            HttpMethod.Get,
+            $"/api/providers/{world.Doctor.Id}/busy-slots?date={day:yyyy-MM-dd}",
+            subject: null);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task BusySlots_ReturnOnlyActiveStartTimesForTheDayWithoutPatientData()
+    {
+        var world = SeedWorld();
+        var day = BusyDay();
+        var doctor = Provider.Create(Guid.NewGuid(), world.Clinic.Id, "Busy", "Doctor", "Cardiology");
+        Factory.Store.Providers.Add(doctor);
+        var dayStart = new DateTimeOffset(day.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero);
+        var requested = AddAppointment(world.Patient, doctor, dayStart.AddHours(8), AppointmentStatus.REQUESTED);
+        var confirmed = AddAppointment(world.Patient, doctor, dayStart.AddHours(8).AddMinutes(20), AppointmentStatus.CONFIRMED);
+        var declined = AddAppointment(world.Patient, doctor, dayStart.AddHours(9), AppointmentStatus.DECLINED);
+        var cancelled = AddAppointment(world.Patient, doctor, dayStart.AddHours(9).AddMinutes(20), AppointmentStatus.CANCELLED);
+        AddAppointment(world.Patient, doctor, dayStart.AddMinutes(-20), AppointmentStatus.REQUESTED);
+        AddAppointment(world.Patient, doctor, dayStart.AddDays(1), AppointmentStatus.REQUESTED);
+
+        using var response = await SendAsync(
+            HttpMethod.Get,
+            $"/api/providers/{doctor.Id}/busy-slots?date={day:yyyy-MM-dd}",
+            subject: null);
+        var body = await response.Content.ReadAsStringAsync();
+        using var document = System.Text.Json.JsonDocument.Parse(body);
+        var root = document.RootElement;
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(
+            ["providerId", "date", "appointmentDurationMinutes", "busyStartTimes"],
+            root.EnumerateObject().Select(property => property.Name).ToArray());
+        Assert.Equal(doctor.Id, root.GetProperty("providerId").GetGuid());
+        Assert.Equal(day.ToString("yyyy-MM-dd"), root.GetProperty("date").GetString());
+        Assert.Equal(20, root.GetProperty("appointmentDurationMinutes").GetInt32());
+        var busy = root.GetProperty("busyStartTimes").EnumerateArray()
+            .Select(element => DateTimeOffset.Parse(element.GetString()!))
+            .ToList();
+        Assert.Equal([requested.AppointmentDateTime, confirmed.AppointmentDateTime], busy);
+        Assert.DoesNotContain(declined.AppointmentDateTime.ToString("O"), body);
+        Assert.DoesNotContain(cancelled.AppointmentDateTime.ToString("O"), body);
+        Assert.DoesNotContain("Ada", body);
+        Assert.DoesNotContain("Lovelace", body);
+        Assert.DoesNotContain(world.Patient.Id.ToString(), body);
+        Assert.DoesNotContain(requested.Id.ToString(), body);
+        Assert.DoesNotContain("Checkup", body);
+    }
+
+    [Fact]
+    public async Task BusySlots_UnknownProviderIsNotFound()
+    {
+        using var response = await SendAsync(
+            HttpMethod.Get,
+            $"/api/providers/{Guid.NewGuid()}/busy-slots?date={BusyDay():yyyy-MM-dd}",
+            subject: null);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task BusySlots_UnverifiedAndUnassignedProvidersAreNotFound()
+    {
+        var world = SeedWorld();
+        var unassigned = Provider.Register(Guid.NewGuid(), "Unassigned", "Doctor", "General");
+        unassigned.Verify();
+        Factory.Store.Providers.Add(unassigned);
+        var day = BusyDay().ToString("yyyy-MM-dd");
+
+        using var pending = await SendAsync(HttpMethod.Get, $"/api/providers/{world.PendingProvider.Id}/busy-slots?date={day}", subject: null);
+        using var noClinic = await SendAsync(HttpMethod.Get, $"/api/providers/{unassigned.Id}/busy-slots?date={day}", subject: null);
+
+        Assert.Equal(HttpStatusCode.NotFound, pending.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, noClinic.StatusCode);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("?date=")]
+    [InlineData("?date=2030-02-30")]
+    [InlineData("?date=2030-1-5")]
+    [InlineData("?date=tomorrow")]
+    public async Task BusySlots_RejectMissingOrInvalidDate(string query)
+    {
+        var world = SeedWorld();
+
+        using var response = await SendAsync(
+            HttpMethod.Get,
+            $"/api/providers/{world.Doctor.Id}/busy-slots{query}",
+            subject: null);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    private static DateOnly BusyDay() => DateOnly.FromDateTime(DateTime.UtcNow.AddDays(10));
+
+    private Appointment AddAppointment(Patient patient, Provider provider, DateTimeOffset when, AppointmentStatus status)
+    {
+        var now = DateTimeOffset.UtcNow;
+        var appointment = Appointment.Create(when, "Checkup", patient, provider, now);
+        switch (status)
+        {
+            case AppointmentStatus.CONFIRMED:
+                appointment.Confirm(now);
+                break;
+            case AppointmentStatus.DECLINED:
+                appointment.Decline(now);
+                break;
+            case AppointmentStatus.CANCELLED:
+                appointment.Cancel(now);
+                break;
+        }
+        Factory.Store.Appointments.Add(appointment);
+        return appointment;
+    }
+}

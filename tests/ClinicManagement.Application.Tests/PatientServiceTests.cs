@@ -335,6 +335,11 @@ public class PatientServiceTests
 
     private sealed class FakeAppointmentRepository : IAppointmentRepository
     {
+        public Task<IReadOnlyList<DateTimeOffset>> GetActiveStartTimesInRangeAsync(
+            Guid providerId,
+            DateTimeOffset start,
+            DateTimeOffset end) => throw new NotSupportedException();
+
         public Task<bool> TryUpdateStatusAsync(
             Guid appointmentId,
             ClinicManagement.Domain.Enums.AppointmentStatus expected,

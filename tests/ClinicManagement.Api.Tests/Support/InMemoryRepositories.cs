@@ -214,6 +214,19 @@ internal sealed class InMemoryClinicRepository(InMemoryStore store) : IClinicRep
 
 internal sealed class InMemoryAppointmentRepository(InMemoryStore store) : IAppointmentRepository
 {
+    public Task<IReadOnlyList<DateTimeOffset>> GetActiveStartTimesInRangeAsync(
+        Guid providerId,
+        DateTimeOffset start,
+        DateTimeOffset end) =>
+        Task.FromResult<IReadOnlyList<DateTimeOffset>>(store.Appointments
+            .Where(appointment => appointment.ProviderId == providerId
+                && appointment.AppointmentDateTime >= start
+                && appointment.AppointmentDateTime < end
+                && (appointment.Status == AppointmentStatus.REQUESTED || appointment.Status == AppointmentStatus.CONFIRMED))
+            .Select(appointment => appointment.AppointmentDateTime)
+            .OrderBy(time => time)
+            .ToList());
+
     public Task<Appointment?> GetAppointmentByIdAsync(Guid appointmentId) =>
         Task.FromResult(store.Appointments.FirstOrDefault(appointment => appointment.Id == appointmentId));
 
