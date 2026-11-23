@@ -14,6 +14,7 @@ public class Patient : BaseEntity
     public DateOnly DateOfBirth { get; private set; } // as UTC timestamp
     public string Email { get; private set; } = string.Empty;
     public string PhoneNumber { get; private set; } = string.Empty;
+    public string? IdentitySubject { get; private set; }
     public IReadOnlyCollection<PatientAllergy> Allergies => _allergies.AsReadOnly();
     public IReadOnlyCollection<Appointment> Appointments => _appointments.AsReadOnly();
 

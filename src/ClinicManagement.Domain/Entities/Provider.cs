@@ -12,6 +12,7 @@ public class Provider : BaseEntity
     public Clinic? Clinic { get; private set; }
     public Guid? ClinicId { get; private set; }
     public ProviderVerificationStatus VerificationStatus { get; private set; }
+    public string? IdentitySubject { get; private set; }
     public ICollection<Appointment> Appointments { get; private set; } = new List<Appointment>();
 
     private Provider() { }

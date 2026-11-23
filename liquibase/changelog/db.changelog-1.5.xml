@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- IdentitySubject links a provider or patient to the subject claim of their identity
+         provider account. Nullable, because existing rows have no linked account yet. -->
+    <changeSet id="1.5-providers-identity-subject" author="clinic-management">
+        <addColumn tableName="Providers">
+            <column name="IdentitySubject" type="VARCHAR2(64)"/>
+        </addColumn>
+        <addUniqueConstraint tableName="Providers" columnNames="IdentitySubject" constraintName="UK_Providers_IdentitySubject"/>
+    </changeSet>
+
+    <changeSet id="1.5-patients-identity-subject" author="clinic-management">
+        <addColumn tableName="Patients">
+            <column name="IdentitySubject" type="VARCHAR2(64)"/>
+        </addColumn>
+        <addUniqueConstraint tableName="Patients" columnNames="IdentitySubject" constraintName="UK_Patients_IdentitySubject"/>
+    </changeSet>
+
+    <!-- Clinic administrators are identity subjects allowed to manage a given clinic. -->
+    <changeSet id="1.5-create-clinic-admins" author="clinic-management">
+        <createTable tableName="ClinicAdmins">
+            <column name="Id" type="VARCHAR2(36)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="ClinicId" type="VARCHAR2(36)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="IdentitySubject" type="VARCHAR2(64)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="CreatedAtUtc" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="SYSTIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="UpdatedAtUtc" type="TIMESTAMP WITH TIME ZONE"/>
+        </createTable>
+        <addForeignKeyConstraint
+            baseTableName="ClinicAdmins"
+            baseColumnNames="ClinicId"
+            referencedTableName="Clinics"
+            referencedColumnNames="Id"
+            constraintName="FK_ClinicAdmins_Clinics"
+            onDelete="RESTRICT"/>
+        <addUniqueConstraint tableName="ClinicAdmins" columnNames="ClinicId, IdentitySubject" constraintName="UK_ClinicAdmins_ClinicId_IdentitySubject"/>
+    </changeSet>
+
+    <changeSet id="1.5-create-platform-admins" author="clinic-management">
+        <createTable tableName="PlatformAdmins">
+            <column name="Id" type="VARCHAR2(36)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="IdentitySubject" type="VARCHAR2(64)">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addUniqueConstraint tableName="PlatformAdmins" columnNames="IdentitySubject" constraintName="UK_PlatformAdmins_IdentitySubject"/>
+    </changeSet>
+</databaseChangeLog>
