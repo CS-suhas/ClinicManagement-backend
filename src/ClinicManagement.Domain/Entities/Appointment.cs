@@ -1,4 +1,5 @@
 using ClinicManagement.Domain.Common;
+using ClinicManagement.Domain.Enums;
 using ClinicManagement.Domain.Exceptions;
 
 namespace ClinicManagement.Domain.Entities;
@@ -11,6 +12,11 @@ public class Appointment : BaseEntity
     public Guid ProviderId { get; private set; }
     public DateTimeOffset AppointmentDateTime { get; private set; }
     public string? ReasonForVisit { get; private set; } = null;
+    public AppointmentStatus Status { get; private set; } = AppointmentStatus.REQUESTED;
+
+    /// <summary>Requested and confirmed appointments occupy the provider's time slot.</summary>
+    public static readonly AppointmentStatus[] ActiveStatuses =
+        [AppointmentStatus.REQUESTED, AppointmentStatus.CONFIRMED];
     
     private Appointment() { }
 
@@ -111,6 +117,27 @@ public class Appointment : BaseEntity
     {
         Provider = provider ?? throw new ArgumentNullException(nameof(provider), "Provider cannot be null.");
         ProviderId = provider.Id;
+    }
+
+    public void Confirm(DateTimeOffset now) =>
+        Transition(AppointmentStatus.CONFIRMED, now, AppointmentStatus.REQUESTED);
+
+    public void Decline(DateTimeOffset now) =>
+        Transition(AppointmentStatus.DECLINED, now, AppointmentStatus.REQUESTED);
+
+    public void Cancel(DateTimeOffset now) =>
+        Transition(AppointmentStatus.CANCELLED, now, AppointmentStatus.REQUESTED, AppointmentStatus.CONFIRMED);
+
+    public void Complete(DateTimeOffset now) =>
+        Transition(AppointmentStatus.COMPLETED, now, AppointmentStatus.CONFIRMED);
+
+    private void Transition(AppointmentStatus next, DateTimeOffset now, params AppointmentStatus[] allowedFrom)
+    {
+        if (!allowedFrom.Contains(Status))
+            throw new InvalidStatusTransitionException("Appointment", Status.ToString(), next.ToString());
+
+        Status = next;
+        UpdatedAtUtc = now.UtcDateTime;
     }
 
     public static TimeSpan operator -(Appointment a1, Appointment a2)
