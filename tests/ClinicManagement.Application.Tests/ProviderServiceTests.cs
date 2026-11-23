@@ -542,6 +542,8 @@ public class ProviderServiceTests
 
     private sealed class FakeProviderRepository : IProviderRepository
     {
+        public Task<IReadOnlyDictionary<Guid, int>> GetVerifiedProviderCountsByClinicAsync() =>
+            throw new NotSupportedException();
         public Provider? ExistingByIdentitySubject { get; init; }
         public (Guid ProviderId, PageQuery Query, int Offset, DateTimeOffset Now)? RosterRequest { get; private set; }
 

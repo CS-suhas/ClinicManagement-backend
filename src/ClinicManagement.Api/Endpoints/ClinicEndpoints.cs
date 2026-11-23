@@ -15,7 +15,11 @@ public static class ClinicEndpoints
         var clinics = app.MapGroup("/api/clinics").RequireAuthorization(AuthorizationPolicies.Authenticated);
 
         clinics.MapGet("", async ([FromServices] IClinicService service) =>
-            Results.Ok(await service.GetAllClinicsAsync()));
+            Results.Ok(await service.GetAllClinicsAsync()))
+            .WithName("GetClinics")
+            .WithSummary("List clinics")
+            .WithDescription("Every clinic, each with providerCount: the number of verified providers at the clinic.")
+            .Produces<List<ClinicListItemResponse>>(StatusCodes.Status200OK);
 
         clinics.MapGet("/search", async (
             [AsParameters] PageQuery query,
@@ -23,11 +27,22 @@ public static class ClinicEndpoints
             Results.Ok(await service.SearchClinicsAsync(query)))
             .WithName("SearchClinics")
             .WithSummary("Search clinics")
-            .WithDescription("Searches clinic names, addresses, and phone numbers, and returns a page.")
-            .Produces<PagedResponse<ClinicResponse>>(StatusCodes.Status200OK);
+            .WithDescription("Searches clinic names, addresses, and phone numbers, and returns a page. Each item includes providerCount, the number of verified providers at the clinic.")
+            .Produces<PagedResponse<ClinicListItemResponse>>(StatusCodes.Status200OK);
 
         clinics.MapGet("/{id}", async (Guid id, [FromServices] IClinicService service) =>
             Results.Ok(await service.GetClinicByIdAsync(id)));
+
+        clinics.MapGet("/{id}/summary", async (
+            Guid id,
+            [FromServices] IClinicService service) =>
+            Results.Ok(await service.GetClinicSummaryAsync(id)))
+            .WithName("GetClinicSummary")
+            .WithSummary("Get a clinic summary")
+            .WithDescription("Signed-in users only. Returns the clinic, providerCount (verified providers), todayAppointmentCount (UTC day, declined and cancelled excluded), pendingJoinRequestCount (only for an administrator or an administrator of this clinic, otherwise null), topSpecialties (up to 3 by verified provider count, ties alphabetical) and up to 5 verified providers ordered by last and first name. Returns 404 for an unknown clinic.")
+            .Produces<ClinicSummaryResponse>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status401Unauthorized)
+            .Produces(StatusCodes.Status404NotFound);
 
         clinics.MapGet("/{id}/providers", async (
             Guid id,

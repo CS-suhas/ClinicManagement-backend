@@ -968,6 +968,8 @@ public class AppointmentServiceTests
     /// <summary>Unless configured otherwise, any requested provider exists and accepts appointments.</summary>
     private sealed class FakeProviderRepository : IProviderRepository
     {
+        public Task<IReadOnlyDictionary<Guid, int>> GetVerifiedProviderCountsByClinicAsync() =>
+            throw new NotSupportedException();
         public Task<(IReadOnlyList<ClinicManagement.Application.Models.ProviderPatientRosterItem> Items, int TotalCount)>
             SearchPatientRosterAsync(
                 Guid providerId,

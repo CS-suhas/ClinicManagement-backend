@@ -11,6 +11,9 @@ public static class ClinicMappings
     public static ClinicResponse ToResponse(this Clinic clinic) =>
         new(clinic.Id, clinic.Name, clinic.Address, clinic.PhoneNumber);
 
+    public static ClinicListItemResponse ToListItem(this Clinic clinic, int providerCount) =>
+        new(clinic.Id, clinic.Name, clinic.Address, clinic.PhoneNumber, providerCount);
+
     public static void ApplyTo(this ClinicRequest request, Clinic clinic)
     {
         clinic.SetName(request.Name);

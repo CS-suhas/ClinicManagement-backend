@@ -116,6 +116,19 @@ public class ProviderRepository(IDbConnectionFactory connectionFactory) : IProvi
             new { ClinicId = clinicId.ToString() });
     }
 
+    public async Task<IReadOnlyDictionary<Guid, int>> GetVerifiedProviderCountsByClinicAsync()
+    {
+        using var connection = connectionFactory.CreateConnection();
+        const string sql = """
+            SELECT ClinicId, COUNT(1) AS ProviderCount
+            FROM Providers
+            WHERE VerificationStatus = 'VERIFIED' AND ClinicId IS NOT NULL
+            GROUP BY ClinicId
+            """;
+        var rows = await connection.QueryAsync<ClinicProviderCountRow>(sql);
+        return rows.ToDictionary(row => row.ClinicId, row => checked((int)row.ProviderCount));
+    }
+
     public async Task<Guid> UpdateProviderAsync(Provider provider, Guid clinicId)
     {
         using var connection = connectionFactory.CreateConnection();
@@ -352,4 +365,6 @@ public class ProviderRepository(IDbConnectionFactory connectionFactory) : IProvi
             },
             parameters,
             splitOn: "Id");
+
+    private sealed record ClinicProviderCountRow(Guid ClinicId, decimal ProviderCount);
 }

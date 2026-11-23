@@ -14,6 +14,8 @@ public interface IProviderRepository
     Task<Guid> DeleteProviderAsync(Guid providerId);
     Task<bool> HasAppointmentsAsync(Guid providerId);
     Task<IEnumerable<Provider>> GetProvidersByClinicIdAsync(Guid clinicId);
+    /// <summary>Number of VERIFIED providers at each clinic that has at least one. Clinics with none are absent.</summary>
+    Task<IReadOnlyDictionary<Guid, int>> GetVerifiedProviderCountsByClinicAsync();
     Task<(IReadOnlyList<Provider> Items, int TotalCount)> SearchProvidersAsync(
         PageQuery query,
         int offset,

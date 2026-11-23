@@ -4,6 +4,8 @@ using ClinicManagement.Application.Clinics.Services;
 using ClinicManagement.Application.Common.Exceptions;
 using ClinicManagement.Application.Appointments.Interfaces;
 using ClinicManagement.Application.Repositories;
+using ClinicManagement.Application.Models;
+using ClinicManagement.Domain.Enums;
 using ClinicManagement.Application.Providers.Interfaces;
 using ClinicManagement.Domain.Entities;
 using ClinicManagement.Domain.Exceptions;
@@ -196,18 +198,207 @@ public class ClinicServiceTests
         Assert.Empty(result);
     }
 
+    [Fact]
+    public async Task GetAllClinicsAsync_CountsVerifiedProvidersPerClinic()
+    {
+        var riverside = Clinic.Create(Guid.NewGuid(), "Riverside", "1 River Road", "555-0100");
+        var hillside = Clinic.Create(Guid.NewGuid(), "Hillside", "2 Hill Road", "555-0101");
+        var empty = Clinic.Create(Guid.NewGuid(), "Empty", "3 Field Road", "555-0102");
+        var providers = new FakeProviderRepository();
+        providers.Providers.Add(Provider.Create(Guid.NewGuid(), riverside.Id, "Ada", "Lovelace", "Computing"));
+        providers.Providers.Add(Provider.Create(Guid.NewGuid(), riverside.Id, "Alan", "Turing", "Computing"));
+        providers.Providers.Add(Provider.Create(Guid.NewGuid(), hillside.Id, "Grace", "Hopper", "Navy"));
+        var clinics = new FakeClinicRepository();
+        clinics.AllClinics.AddRange([riverside, hillside, empty]);
+        var service = CreateService(clinics, providers);
+
+        var result = (await service.GetAllClinicsAsync()).ToDictionary(clinic => clinic.Name);
+
+        Assert.Equal(2, result["Riverside"].ProviderCount);
+        Assert.Equal(1, result["Hillside"].ProviderCount);
+        Assert.Equal(0, result["Empty"].ProviderCount);
+        Assert.Equal("1 River Road", result["Riverside"].Address);
+    }
+
+    [Fact]
+    public async Task SearchClinicsAsync_IncludesProviderCountOnEachItem()
+    {
+        var riverside = Clinic.Create(Guid.NewGuid(), "Riverside", "1 River Road", "555-0100");
+        var providers = new FakeProviderRepository();
+        providers.Providers.Add(Provider.Create(Guid.NewGuid(), riverside.Id, "Ada", "Lovelace", "Computing"));
+        var clinics = new FakeClinicRepository();
+        clinics.AllClinics.Add(riverside);
+        var service = CreateService(clinics, providers);
+
+        var page = await service.SearchClinicsAsync(new PageQuery());
+
+        Assert.Equal(1, page.TotalCount);
+        Assert.Equal(riverside.Id, page.Items.Single().Id);
+        Assert.Equal(1, page.Items.Single().ProviderCount);
+    }
+
+    [Fact]
+    public async Task GetClinicSummaryAsync_ThrowsNotFoundForUnknownClinic()
+    {
+        var service = CreateService(new FakeClinicRepository());
+
+        await Assert.ThrowsAsync<ResourceNotFoundException>(() => service.GetClinicSummaryAsync(Guid.NewGuid()));
+    }
+
+    [Fact]
+    public async Task GetClinicSummaryAsync_RequiresSignIn()
+    {
+        var clinic = Clinic.Create(Guid.NewGuid(), "Riverside", "1 River Road", "555-0100");
+        var service = CreateService(
+            new FakeClinicRepository { ExistingClinic = clinic },
+            currentUser: new TestCurrentUser { IsAuthenticated = false, Subject = null });
+
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => service.GetClinicSummaryAsync(clinic.Id));
+    }
+
+    [Fact]
+    public async Task GetClinicSummaryAsync_CountsVerifiedProvidersRanksSpecialtiesAndPreviewsFive()
+    {
+        var clinic = Clinic.Create(Guid.NewGuid(), "Riverside", "1 River Road", "555-0100");
+        var providers = new FakeProviderRepository();
+        (string First, string Last, string Specialty)[] roster =
+        [
+            ("Zed", "Adams", "Cardiology"),
+            ("Amy", "Baker", "Neurology"),
+            ("Cal", "Baker", "Cardiology"),
+            ("Eve", "Carter", "Dermatology"),
+            ("Gus", "Davis", "Oncology"),
+            ("Hal", "Evans", "Pediatrics"),
+            ("Ivy", "Fox", "Pediatrics")
+        ];
+        foreach (var (first, last, specialty) in roster)
+            providers.Providers.Add(Provider.Create(Guid.NewGuid(), clinic.Id, first, last, specialty));
+        var service = CreateService(new FakeClinicRepository { ExistingClinic = clinic }, providers);
+
+        var summary = await service.GetClinicSummaryAsync(clinic.Id);
+
+        Assert.Equal(clinic.Id, summary.Clinic.Id);
+        Assert.Equal(7, summary.ProviderCount);
+        Assert.Equal(["Cardiology", "Pediatrics", "Dermatology"], summary.TopSpecialties);
+        Assert.Equal(
+            ["Zed Adams", "Amy Baker", "Cal Baker", "Eve Carter", "Gus Davis"],
+            summary.Providers.Select(provider => $"{provider.FirstName} {provider.LastName}").ToArray());
+    }
+
+    [Fact]
+    public async Task GetClinicSummaryAsync_UsesTheUtcDayForTodayAppointments()
+    {
+        var clinic = Clinic.Create(Guid.NewGuid(), "Riverside", "1 River Road", "555-0100");
+        var status = new FakeStatusRepository { TodayAppointmentCount = 4 };
+        var service = CreateService(
+            new FakeClinicRepository { ExistingClinic = clinic },
+            statusRepository: status,
+            now: new DateTimeOffset(2030, 1, 2, 23, 30, 0, TimeSpan.Zero));
+
+        var summary = await service.GetClinicSummaryAsync(clinic.Id);
+
+        Assert.Equal(4, summary.TodayAppointmentCount);
+        Assert.Equal(new DateTimeOffset(2030, 1, 2, 0, 0, 0, TimeSpan.Zero), status.ClinicCountsRequest?.TodayStart);
+        Assert.Equal(new DateTimeOffset(2030, 1, 3, 0, 0, 0, TimeSpan.Zero), status.ClinicCountsRequest?.TodayEnd);
+        Assert.Equal([clinic.Id], status.ClinicCountsRequest?.ClinicIds.ToArray() ?? []);
+    }
+
+    [Fact]
+    public async Task GetClinicSummaryAsync_ShowsPendingJoinRequestsOnlyToAdministratorsOfThisClinic()
+    {
+        var clinic = Clinic.Create(Guid.NewGuid(), "Riverside", "1 River Road", "555-0100");
+        var otherClinic = Clinic.Create(Guid.NewGuid(), "Hillside", "2 Hill Road", "555-0101");
+        var status = new FakeStatusRepository { PendingJoinRequestCount = 3 };
+
+        async Task<int?> PendingFor(TestCurrentUser user)
+        {
+            var service = CreateService(
+                new FakeClinicRepository { ExistingClinic = clinic },
+                currentUser: user,
+                statusRepository: status);
+            return (await service.GetClinicSummaryAsync(clinic.Id)).PendingJoinRequestCount;
+        }
+
+        Assert.Equal(3, await PendingFor(new TestCurrentUser { Roles = ["admin"] }));
+        Assert.Equal(3, await PendingFor(new TestCurrentUser { Roles = ["clinicadmin"], AdministeredClinicIds = [clinic.Id] }));
+        Assert.Null(await PendingFor(new TestCurrentUser { Roles = ["clinicadmin"], AdministeredClinicIds = [otherClinic.Id] }));
+        Assert.Null(await PendingFor(new TestCurrentUser { Roles = ["doctor"] }));
+        Assert.Equal([clinic.Id], status.PendingJoinRequestClinicIds?.ToArray() ?? []);
+    }
+
+    [Fact]
+    public async Task GetClinicSummaryAsync_ReturnsEmptyListsForClinicWithoutVerifiedProviders()
+    {
+        var clinic = Clinic.Create(Guid.NewGuid(), "Riverside", "1 River Road", "555-0100");
+        var service = CreateService(new FakeClinicRepository { ExistingClinic = clinic });
+
+        var summary = await service.GetClinicSummaryAsync(clinic.Id);
+
+        Assert.Equal(0, summary.ProviderCount);
+        Assert.Empty(summary.TopSpecialties);
+        Assert.Empty(summary.Providers);
+    }
+
     private static ClinicService CreateService(
         FakeClinicRepository clinicRepository,
         FakeProviderRepository? providerRepository = null,
         FakeAppointmentRepository? appointmentRepository = null,
         FakeClinicAdminRepository? clinicAdminRepository = null,
-        TestCurrentUser? currentUser = null) =>
+        TestCurrentUser? currentUser = null,
+        FakeStatusRepository? statusRepository = null,
+        DateTimeOffset? now = null) =>
         new(
             clinicRepository,
             providerRepository ?? new FakeProviderRepository(),
             appointmentRepository ?? new FakeAppointmentRepository(),
             clinicAdminRepository ?? new FakeClinicAdminRepository(),
-            currentUser ?? new TestCurrentUser { Roles = ["admin"] });
+            statusRepository ?? new FakeStatusRepository(),
+            currentUser ?? new TestCurrentUser { Roles = ["admin"] },
+            new FixedTimeProvider(now ?? DefaultNow));
+
+    private static readonly DateTimeOffset DefaultNow = new(2030, 1, 2, 9, 0, 0, TimeSpan.Zero);
+
+    private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => now;
+    }
+
+    private sealed class FakeStatusRepository : IStatusRepository
+    {
+        public int TodayAppointmentCount { get; init; }
+        public int PendingJoinRequestCount { get; init; }
+        public (IReadOnlyCollection<Guid> ClinicIds, DateTimeOffset TodayStart, DateTimeOffset TodayEnd)? ClinicCountsRequest { get; private set; }
+        public IReadOnlyCollection<Guid>? PendingJoinRequestClinicIds { get; private set; }
+
+        public Task<DashboardScopeCounts> GetClinicCountsAsync(
+            IReadOnlyCollection<Guid> clinicIds,
+            DateTimeOffset todayStart,
+            DateTimeOffset todayEnd)
+        {
+            ClinicCountsRequest = (clinicIds, todayStart, todayEnd);
+            return Task.FromResult(new DashboardScopeCounts(1, 0, 0, 0, TodayAppointmentCount));
+        }
+
+        public Task<int> CountPendingJoinRequestsAsync(IReadOnlyCollection<Guid> clinicIds)
+        {
+            PendingJoinRequestClinicIds = clinicIds;
+            return Task.FromResult(PendingJoinRequestCount);
+        }
+
+        public Task<StatusStatistics> GetStatisticsAsync() => throw new NotSupportedException();
+        public Task<DashboardResponse> GetDashboardAsync(DateTimeOffset now) => throw new NotSupportedException();
+        public Task<DashboardScopeCounts> GetPlatformCountsAsync(DateTimeOffset todayStart, DateTimeOffset todayEnd) =>
+            throw new NotSupportedException();
+        public Task<int> CountAllPendingJoinRequestsAsync() => throw new NotSupportedException();
+        public Task<DoctorDashboardSection> GetDoctorDashboardAsync(
+            Guid providerId,
+            DateTimeOffset now,
+            DateTimeOffset todayStart,
+            DateTimeOffset todayEnd,
+            DateTimeOffset weekEnd) => throw new NotSupportedException();
+        public Task<PatientDashboardSection> GetPatientDashboardAsync(Guid patientId, DateTimeOffset now) =>
+            throw new NotSupportedException();
+    }
 
     private sealed class FakeClinicAdminRepository : IClinicAdminRepository
     {
@@ -238,8 +429,9 @@ public class ClinicServiceTests
 
         public Task<Clinic?> GetClinicByIdAsync(Guid clinicId) =>
             Task.FromResult(ExistingClinic?.Id == clinicId ? ExistingClinic : null);
+        public List<Clinic> AllClinics { get; } = [];
         public Task<IEnumerable<Clinic>> GetAllClinicsAsync() =>
-            Task.FromResult<IEnumerable<Clinic>>(Array.Empty<Clinic>());
+            Task.FromResult<IEnumerable<Clinic>>(AllClinics.ToList());
         public Task<Guid> AddClinicAsync(Clinic clinic)
         {
             AddedClinic = clinic;
@@ -259,11 +451,19 @@ public class ClinicServiceTests
             Task.FromResult(ExistingClinic?.Id == clinicId);
         public Task<(IReadOnlyList<Clinic> Items, int TotalCount)> SearchClinicsAsync(
             ClinicManagement.Application.Models.PageQuery query,
-            int offset) => throw new NotSupportedException();
+            int offset) =>
+            Task.FromResult<(IReadOnlyList<Clinic> Items, int TotalCount)>(
+                (AllClinics.Skip(offset).Take(query.PageSize).ToList(), AllClinics.Count));
     }
 
     private sealed class FakeProviderRepository : IProviderRepository
     {
+        public Task<IReadOnlyDictionary<Guid, int>> GetVerifiedProviderCountsByClinicAsync() =>
+            Task.FromResult<IReadOnlyDictionary<Guid, int>>(Providers
+                .Where(provider => provider.VerificationStatus == ClinicManagement.Domain.Enums.ProviderVerificationStatus.VERIFIED
+                    && provider.ClinicId is not null)
+                .GroupBy(provider => provider.ClinicId!.Value)
+                .ToDictionary(group => group.Key, group => group.Count()));
         public Task<(IReadOnlyList<ClinicManagement.Application.Models.ProviderPatientRosterItem> Items, int TotalCount)>
             SearchPatientRosterAsync(
                 Guid providerId,

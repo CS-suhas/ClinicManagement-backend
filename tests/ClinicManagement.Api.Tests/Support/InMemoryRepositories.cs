@@ -200,6 +200,13 @@ internal sealed class InMemoryProviderRepository(InMemoryStore store) : IProvide
         return Task.FromResult<(IReadOnlyList<ProviderPatientRosterItem>, int)>((items, patients.Count));
     }
 
+    public Task<IReadOnlyDictionary<Guid, int>> GetVerifiedProviderCountsByClinicAsync() =>
+        Task.FromResult<IReadOnlyDictionary<Guid, int>>(store.Providers
+            .Where(provider => provider.VerificationStatus == ProviderVerificationStatus.VERIFIED
+                && provider.ClinicId is not null)
+            .GroupBy(provider => provider.ClinicId!.Value)
+            .ToDictionary(group => group.Key, group => group.Count()));
+
     public Task<Provider?> GetProviderByIdAsync(Guid providerId) =>
         Task.FromResult<Provider?>(store.Providers.FirstOrDefault(provider => provider.Id == providerId) is { } found ? Attach(found) : null);
 
@@ -291,8 +298,20 @@ internal sealed class InMemoryClinicRepository(InMemoryStore store) : IClinicRep
     public Task<bool> ClinicExistsAsync(Guid clinicId) =>
         Task.FromResult(store.Clinics.Any(clinic => clinic.Id == clinicId));
 
-    public Task<(IReadOnlyList<Clinic> Items, int TotalCount)> SearchClinicsAsync(PageQuery query, int offset) =>
-        throw new NotSupportedException();
+    public Task<(IReadOnlyList<Clinic> Items, int TotalCount)> SearchClinicsAsync(PageQuery query, int offset)
+    {
+        var search = query.NormalizedSearch;
+        var matches = store.Clinics
+            .Where(clinic => search is null
+                || clinic.Name.Contains(search, StringComparison.OrdinalIgnoreCase)
+                || (clinic.Address?.Contains(search, StringComparison.OrdinalIgnoreCase) ?? false)
+                || (clinic.PhoneNumber?.Contains(search, StringComparison.OrdinalIgnoreCase) ?? false))
+            .OrderBy(clinic => clinic.Name, StringComparer.Ordinal)
+            .ThenBy(clinic => clinic.Id)
+            .ToList();
+        IReadOnlyList<Clinic> items = matches.Skip(offset).Take(query.PageSize).ToList();
+        return Task.FromResult<(IReadOnlyList<Clinic> Items, int TotalCount)>((items, matches.Count));
+    }
 }
 
 internal sealed class InMemoryAppointmentRepository(InMemoryStore store) : IAppointmentRepository

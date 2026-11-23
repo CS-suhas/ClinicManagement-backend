@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using ClinicManagement.Api.Tests.Support;
 using ClinicManagement.Application.AllergyTypes.Models;
 using ClinicManagement.Application.Appointments.Models;
@@ -27,6 +28,7 @@ public sealed class ApiAuthorizationTests(ClinicApiFactory factory)
             (HttpMethod.Put, $"/api/clinics/{world.Clinic.Id}"),
             (HttpMethod.Delete, $"/api/clinics/{world.Clinic.Id}"),
             (HttpMethod.Get, $"/api/clinics/{world.Clinic.Id}/appointments"),
+            (HttpMethod.Get, $"/api/clinics/{world.Clinic.Id}/summary"),
             (HttpMethod.Get, "/api/appointments"),
             (HttpMethod.Post, "/api/appointments"),
             (HttpMethod.Get, $"/api/appointments/{world.Appointment.Id}"),
@@ -1288,6 +1290,147 @@ public sealed class ApiAuthorizationTests(ClinicApiFactory factory)
             subject: null);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task ClinicList_CountsOnlyVerifiedProvidersOfEachClinic()
+    {
+        var world = SeedWorld();
+        var clinic = AddClinic($"Count {Guid.NewGuid():N}");
+        AddVerifiedProvider(clinic, "Ada", "Cole", "Cardiology");
+        AddVerifiedProvider(clinic, "Ben", "Dunn", "Neurology");
+        var unassigned = Provider.Register(Guid.NewGuid(), "Pending", "Person", "Cardiology");
+        Factory.Store.Providers.Add(unassigned);
+
+        using var response = await SendAsync(HttpMethod.Get, "/api/clinics", world.PatientSubject);
+        using var document = await ReadJsonAsync(response);
+        var item = document.RootElement.EnumerateArray().Single(element => element.GetProperty("id").GetGuid() == clinic.Id);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(2, item.GetProperty("providerCount").GetInt32());
+        Assert.Equal(clinic.Name, item.GetProperty("name").GetString());
+    }
+
+    [Fact]
+    public async Task ClinicSearch_IncludesProviderCountOnEachItem()
+    {
+        var world = SeedWorld();
+        var name = $"Searchable {Guid.NewGuid():N}";
+        var clinic = AddClinic(name);
+        AddVerifiedProvider(clinic, "Ada", "Cole", "Cardiology");
+
+        using var response = await SendAsync(HttpMethod.Get, $"/api/clinics/search?search={Uri.EscapeDataString(name)}", world.PatientSubject);
+        using var document = await ReadJsonAsync(response);
+        var item = document.RootElement.GetProperty("items").EnumerateArray().Single();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(1, item.GetProperty("providerCount").GetInt32());
+        Assert.Equal(clinic.Id, item.GetProperty("id").GetGuid());
+    }
+
+    [Fact]
+    public async Task ClinicSummary_IsAvailableToAnySignedInRole()
+    {
+        var world = SeedWorld();
+        var clinic = AddClinic($"Open {Guid.NewGuid():N}");
+
+        foreach (var role in new[] { "patient", "doctor", "clinicadmin", "admin" })
+        {
+            using var response = await SendAsync(HttpMethod.Get, $"/api/clinics/{clinic.Id}/summary", world.SubjectFor(role));
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        }
+    }
+
+    [Fact]
+    public async Task ClinicSummary_UnknownClinicIsNotFound()
+    {
+        var world = SeedWorld();
+
+        using var response = await SendAsync(HttpMethod.Get, $"/api/clinics/{Guid.NewGuid()}/summary", world.DoctorSubject);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task ClinicSummary_ReturnsCountsSpecialtiesAndProvidersInCamelCase()
+    {
+        var world = SeedWorld();
+        var clinic = AddClinic($"Summary {Guid.NewGuid():N}");
+        var ada = AddVerifiedProvider(clinic, "Ada", "Cole", "Cardiology");
+        var ben = AddVerifiedProvider(clinic, "Ben", "Cole", "Cardiology");
+        AddVerifiedProvider(clinic, "Cy", "Dunn", "Neurology");
+        Factory.Store.Providers.Add(Provider.Register(Guid.NewGuid(), "Pending", "Person", "Cardiology"));
+        var todayStart = new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero);
+        AddAppointment(world.Patient, ada, todayStart.AddHours(9), AppointmentStatus.REQUESTED);
+        AddAppointment(world.Patient, ada, todayStart.AddHours(10), AppointmentStatus.DECLINED);
+        AddAppointment(world.Patient, ben, todayStart.AddHours(11), AppointmentStatus.CANCELLED);
+        AddAppointment(world.Patient, ben, todayStart.AddHours(12), AppointmentStatus.CONFIRMED);
+        AddAppointment(world.Patient, ben, todayStart.AddDays(1).AddHours(9), AppointmentStatus.CONFIRMED);
+
+        using var response = await SendAsync(HttpMethod.Get, $"/api/clinics/{clinic.Id}/summary", world.DoctorSubject);
+        using var document = await ReadJsonAsync(response);
+        var root = document.RootElement;
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(
+            ["clinic", "providerCount", "todayAppointmentCount", "pendingJoinRequestCount", "topSpecialties", "providers"],
+            root.EnumerateObject().Select(property => property.Name).ToArray());
+        Assert.Equal(
+            ["id", "name", "address", "phoneNumber"],
+            root.GetProperty("clinic").EnumerateObject().Select(property => property.Name).ToArray());
+        Assert.Equal(clinic.Id, root.GetProperty("clinic").GetProperty("id").GetGuid());
+        Assert.Equal(3, root.GetProperty("providerCount").GetInt32());
+        Assert.Equal(2, root.GetProperty("todayAppointmentCount").GetInt32());
+        Assert.Equal(JsonValueKind.Null, root.GetProperty("pendingJoinRequestCount").ValueKind);
+        Assert.Equal(
+            ["Cardiology", "Neurology"],
+            root.GetProperty("topSpecialties").EnumerateArray().Select(element => element.GetString()!).ToArray());
+        var providers = root.GetProperty("providers").EnumerateArray().ToList();
+        Assert.Equal(
+            ["Ada Cole", "Ben Cole", "Cy Dunn"],
+            providers.Select(provider => $"{provider.GetProperty("firstName").GetString()} {provider.GetProperty("lastName").GetString()}").ToArray());
+        Assert.Equal(clinic.Name, providers[0].GetProperty("clinicName").GetString());
+    }
+
+    [Fact]
+    public async Task ClinicSummary_ShowsPendingJoinRequestsOnlyToAdministratorsOfThisClinic()
+    {
+        var world = SeedWorld();
+        var clinic = AddClinic($"Requests {Guid.NewGuid():N}");
+        var ownAdminSubject = Subject("clinicadmin");
+        Factory.Store.ClinicAdmins.Add(ClinicAdmin.Create(Guid.NewGuid(), clinic.Id, ownAdminSubject));
+        Factory.Store.JoinRequests.Add(ClinicJoinRequest.Create(Guid.NewGuid(), world.PendingProvider.Id, clinic.Id));
+
+        Assert.Equal(1, await PendingJoinRequestCountAsync(clinic.Id, world.SubjectFor("admin")));
+        Assert.Equal(1, await PendingJoinRequestCountAsync(clinic.Id, ownAdminSubject));
+        Assert.Null(await PendingJoinRequestCountAsync(clinic.Id, world.ClinicAdminSubject));
+        Assert.Null(await PendingJoinRequestCountAsync(clinic.Id, world.DoctorSubject));
+        Assert.Null(await PendingJoinRequestCountAsync(clinic.Id, world.PatientSubject));
+    }
+
+    private Clinic AddClinic(string name)
+    {
+        var clinic = Clinic.Create(Guid.NewGuid(), name, "9 Test Street", "555-0199");
+        Factory.Store.Clinics.Add(clinic);
+        return clinic;
+    }
+
+    private Provider AddVerifiedProvider(Clinic clinic, string firstName, string lastName, string specialty)
+    {
+        var provider = Provider.Create(Guid.NewGuid(), clinic.Id, firstName, lastName, specialty);
+        Factory.Store.Providers.Add(provider);
+        return provider;
+    }
+
+    private static async Task<JsonDocument> ReadJsonAsync(HttpResponseMessage response) =>
+        JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+
+    private async Task<int?> PendingJoinRequestCountAsync(Guid clinicId, string subject)
+    {
+        using var response = await SendAsync(HttpMethod.Get, $"/api/clinics/{clinicId}/summary", subject);
+        using var document = await ReadJsonAsync(response);
+        var value = document.RootElement.GetProperty("pendingJoinRequestCount");
+        return value.ValueKind == JsonValueKind.Null ? null : value.GetInt32();
     }
 
     private static DateOnly BusyDay() => DateOnly.FromDateTime(DateTime.UtcNow.AddDays(10));

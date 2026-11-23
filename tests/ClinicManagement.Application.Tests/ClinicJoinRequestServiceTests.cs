@@ -325,6 +325,8 @@ public class ClinicJoinRequestServiceTests
 
     private sealed class FakeProviderRepository(Provider? provider) : IProviderRepository
     {
+        public Task<IReadOnlyDictionary<Guid, int>> GetVerifiedProviderCountsByClinicAsync() =>
+            throw new NotSupportedException();
         public Task<(IReadOnlyList<ClinicManagement.Application.Models.ProviderPatientRosterItem> Items, int TotalCount)>
             SearchPatientRosterAsync(
                 Guid providerId,

@@ -13,6 +13,7 @@ using ClinicManagement.Application.Interfaces;
 using ClinicManagement.Application.Models;
 using ClinicManagement.Application.Repositories;
 using ClinicManagement.Domain.Entities;
+using ClinicManagement.Domain.Enums;
 using ClinicManagement.Domain.Exceptions;
 
 namespace ClinicManagement.Application.Clinics.Services;
@@ -22,7 +23,9 @@ public class ClinicService(
     IProviderRepository providerRepository,
     IAppointmentRepository appointmentRepository,
     IClinicAdminRepository clinicAdminRepository,
-    ICurrentUser currentUser) : IClinicService
+    IStatusRepository statusRepository,
+    ICurrentUser currentUser,
+    TimeProvider timeProvider) : IClinicService
 {
     public async Task<ClinicResponse> GetClinicByIdAsync(Guid clinicId)
     {
@@ -33,22 +36,70 @@ public class ClinicService(
         return clinic.ToResponse();
     }
 
-    public async Task<IEnumerable<ClinicResponse>> GetAllClinicsAsync()
+    public async Task<IEnumerable<ClinicListItemResponse>> GetAllClinicsAsync()
     {
         var clinics = await clinicRepository.GetAllClinicsAsync();
-        return clinics.Select(clinic => clinic.ToResponse());
+        var providerCounts = await providerRepository.GetVerifiedProviderCountsByClinicAsync();
+        return clinics.Select(clinic => clinic.ToListItem(providerCounts.GetValueOrDefault(clinic.Id))).ToList();
     }
 
-    public async Task<PagedResponse<ClinicResponse>> SearchClinicsAsync(PageQuery query)
+    public async Task<PagedResponse<ClinicListItemResponse>> SearchClinicsAsync(PageQuery query)
     {
         var offset = query.GetOffset();
         var (items, totalCount) = await clinicRepository.SearchClinicsAsync(query, offset);
-        return new PagedResponse<ClinicResponse>(
-            items.Select(item => item.ToResponse()).ToArray(),
+        var providerCounts = await providerRepository.GetVerifiedProviderCountsByClinicAsync();
+        return new PagedResponse<ClinicListItemResponse>(
+            items.Select(item => item.ToListItem(providerCounts.GetValueOrDefault(item.Id))).ToArray(),
             totalCount,
             query.Page,
             query.PageSize);
     }
+
+    public async Task<ClinicSummaryResponse> GetClinicSummaryAsync(Guid clinicId)
+    {
+        RequestValidator.EnsureGuid(clinicId, nameof(clinicId), "Clinic ID");
+        CurrentUserGuard.RequireAuthenticated(currentUser);
+
+        var clinic = await clinicRepository.GetClinicByIdAsync(clinicId)
+            ?? throw new ResourceNotFoundException("Clinic", clinicId);
+
+        var verifiedProviders = (await providerRepository.GetProvidersByClinicIdAsync(clinicId))
+            .Where(provider => provider.VerificationStatus == ProviderVerificationStatus.VERIFIED)
+            .OrderBy(provider => provider.LastName, StringComparer.Ordinal)
+            .ThenBy(provider => provider.FirstName, StringComparer.Ordinal)
+            .ToList();
+
+        // Same definition as the dashboard: UTC day, declined and cancelled excluded.
+        var todayStart = new DateTimeOffset(timeProvider.GetUtcNow().UtcDateTime.Date, TimeSpan.Zero);
+        var todayCounts = await statusRepository.GetClinicCountsAsync(
+            [clinicId],
+            todayStart,
+            todayStart.AddDays(1));
+
+        // Pending requests are an administrative detail, so they are only shown to administrators of this clinic.
+        int? pendingJoinRequestCount = null;
+        if (CurrentUserGuard.IsAdministrator(currentUser) || await currentUser.IsClinicAdminOfAsync(clinicId))
+            pendingJoinRequestCount = await statusRepository.CountPendingJoinRequestsAsync([clinicId]);
+
+        var topSpecialties = verifiedProviders
+            .GroupBy(provider => provider.Specialty, StringComparer.Ordinal)
+            .OrderByDescending(group => group.Count())
+            .ThenBy(group => group.Key, StringComparer.Ordinal)
+            .Take(TopSpecialtyCount)
+            .Select(group => group.Key)
+            .ToList();
+
+        return new ClinicSummaryResponse(
+            clinic.ToResponse(),
+            verifiedProviders.Count,
+            todayCounts.TodayAppointmentCount,
+            pendingJoinRequestCount,
+            topSpecialties,
+            verifiedProviders.Take(ProviderPreviewCount).Select(provider => provider.ToResponse()).ToList());
+    }
+
+    private const int TopSpecialtyCount = 3;
+    private const int ProviderPreviewCount = 5;
 
     public async Task<List<ProviderResponse>> GetProvidersByClinicIdAsync(Guid clinicId)
     {
