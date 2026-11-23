@@ -732,4 +732,41 @@ public sealed class ApiAuthorizationTests(ClinicApiFactory factory)
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
+
+    [Fact]
+    public async Task PatientSignUp_AllowsFreshSignedInUserWithoutPatientRole()
+    {
+        var subject = Subject("new");
+        var request = new PatientRequest(Guid.Empty, "Ada", "Lovelace", new DateOnly(1985, 12, 10), "555-0100", "ada@example.com");
+
+        using var response = await SendAsync(HttpMethod.Post, "/api/me/patient", subject, request);
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        Assert.Single(Factory.Store.Patients, patient => patient.IdentitySubject == subject);
+    }
+
+    [Fact]
+    public async Task PatientSignUp_RejectsDuplicateProfileForSameIdentity()
+    {
+        var subject = Subject("new");
+        var request = new PatientRequest(Guid.Empty, "Ada", "Lovelace", new DateOnly(1985, 12, 10), "555-0100", "ada@example.com");
+
+        using var first = await SendAsync(HttpMethod.Post, "/api/me/patient", subject, request);
+        using var second = await SendAsync(HttpMethod.Post, "/api/me/patient", subject, request);
+
+        Assert.Equal(HttpStatusCode.Created, first.StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, second.StatusCode);
+        Assert.Single(Factory.Store.Patients, patient => patient.IdentitySubject == subject);
+    }
+
+    [Fact]
+    public async Task PatientSignUp_RequiresSignIn()
+    {
+        var request = new PatientRequest(Guid.Empty, "Ada", "Lovelace", new DateOnly(1985, 12, 10), "555-0100", "ada@example.com");
+
+        using var response = await SendAsync(HttpMethod.Post, "/api/me/patient", subject: null, request);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
 }
+

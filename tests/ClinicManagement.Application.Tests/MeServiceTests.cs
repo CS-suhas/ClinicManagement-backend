@@ -69,16 +69,16 @@ public class MeServiceTests
     }
 
     [Fact]
-    public async Task CreatePatientProfileAsync_ForbidsCallerWithoutPatientRole()
+    public async Task CreatePatientProfileAsync_AllowsSignedInUserWithoutPatientRole()
     {
         var repository = new FakePatientRepository();
-        var service = new MeService(repository, new TestCurrentUser { Subject = "kc-9", Roles = ["doctor"] });
+        var service = new MeService(repository, new TestCurrentUser { Subject = "kc-new", Roles = [] });
 
-        await Assert.ThrowsAsync<ForbiddenException>(
-            () => service.CreatePatientProfileAsync(
-                new PatientRequest(Guid.Empty, "Ada", "Lovelace", new DateOnly(1985, 12, 10), "555-0100", "ada@example.com")));
+        var id = await service.CreatePatientProfileAsync(
+            new PatientRequest(Guid.Empty, "Ada", "Lovelace", new DateOnly(1985, 12, 10), "555-0100", "ada@example.com"));
 
-        Assert.Null(repository.AddedPatient);
+        Assert.NotEqual(Guid.Empty, id);
+        Assert.Equal("kc-new", repository.AddedPatient?.IdentitySubject);
     }
 
     private sealed class FakePatientRepository : IPatientRepository

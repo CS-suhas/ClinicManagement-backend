@@ -1,5 +1,4 @@
 using ClinicManagement.Application.Common;
-using ClinicManagement.Application.Common.Exceptions;
 using ClinicManagement.Application.Interfaces;
 using ClinicManagement.Application.Models;
 using ClinicManagement.Application.Patients.Interfaces;
@@ -13,8 +12,6 @@ public class MeService(
     IPatientRepository patientRepository,
     ICurrentUser currentUser) : IMeService
 {
-    private const string PatientRole = "patient";
-
     public async Task<MeResponse> GetCurrentUserAsync()
     {
         CurrentUserGuard.RequireAuthenticated(currentUser);
@@ -34,8 +31,6 @@ public class MeService(
         CurrentUserGuard.RequireAuthenticated(currentUser);
         var subject = CurrentUserGuard.RequireSubject(currentUser);
 
-        if (!currentUser.IsInRole(PatientRole))
-            throw new ForbiddenException("The signed-in user does not have the patient role.");
         if (await currentUser.GetPatientAsync() is not null)
             throw new IdentityAlreadyLinkedException("patient", subject);
 
