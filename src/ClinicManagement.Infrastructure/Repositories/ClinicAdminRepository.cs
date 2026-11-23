@@ -27,6 +27,14 @@ public sealed class ClinicAdminRepository(IDbConnectionFactory connectionFactory
         return count > 0;
     }
 
+    public async Task<IReadOnlyList<Guid>> GetClinicIdsAsync(string identitySubject)
+    {
+        using var connection = connectionFactory.CreateConnection();
+        const string sql = "SELECT ClinicId FROM ClinicAdmins WHERE IdentitySubject = :IdentitySubject ORDER BY ClinicId";
+        var clinicIds = await connection.QueryAsync<string>(sql, new { IdentitySubject = identitySubject });
+        return clinicIds.Select(Guid.Parse).ToList();
+    }
+
     public async Task AddAsync(ClinicAdmin clinicAdmin)
     {
         using var connection = connectionFactory.CreateConnection();

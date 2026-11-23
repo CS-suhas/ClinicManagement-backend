@@ -31,13 +31,19 @@ public sealed class ClinicApiFactory : WebApplicationFactory<Program>
 
     public InMemoryStore Store { get; } = new();
 
-    public string MintToken(string subject)
+    public string MintToken(string subject, string? name = null, string? preferredUsername = null)
     {
+        var claims = new List<System.Security.Claims.Claim> { new("sub", subject) };
+        if (name is not null)
+            claims.Add(new("name", name));
+        if (preferredUsername is not null)
+            claims.Add(new("preferred_username", preferredUsername));
+
         var descriptor = new SecurityTokenDescriptor
         {
             Issuer = Issuer,
             Audience = Audience,
-            Subject = new System.Security.Claims.ClaimsIdentity([new System.Security.Claims.Claim("sub", subject)]),
+            Subject = new System.Security.Claims.ClaimsIdentity(claims),
             Expires = DateTime.UtcNow.AddMinutes(10),
             SigningCredentials = new SigningCredentials(
                 new SymmetricSecurityKey(SigningKeyBytes),

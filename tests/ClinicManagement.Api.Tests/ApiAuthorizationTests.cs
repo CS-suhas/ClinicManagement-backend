@@ -768,5 +768,74 @@ public sealed class ApiAuthorizationTests(ClinicApiFactory factory)
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
+
+    [Fact]
+    public async Task Me_RequiresSignIn()
+    {
+        using var response = await SendAsync(HttpMethod.Get, "/api/me", subject: null);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Me_AllowsSignedInUserWithoutAnyRole()
+    {
+        using var response = await SendAsync(HttpMethod.Get, "/api/me", Subject("fresh"));
+        using var document = System.Text.Json.JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Empty(document.RootElement.GetProperty("clinicAdminOf").EnumerateArray());
+    }
+
+    [Theory]
+    [InlineData("Ada Lovelace", "ada", "Ada Lovelace")]
+    [InlineData(null, "ada", "ada")]
+    [InlineData(null, null, null)]
+    public async Task Me_DisplayNameComesFromNameClaimThenPreferredUsername(
+        string? name,
+        string? preferredUsername,
+        string? expected)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/api/me");
+        request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue(
+            "Bearer",
+            Factory.MintToken(Subject("named"), name, preferredUsername));
+        using var response = await Factory.CreateClient().SendAsync(request);
+        using var document = System.Text.Json.JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var displayName = document.RootElement.GetProperty("displayName");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        if (expected is null)
+            Assert.Equal(System.Text.Json.JsonValueKind.Null, displayName.ValueKind);
+        else
+            Assert.Equal(expected, displayName.GetString());
+    }
+
+    [Fact]
+    public async Task Me_ListsOnlyTheClinicsTheCallerAdministers()
+    {
+        var world = SeedWorld();
+
+        using var response = await SendAsync(HttpMethod.Get, "/api/me", world.ClinicAdminSubject);
+        using var document = System.Text.Json.JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var clinicAdminOf = document.RootElement.GetProperty("clinicAdminOf")
+            .EnumerateArray()
+            .Select(element => element.GetString())
+            .ToList();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal([world.Clinic.Id.ToString()], clinicAdminOf);
+    }
+
+    [Fact]
+    public async Task Me_ClinicAdminOfIsEmptyForDoctors()
+    {
+        var world = SeedWorld();
+
+        using var response = await SendAsync(HttpMethod.Get, "/api/me", world.DoctorSubject);
+        using var document = System.Text.Json.JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+
+        Assert.Empty(document.RootElement.GetProperty("clinicAdminOf").EnumerateArray());
+    }
 }
 

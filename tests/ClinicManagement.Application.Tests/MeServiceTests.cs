@@ -41,6 +41,38 @@ public class MeServiceTests
     }
 
     [Fact]
+    public async Task GetCurrentUserAsync_ReturnsDisplayNameAndAdministeredClinics()
+    {
+        var clinicA = Guid.NewGuid();
+        var clinicB = Guid.NewGuid();
+        var service = new MeService(
+            new FakePatientRepository(),
+            new TestCurrentUser
+            {
+                Subject = "kc-3",
+                Roles = ["clinicadmin"],
+                DisplayName = "Dr. Ada",
+                AdministeredClinicIds = [clinicA, clinicB]
+            });
+
+        var result = await service.GetCurrentUserAsync();
+
+        Assert.Equal("Dr. Ada", result.DisplayName);
+        Assert.Equal([clinicA, clinicB], result.ClinicAdminOf);
+    }
+
+    [Fact]
+    public async Task GetCurrentUserAsync_ReturnsNullDisplayNameAndNoClinicsWhenNoneAreKnown()
+    {
+        var service = new MeService(new FakePatientRepository(), new TestCurrentUser { Subject = "kc-4", Roles = ["patient"] });
+
+        var result = await service.GetCurrentUserAsync();
+
+        Assert.Null(result.DisplayName);
+        Assert.Empty(result.ClinicAdminOf);
+    }
+
+    [Fact]
     public async Task CreatePatientProfileAsync_LinksNewPatientToSubject()
     {
         var repository = new FakePatientRepository();

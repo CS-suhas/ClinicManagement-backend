@@ -18,12 +18,15 @@ public class MeService(
 
         var patient = await currentUser.GetPatientAsync();
         var provider = await currentUser.GetProviderAsync();
+        var clinicAdminOf = await currentUser.GetAdministeredClinicIdsAsync();
 
         return new MeResponse(
             currentUser.Subject,
             currentUser.Roles,
             patient is null ? null : new MeLinkedPatient(patient.Id),
-            provider is null ? null : new MeLinkedProvider(provider.Id, provider.VerificationStatus.ToString()));
+            provider is null ? null : new MeLinkedProvider(provider.Id, provider.VerificationStatus.ToString()),
+            currentUser.DisplayName,
+            clinicAdminOf);
     }
 
     public async Task<Guid> CreatePatientProfileAsync(PatientRequest request)

@@ -219,6 +219,9 @@ public class ClinicServiceTests
 
         public Task<bool> IsAnyAdminAsync(string identitySubject) => Task.FromResult(AlreadyAdmin);
 
+        public Task<IReadOnlyList<Guid>> GetClinicIdsAsync(string identitySubject) =>
+            Task.FromResult<IReadOnlyList<Guid>>([]);
+
         public Task AddAsync(ClinicAdmin clinicAdmin)
         {
             Added = clinicAdmin;

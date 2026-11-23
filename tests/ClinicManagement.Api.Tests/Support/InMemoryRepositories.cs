@@ -274,6 +274,13 @@ internal sealed class InMemoryClinicAdminRepository(InMemoryStore store) : IClin
     public Task<bool> IsAnyAdminAsync(string identitySubject) =>
         Task.FromResult(store.ClinicAdmins.Any(admin => admin.IdentitySubject == identitySubject));
 
+    public Task<IReadOnlyList<Guid>> GetClinicIdsAsync(string identitySubject) =>
+        Task.FromResult<IReadOnlyList<Guid>>(store.ClinicAdmins
+            .Where(admin => admin.IdentitySubject == identitySubject)
+            .Select(admin => admin.ClinicId)
+            .OrderBy(id => id)
+            .ToList());
+
     public Task AddAsync(ClinicAdmin clinicAdmin)
     {
         store.ClinicAdmins.Add(clinicAdmin);

@@ -24,6 +24,17 @@ public sealed class CurrentUser(
         Principal?.FindAll(ClaimTypes.Role).Select(claim => claim.Value).Distinct(StringComparer.OrdinalIgnoreCase).ToList()
         ?? (IReadOnlyCollection<string>)[];
 
+    public string? DisplayName
+    {
+        get
+        {
+            var name = Principal?.FindFirst("name")?.Value;
+            if (string.IsNullOrWhiteSpace(name))
+                name = Principal?.FindFirst("preferred_username")?.Value;
+            return string.IsNullOrWhiteSpace(name) ? null : name;
+        }
+    }
+
     public bool IsInRole(string role) => Principal?.IsInRole(role) == true;
 
     public async Task<Patient?> GetPatientAsync()
@@ -47,5 +58,13 @@ public sealed class CurrentUser(
         var subject = Subject;
         return !string.IsNullOrWhiteSpace(subject)
             && await clinicAdminRepository.IsAdminOfClinicAsync(subject, clinicId);
+    }
+
+    public async Task<IReadOnlyList<Guid>> GetAdministeredClinicIdsAsync()
+    {
+        var subject = Subject;
+        return string.IsNullOrWhiteSpace(subject)
+            ? []
+            : await clinicAdminRepository.GetClinicIdsAsync(subject);
     }
 }
