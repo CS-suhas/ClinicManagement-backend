@@ -41,7 +41,8 @@ public static class ProviderMappings
             provider.Specialty,
             provider.VerificationStatus.ToString(),
             provider.Fee,
-            provider.Gender?.ToString());
+            provider.Gender?.ToString(),
+            provider.Clinic?.Name);
 
     public static void ApplyTo(this ProviderRequest request, Provider provider)
     {

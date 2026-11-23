@@ -1353,4 +1353,117 @@ public sealed class ApiAuthorizationTests(ClinicApiFactory factory)
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.DoesNotContain(Factory.Store.Appointments, appointment => appointment.Id == request.Id);
     }
+
+    [Fact]
+    public async Task ProviderLookup_IsPublicAndCarriesClinicName()
+    {
+        var world = SeedWorld();
+
+        using var response = await SendAsync(HttpMethod.Get, $"/api/providers/{world.Doctor.Id}", subject: null);
+        using var document = System.Text.Json.JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("Riverside Clinic", document.RootElement.GetProperty("clinicName").GetString());
+    }
+
+    [Fact]
+    public async Task ProviderLookup_ClinicNameIsNullForProviderWithoutClinic()
+    {
+        var world = SeedWorld();
+
+        using var response = await SendAsync(HttpMethod.Get, $"/api/providers/{world.PendingProvider.Id}", subject: null);
+        using var document = System.Text.Json.JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(System.Text.Json.JsonValueKind.Null, document.RootElement.GetProperty("clinicName").ValueKind);
+    }
+
+    [Fact]
+    public async Task ClinicProviders_RequireSignInAndCarryClinicName()
+    {
+        var world = SeedWorld();
+
+        using var anonymous = await SendAsync(HttpMethod.Get, $"/api/clinics/{world.Clinic.Id}/providers", subject: null);
+        using var signedIn = await SendAsync(HttpMethod.Get, $"/api/clinics/{world.Clinic.Id}/providers", world.DoctorSubject);
+        using var document = System.Text.Json.JsonDocument.Parse(await signedIn.Content.ReadAsStringAsync());
+        var doctor = document.RootElement.EnumerateArray()
+            .Single(item => item.GetProperty("id").GetGuid() == world.Doctor.Id);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, anonymous.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, signedIn.StatusCode);
+        Assert.Equal("Riverside Clinic", doctor.GetProperty("clinicName").GetString());
+    }
+
+    [Theory]
+    [InlineData("patient")]
+    [InlineData("doctor")]
+    [InlineData("clinicadmin")]
+    public async Task AllProviders_IsAdministratorOnly(string role)
+    {
+        var world = SeedWorld();
+
+        using var response = await SendAsync(HttpMethod.Get, "/api/providers", world.SubjectFor(role));
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task AllProviders_AdministratorSeesClinicName()
+    {
+        var world = SeedWorld();
+
+        using var response = await SendAsync(HttpMethod.Get, "/api/providers", world.SubjectFor("admin"));
+        using var document = System.Text.Json.JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var doctor = document.RootElement.EnumerateArray()
+            .Single(item => item.GetProperty("id").GetGuid() == world.Doctor.Id);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("Riverside Clinic", doctor.GetProperty("clinicName").GetString());
+    }
+
+    [Fact]
+    public async Task ProviderDirectory_CarriesClinicNameForListedProviders()
+    {
+        var world = SeedWorld();
+
+        using var response = await SendAsync(HttpMethod.Get, "/api/providers/directory", subject: null);
+        using var document = System.Text.Json.JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var doctor = document.RootElement.GetProperty("items").EnumerateArray()
+            .Single(item => item.GetProperty("id").GetGuid() == world.Doctor.Id);
+
+        Assert.Equal("Riverside Clinic", doctor.GetProperty("clinicName").GetString());
+    }
+
+    [Fact]
+    public async Task AppointmentProvider_RequiresSignIn()
+    {
+        var world = SeedWorld();
+
+        using var response = await SendAsync(HttpMethod.Get, $"/api/appointments/{world.Appointment.Id}/provider", subject: null);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task AppointmentProvider_ForbidsUnrelatedPatient()
+    {
+        var world = SeedWorld();
+
+        using var response = await SendAsync(HttpMethod.Get, $"/api/appointments/{world.Appointment.Id}/provider", world.OtherPatientSubject);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task AppointmentProvider_AllowsParticipantAndCarriesClinicName()
+    {
+        var world = SeedWorld();
+
+        using var response = await SendAsync(HttpMethod.Get, $"/api/appointments/{world.Appointment.Id}/provider", world.PatientSubject);
+        using var document = System.Text.Json.JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(world.Doctor.Id, document.RootElement.GetProperty("id").GetGuid());
+        Assert.Equal("Riverside Clinic", document.RootElement.GetProperty("clinicName").GetString());
+    }
 }

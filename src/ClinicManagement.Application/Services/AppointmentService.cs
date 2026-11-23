@@ -130,8 +130,14 @@ public class AppointmentService(
     public async Task<PatientResponse> GetPatientByAppointmentIdAsync(Guid appointmentId) =>
         (await GetViewableAppointmentAsync(appointmentId)).Patient.ToResponse();
 
-    public async Task<ProviderResponse> GetProviderByAppointmentIdAsync(Guid appointmentId) =>
-        (await GetViewableAppointmentAsync(appointmentId)).Provider.ToResponse();
+    public async Task<ProviderResponse> GetProviderByAppointmentIdAsync(Guid appointmentId)
+    {
+        var appointment = await GetViewableAppointmentAsync(appointmentId);
+        // Reload the provider so the response carries its clinic name; appointment rows do not join clinics.
+        var provider = await providerRepository.GetProviderByIdAsync(appointment.ProviderId)
+            ?? throw new ResourceNotFoundException("Provider", appointment.ProviderId);
+        return provider.ToResponse();
+    }
 
     public async Task<ClinicResponse> GetClinicByAppointmentIdAsync(Guid appointmentId)
     {

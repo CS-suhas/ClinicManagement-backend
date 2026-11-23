@@ -442,6 +442,7 @@ public class AppointmentServiceTests
             new FakeAppointmentRepository { AppointmentById = appointment },
             new FakePatientRepository(),
             new FakeClinicRepository { ExistingClinic = clinic },
+            providerRepository: new FakeProviderRepository { ConfiguredProvider = provider },
             currentUser: PatientUser(patient.Id));
 
         var appointmentPatient = await service.GetPatientByAppointmentIdAsync(appointment.Id);
@@ -565,6 +566,23 @@ public class AppointmentServiceTests
 
         Assert.Equal("date", exception.PropertyName);
         Assert.Null(repository.ActiveStartTimeRange);
+    }
+
+    [Fact]
+    public async Task GetProviderByAppointmentIdAsync_IncludesTheProvidersClinicName()
+    {
+        var clinic = Clinic.Create(Guid.NewGuid(), "Riverside Clinic", "1 River Road", "555-0100");
+        var provider = Provider.Create(Guid.NewGuid(), "Alan", "Turing", "Computing", clinic);
+        var appointment = CreateExistingAppointment(provider.Id, Guid.NewGuid(), CurrentTime.AddHours(2));
+        var service = CreateService(
+            new FakeAppointmentRepository { AppointmentById = appointment },
+            new FakePatientRepository(),
+            providerRepository: new FakeProviderRepository { ConfiguredProvider = provider },
+            currentUser: new TestCurrentUser { Roles = ["admin"] });
+
+        var result = await service.GetProviderByAppointmentIdAsync(appointment.Id);
+
+        Assert.Equal("Riverside Clinic", result.ClinicName);
     }
 
     private static readonly Patient DefaultPatient = Patient.Create(

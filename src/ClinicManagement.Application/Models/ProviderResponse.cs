@@ -8,5 +8,6 @@ public record ProviderResponse(
     string Specialty,
     string VerificationStatus,
     decimal? Fee,
-    string? Gender
+    string? Gender,
+    string? ClinicName
 );

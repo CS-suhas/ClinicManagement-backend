@@ -84,6 +84,15 @@ internal sealed class InMemoryPatientRepository(InMemoryStore store) : IPatientR
 
 internal sealed class InMemoryProviderRepository(InMemoryStore store) : IProviderRepository
 {
+    private Provider Attach(Provider provider)
+    {
+        // The SQL repository joins the clinic onto every provider it returns; mirror that here.
+        if (provider.Clinic is null && provider.ClinicId is { } clinicId
+            && store.Clinics.FirstOrDefault(clinic => clinic.Id == clinicId) is { } clinic)
+            provider.SetClinic(clinic);
+        return provider;
+    }
+
     public Task<(IReadOnlyList<ProviderPatientRosterItem> Items, int TotalCount)> SearchPatientRosterAsync(
         Guid providerId,
         PageQuery query,
@@ -120,13 +129,13 @@ internal sealed class InMemoryProviderRepository(InMemoryStore store) : IProvide
     }
 
     public Task<Provider?> GetProviderByIdAsync(Guid providerId) =>
-        Task.FromResult(store.Providers.FirstOrDefault(provider => provider.Id == providerId));
+        Task.FromResult<Provider?>(store.Providers.FirstOrDefault(provider => provider.Id == providerId) is { } found ? Attach(found) : null);
 
     public Task<IEnumerable<Provider>> GetAllProvidersAsync() =>
-        Task.FromResult<IEnumerable<Provider>>(store.Providers.ToList());
+        Task.FromResult<IEnumerable<Provider>>(store.Providers.Select(Attach).ToList());
 
     public Task<IEnumerable<Provider>> GetProvidersByClinicIdAsync(Guid clinicId) =>
-        Task.FromResult<IEnumerable<Provider>>(store.Providers.Where(provider => provider.ClinicId == clinicId).ToList());
+        Task.FromResult<IEnumerable<Provider>>(store.Providers.Where(provider => provider.ClinicId == clinicId).Select(Attach).ToList());
 
     public Task<Guid> DeleteProviderAsync(Guid providerId)
     {
@@ -150,7 +159,7 @@ internal sealed class InMemoryProviderRepository(InMemoryStore store) : IProvide
         Task.FromResult(store.Providers.Any(provider => provider.Id == providerId && provider.VerificationStatus == next));
 
     public Task<Provider?> GetByIdentitySubjectAsync(string identitySubject) =>
-        Task.FromResult(store.Providers.FirstOrDefault(provider => provider.IdentitySubject == identitySubject));
+        Task.FromResult<Provider?>(store.Providers.FirstOrDefault(provider => provider.IdentitySubject == identitySubject) is { } found ? Attach(found) : null);
 
     public Task<(IReadOnlyList<Provider> Items, int TotalCount)> SearchPublicProvidersAsync(
         PageQuery query,
@@ -162,6 +171,7 @@ internal sealed class InMemoryProviderRepository(InMemoryStore store) : IProvide
                 && provider.ClinicId is not null
                 && (clinicId is null || provider.ClinicId == clinicId))
             .ToList();
+        items = items.Select(Attach).ToList();
         return Task.FromResult<(IReadOnlyList<Provider>, int)>((items, items.Count));
     }
 
@@ -179,6 +189,7 @@ internal sealed class InMemoryProviderRepository(InMemoryStore store) : IProvide
             .Where(provider => (clinicId is null || provider.ClinicId == clinicId)
                 && (verificationStatus is null || provider.VerificationStatus == verificationStatus))
             .ToList();
+        items = items.Select(Attach).ToList();
         return Task.FromResult<(IReadOnlyList<Provider>, int)>((items, items.Count));
     }
 }
