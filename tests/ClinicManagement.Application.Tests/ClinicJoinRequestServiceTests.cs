@@ -43,6 +43,15 @@ public class ClinicJoinRequestServiceTests
         Assert.Null(requests.Decided);
     }
 
+    [Fact]
+    public async Task GetByProviderIdAsync_ForbidsProviderOtherThanTheCaller()
+    {
+        var caller = VerifiedUnassignedProvider();
+        var (service, _) = CreateService(currentUser: new TestCurrentUser { Provider = caller });
+
+        await Assert.ThrowsAsync<ForbiddenException>(() => service.GetByProviderIdAsync(Guid.NewGuid()));
+    }
+
     private static TestCurrentUser AdministratorOf(Guid clinicId) =>
         new() { AdministeredClinicIds = [clinicId] };
 

@@ -172,6 +172,30 @@ public class ClinicServiceTests
         Assert.Null(adminRepository.Added);
     }
 
+    [Fact]
+    public async Task GetAppointmentsByClinicIdAsync_ForbidsClinicAdminOfAnotherClinic()
+    {
+        var clinic = Clinic.Create(Guid.NewGuid(), "Clinic", null, null);
+        var service = CreateService(
+            new FakeClinicRepository { ExistingClinic = clinic },
+            currentUser: new TestCurrentUser { AdministeredClinicIds = [Guid.NewGuid()] });
+
+        await Assert.ThrowsAsync<ForbiddenException>(() => service.GetAppointmentsByClinicIdAsync(clinic.Id));
+    }
+
+    [Fact]
+    public async Task GetAppointmentsByClinicIdAsync_AllowsClinicAdminOfThatClinic()
+    {
+        var clinic = Clinic.Create(Guid.NewGuid(), "Clinic", null, null);
+        var service = CreateService(
+            new FakeClinicRepository { ExistingClinic = clinic },
+            currentUser: new TestCurrentUser { AdministeredClinicIds = [clinic.Id] });
+
+        var result = await service.GetAppointmentsByClinicIdAsync(clinic.Id);
+
+        Assert.Empty(result);
+    }
+
     private static ClinicService CreateService(
         FakeClinicRepository clinicRepository,
         FakeProviderRepository? providerRepository = null,

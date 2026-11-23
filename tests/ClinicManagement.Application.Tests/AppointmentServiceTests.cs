@@ -517,6 +517,78 @@ public class AppointmentServiceTests
         Assert.Null(repository.StatusChange);
     }
 
+    [Fact]
+    public async Task GetAppointmentByIdAsync_AllowsClinicAdminOfTheProvidersClinic()
+    {
+        var request = CreateRequest(CurrentTime.AddHours(2));
+        var appointment = CreateExistingAppointment(request.ProviderId, request.PatientId, CurrentTime.AddHours(2), request.Id);
+        var repository = new FakeAppointmentRepository { AppointmentById = appointment };
+        var currentUser = new TestCurrentUser { AdministeredClinicIds = [appointment.Provider.ClinicId!.Value] };
+        var service = CreateService(repository, new FakePatientRepository(), currentUser: currentUser);
+
+        var result = await service.GetAppointmentByIdAsync(request.Id);
+
+        Assert.Equal(request.Id, result.Id);
+    }
+
+    [Fact]
+    public async Task GetAppointmentByIdAsync_ForbidsClinicAdminOfAnotherClinic()
+    {
+        var request = CreateRequest(CurrentTime.AddHours(2));
+        var repository = new FakeAppointmentRepository
+        {
+            AppointmentById = CreateExistingAppointment(request.ProviderId, request.PatientId, CurrentTime.AddHours(2), request.Id)
+        };
+        var currentUser = new TestCurrentUser { AdministeredClinicIds = [Guid.NewGuid()] };
+        var service = CreateService(repository, new FakePatientRepository(), currentUser: currentUser);
+
+        await Assert.ThrowsAsync<ForbiddenException>(() => service.GetAppointmentByIdAsync(request.Id));
+    }
+
+    [Fact]
+    public async Task GetAppointmentByIdAsync_AllowsAdministratorForAnyAppointment()
+    {
+        var request = CreateRequest(CurrentTime.AddHours(2));
+        var repository = new FakeAppointmentRepository
+        {
+            AppointmentById = CreateExistingAppointment(request.ProviderId, request.PatientId, CurrentTime.AddHours(2), request.Id)
+        };
+        var service = CreateService(repository, new FakePatientRepository(), currentUser: new TestCurrentUser { Roles = ["admin"] });
+
+        var result = await service.GetAppointmentByIdAsync(request.Id);
+
+        Assert.Equal(request.Id, result.Id);
+    }
+
+    [Fact]
+    public async Task GetAppointmentByIdAsync_RequiresSignedInUser()
+    {
+        var request = CreateRequest(CurrentTime.AddHours(2));
+        var repository = new FakeAppointmentRepository
+        {
+            AppointmentById = CreateExistingAppointment(request.ProviderId, request.PatientId, CurrentTime.AddHours(2), request.Id)
+        };
+        var anonymous = new TestCurrentUser { IsAuthenticated = false, Subject = null };
+        var service = CreateService(repository, new FakePatientRepository(), currentUser: anonymous);
+
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => service.GetAppointmentByIdAsync(request.Id));
+    }
+
+    [Fact]
+    public async Task CancelAppointmentAsync_AllowsTheBookingPatient()
+    {
+        var request = CreateRequest(CurrentTime.AddHours(2));
+        var repository = new FakeAppointmentRepository
+        {
+            AppointmentById = CreateExistingAppointment(request.ProviderId, request.PatientId, CurrentTime.AddHours(2), request.Id)
+        };
+        var service = CreateService(repository, new FakePatientRepository(), currentUser: PatientUser(request.PatientId));
+
+        await service.CancelAppointmentAsync(request.Id);
+
+        Assert.NotNull(repository.StatusChange);
+    }
+
     private static AppointmentRequest CreateRequest(DateTimeOffset appointmentDateTime) =>
         new(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), appointmentDateTime, "Checkup");
 

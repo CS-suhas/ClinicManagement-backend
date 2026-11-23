@@ -280,6 +280,34 @@ public class ProviderServiceTests
         Assert.Null(providerRepository.Registered);
     }
 
+    [Fact]
+    public async Task GetProviderCalendarAsync_ForbidsUnverifiedProvider()
+    {
+        var pending = Provider.Register(Guid.NewGuid(), "Grace", "Hopper", "Computing");
+        var service = new ProviderService(
+            new FakeProviderRepository { ExistingProvider = pending },
+            new FakeClinicRepository(),
+            new FakeAppointmentRepository(),
+            new TestCurrentUser { Provider = pending });
+        var from = new DateTimeOffset(2030, 1, 1, 0, 0, 0, TimeSpan.Zero);
+
+        await Assert.ThrowsAsync<ForbiddenException>(
+            () => service.GetProviderCalendarAsync(pending.Id, from, from.AddDays(7), false));
+    }
+
+    [Fact]
+    public async Task GetAppointmentsByProviderIdAsync_ForbidsClinicAdminOfAnotherClinic()
+    {
+        var provider = Provider.Create(Guid.NewGuid(), Guid.NewGuid(), "Grace", "Hopper", "Computing");
+        var service = new ProviderService(
+            new FakeProviderRepository { ExistingProvider = provider },
+            new FakeClinicRepository(),
+            new FakeAppointmentRepository(),
+            new TestCurrentUser { AdministeredClinicIds = [Guid.NewGuid()] });
+
+        await Assert.ThrowsAsync<ForbiddenException>(() => service.GetAppointmentsByProviderIdAsync(provider.Id));
+    }
+
     private sealed class FakeProviderRepository : IProviderRepository
     {
         public Provider? ExistingByIdentitySubject { get; init; }

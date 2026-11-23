@@ -240,6 +240,26 @@ public class PatientServiceTests
         Assert.Equal(self.Id, result.Id);
     }
 
+    [Fact]
+    public async Task GetAppointmentsByPatientIdAsync_RejectsAnotherPatient()
+    {
+        var service = CreateService(new FakePatientRepository(), SignedInPatient(Guid.NewGuid()));
+
+        await Assert.ThrowsAsync<ForbiddenException>(() => service.GetAppointmentsByPatientIdAsync(Guid.NewGuid()));
+    }
+
+    [Fact]
+    public async Task UpdatePatientAsync_RejectsAnotherPatientWithoutSaving()
+    {
+        var existing = Patient.Create(Guid.NewGuid(), "Ada", "Lovelace", new DateOnly(1985, 12, 10), "ada@example.com", "555-0100");
+        var repository = new FakePatientRepository { ExistingPatient = existing };
+        var service = CreateService(repository, SignedInPatient(Guid.NewGuid()));
+
+        await Assert.ThrowsAsync<ForbiddenException>(() => service.UpdatePatientAsync(CreatePatientRequest(existing.Id)));
+
+        Assert.Null(repository.UpdatedPatient);
+    }
+
     private static PatientRequest CreatePatientRequest(Guid id) =>
         new(id, "Ada", "Lovelace", new DateOnly(1985, 12, 10), "555-0100", "ada@example.com");
 
