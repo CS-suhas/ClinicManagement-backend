@@ -1,3 +1,4 @@
+using ClinicManagement.Application.Allergies.Interfaces;
 using ClinicManagement.Application.Appointments.Interfaces;
 using ClinicManagement.Application.Clinics.Interfaces;
 using ClinicManagement.Application.ClinicJoinRequests.Interfaces;
@@ -20,6 +21,7 @@ public sealed class InMemoryStore
     public List<ClinicJoinRequest> JoinRequests { get; } = [];
     public List<ClinicAdmin> ClinicAdmins { get; } = [];
     public List<string> PlatformAdminSubjects { get; } = [];
+    public List<AllergyType> AllergyTypes { get; } = [];
 }
 
 internal sealed class InMemoryPatientRepository(InMemoryStore store) : IPatientRepository
@@ -276,4 +278,57 @@ internal sealed class InMemoryPlatformAdminRepository(InMemoryStore store) : IPl
 {
     public Task<bool> IsAdminAsync(string identitySubject) =>
         Task.FromResult(store.PlatformAdminSubjects.Contains(identitySubject));
+}
+
+internal sealed class InMemoryAllergyTypeRepository(InMemoryStore store) : IAllergyTypeRepository
+{
+    public Task<AllergyType?> GetAllergyTypeByIdAsync(Guid allergyTypeId) =>
+        Task.FromResult(store.AllergyTypes.FirstOrDefault(allergyType => allergyType.Id == allergyTypeId));
+
+    public Task<IEnumerable<AllergyType>> GetAllAllergyTypesAsync() =>
+        Task.FromResult<IEnumerable<AllergyType>>(store.AllergyTypes.ToList());
+
+    public Task<IEnumerable<Patient>> GetPatientsByAllergyTypeIdAsync(Guid allergyTypeId) =>
+        Task.FromResult<IEnumerable<Patient>>([]);
+
+    public Task<bool> HasPatientsWithAllergyTypeAsync(Guid allergyTypeId) => Task.FromResult(false);
+
+    public Task<Guid> AddAllergyTypeAsync(AllergyType request)
+    {
+        store.AllergyTypes.Add(request);
+        return Task.FromResult(request.Id);
+    }
+
+    public Task<Guid> UpdateAllergyTypeAsync(AllergyType request) => Task.FromResult(request.Id);
+
+    public Task<Guid> DeleteAllergyTypeAsync(Guid allergyTypeId)
+    {
+        store.AllergyTypes.RemoveAll(allergyType => allergyType.Id == allergyTypeId);
+        return Task.FromResult(allergyTypeId);
+    }
+
+    public Task<(IReadOnlyList<AllergyType> Items, int TotalCount)> SearchAllergyTypesAsync(PageQuery query, int offset)
+    {
+        var items = store.AllergyTypes.ToList();
+        return Task.FromResult<(IReadOnlyList<AllergyType>, int)>((items, items.Count));
+    }
+}
+
+internal sealed class InMemoryStatusRepository(InMemoryStore store) : IStatusRepository
+{
+    public Task<StatusStatistics> GetStatisticsAsync() =>
+        Task.FromResult(new StatusStatistics(
+            store.Clinics.Count,
+            store.Providers.Count,
+            store.Patients.Count,
+            store.Appointments.Count));
+
+    public Task<DashboardResponse> GetDashboardAsync(DateTimeOffset now) =>
+        Task.FromResult(new DashboardResponse(
+            store.Clinics.Count,
+            store.Providers.Count,
+            store.Patients.Count,
+            store.AllergyTypes.Count,
+            store.Appointments.Count,
+            []));
 }

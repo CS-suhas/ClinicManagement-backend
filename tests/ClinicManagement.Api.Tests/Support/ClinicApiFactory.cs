@@ -1,4 +1,5 @@
 using System.Text;
+using ClinicManagement.Application.Allergies.Interfaces;
 using ClinicManagement.Application.Appointments.Interfaces;
 using ClinicManagement.Application.Clinics.Interfaces;
 using ClinicManagement.Application.ClinicJoinRequests.Interfaces;
@@ -69,6 +70,8 @@ public sealed class ClinicApiFactory : WebApplicationFactory<Program>
             services.RemoveAll<IClinicJoinRequestRepository>();
             services.RemoveAll<IClinicAdminRepository>();
             services.RemoveAll<IPlatformAdminRepository>();
+            services.RemoveAll<IAllergyTypeRepository>();
+            services.RemoveAll<IStatusRepository>();
 
             services.AddSingleton<IPatientRepository>(new InMemoryPatientRepository(Store));
             services.AddSingleton<IProviderRepository>(new InMemoryProviderRepository(Store));
@@ -77,6 +80,8 @@ public sealed class ClinicApiFactory : WebApplicationFactory<Program>
             services.AddSingleton<IClinicJoinRequestRepository>(new InMemoryClinicJoinRequestRepository(Store));
             services.AddSingleton<IClinicAdminRepository>(new InMemoryClinicAdminRepository(Store));
             services.AddSingleton<IPlatformAdminRepository>(new InMemoryPlatformAdminRepository(Store));
+            services.AddSingleton<IAllergyTypeRepository>(new InMemoryAllergyTypeRepository(Store));
+            services.AddSingleton<IStatusRepository>(new InMemoryStatusRepository(Store));
 
             services.PostConfigure<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme, options =>
             {

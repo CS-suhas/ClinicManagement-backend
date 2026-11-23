@@ -1,9 +1,11 @@
 using System.Net;
 using System.Net.Http.Json;
 using ClinicManagement.Api.Tests.Support;
+using ClinicManagement.Application.AllergyTypes.Models;
 using ClinicManagement.Application.Appointments.Models;
 using ClinicManagement.Application.Clinics.Models;
 using ClinicManagement.Application.Patients.Models;
+using ClinicManagement.Domain.Entities;
 using ClinicManagement.Domain.Enums;
 
 namespace ClinicManagement.Api.Tests;
@@ -513,4 +515,94 @@ public sealed class ApiAuthorizationTests(ClinicApiFactory factory)
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
+
+    [Fact]
+    public async Task AllergyTypeReads_RequireSignIn()
+    {
+        var allergyType = AddAllergyType();
+
+        using var list = await SendAsync(HttpMethod.Get, "/api/allergy-types", subject: null);
+        using var search = await SendAsync(HttpMethod.Get, "/api/allergy-types/search?page=1&pageSize=10", subject: null);
+        using var detail = await SendAsync(HttpMethod.Get, $"/api/allergy-types/{allergyType.Id}", subject: null);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, list.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, search.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, detail.StatusCode);
+    }
+
+    [Theory]
+    [InlineData("patient")]
+    [InlineData("doctor")]
+    [InlineData("clinicadmin")]
+    public async Task AllergyTypeReads_AllowAnySignedInUser(string role)
+    {
+        var world = SeedWorld();
+        var allergyType = AddAllergyType();
+
+        using var list = await SendAsync(HttpMethod.Get, "/api/allergy-types", world.SubjectFor(role));
+        using var detail = await SendAsync(HttpMethod.Get, $"/api/allergy-types/{allergyType.Id}", world.SubjectFor(role));
+
+        Assert.Equal(HttpStatusCode.OK, list.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, detail.StatusCode);
+    }
+
+    [Fact]
+    public async Task AllergyTypeWrites_RequireSignIn()
+    {
+        var allergyType = AddAllergyType();
+        var request = new AllergyTypeRequest(Guid.Empty, "Latex");
+
+        using var create = await SendAsync(HttpMethod.Post, "/api/allergy-types", subject: null, request);
+        using var update = await SendAsync(HttpMethod.Put, $"/api/allergy-types/{allergyType.Id}", subject: null, request);
+        using var delete = await SendAsync(HttpMethod.Delete, $"/api/allergy-types/{allergyType.Id}", subject: null);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, create.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, update.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, delete.StatusCode);
+        Assert.Contains(allergyType, Factory.Store.AllergyTypes);
+    }
+
+    [Theory]
+    [InlineData("patient")]
+    [InlineData("doctor")]
+    [InlineData("clinicadmin")]
+    public async Task AllergyTypeWrites_AreAdministratorOnly(string role)
+    {
+        var world = SeedWorld();
+        var allergyType = AddAllergyType();
+        var subject = world.SubjectFor(role);
+        var request = new AllergyTypeRequest(Guid.Empty, "Latex");
+
+        using var create = await SendAsync(HttpMethod.Post, "/api/allergy-types", subject, request);
+        using var update = await SendAsync(HttpMethod.Put, $"/api/allergy-types/{allergyType.Id}", subject, request);
+        using var delete = await SendAsync(HttpMethod.Delete, $"/api/allergy-types/{allergyType.Id}", subject);
+
+        Assert.Equal(HttpStatusCode.Forbidden, create.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, update.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, delete.StatusCode);
+        Assert.Contains(allergyType, Factory.Store.AllergyTypes);
+    }
+
+    [Fact]
+    public async Task AllergyTypeWrites_AdministratorCanCreate()
+    {
+        var world = SeedWorld();
+
+        using var response = await SendAsync(
+            HttpMethod.Post,
+            "/api/allergy-types",
+            world.SubjectFor("admin"),
+            new AllergyTypeRequest(Guid.Empty, "Penicillin Test"));
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        Assert.Contains(Factory.Store.AllergyTypes, allergyType => allergyType.Name == "Penicillin Test");
+    }
+
+    private AllergyType AddAllergyType()
+    {
+        var allergyType = AllergyType.Create(Guid.NewGuid(), "Peanuts");
+        Factory.Store.AllergyTypes.Add(allergyType);
+        return allergyType;
+    }
 }
+
