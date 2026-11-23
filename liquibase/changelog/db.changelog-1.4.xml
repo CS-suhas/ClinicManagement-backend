@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- Existing providers are treated as already verified. New self-registered providers
+         are inserted explicitly as PENDING by the application. -->
+    <changeSet id="1.4-providers-verification-status" author="clinic-management">
+        <addColumn tableName="Providers">
+            <column name="VerificationStatus" type="VARCHAR2(20)" defaultValue="VERIFIED">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+        <sql>
+            ALTER TABLE Providers
+            ADD CONSTRAINT CK_Providers_VerificationStatus
+            CHECK (VerificationStatus IN ('PENDING', 'VERIFIED', 'REJECTED'))
+        </sql>
+    </changeSet>
+
+    <!-- A self-registered provider has no clinic until a join request is approved. -->
+    <changeSet id="1.4-providers-clinic-optional" author="clinic-management">
+        <dropNotNullConstraint
+            tableName="Providers"
+            columnName="ClinicId"
+            columnDataType="VARCHAR2(36)"/>
+    </changeSet>
+
+    <changeSet id="1.4-create-clinic-join-requests" author="clinic-management">
+        <createTable tableName="ClinicJoinRequests">
+            <column name="Id" type="VARCHAR2(36)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="ProviderId" type="VARCHAR2(36)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="ClinicId" type="VARCHAR2(36)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="Status" type="VARCHAR2(20)" defaultValue="PENDING">
+                <constraints nullable="false"/>
+            </column>
+            <column name="DecidedAtUtc" type="TIMESTAMP WITH TIME ZONE"/>
+            <column name="CreatedAtUtc" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="SYSTIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="UpdatedAtUtc" type="TIMESTAMP WITH TIME ZONE"/>
+        </createTable>
+        <!-- Join requests are workflow records, not clinical data, so they go away with
+             the provider or clinic they belong to. -->
+        <addForeignKeyConstraint
+            baseTableName="ClinicJoinRequests"
+            baseColumnNames="ProviderId"
+            referencedTableName="Providers"
+            referencedColumnNames="Id"
+            constraintName="FK_ClinicJoinRequests_Providers"
+            onDelete="CASCADE"/>
+        <addForeignKeyConstraint
+            baseTableName="ClinicJoinRequests"
+            baseColumnNames="ClinicId"
+            referencedTableName="Clinics"
+            referencedColumnNames="Id"
+            constraintName="FK_ClinicJoinRequests_Clinics"
+            onDelete="CASCADE"/>
+        <createIndex tableName="ClinicJoinRequests" indexName="IX_ClinicJoinRequests_ClinicId_Status">
+            <column name="ClinicId"/>
+            <column name="Status"/>
+        </createIndex>
+        <createIndex tableName="ClinicJoinRequests" indexName="IX_ClinicJoinRequests_ProviderId">
+            <column name="ProviderId"/>
+        </createIndex>
+        <sql>
+            ALTER TABLE ClinicJoinRequests
+            ADD CONSTRAINT CK_ClinicJoinRequests_Status
+            CHECK (Status IN ('PENDING', 'APPROVED', 'REJECTED', 'CANCELLED'))
+        </sql>
+        <!-- A provider can have at most one pending request at a time. -->
+        <sql>
+            CREATE UNIQUE INDEX UX_ClinicJoinRequests_OnePending
+            ON ClinicJoinRequests (CASE WHEN Status = 'PENDING' THEN ProviderId END)
+        </sql>
+    </changeSet>
+
+    <!-- Existing appointments are treated as already confirmed. New bookings are inserted
+         explicitly as REQUESTED by the application. -->
+    <changeSet id="1.4-appointments-status" author="clinic-management">
+        <addColumn tableName="Appointments">
+            <column name="Status" type="VARCHAR2(20)" defaultValue="CONFIRMED">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+        <sql>
+            ALTER TABLE Appointments
+            ADD CONSTRAINT CK_Appointments_Status
+            CHECK (Status IN ('REQUESTED', 'CONFIRMED', 'DECLINED', 'CANCELLED', 'COMPLETED'))
+        </sql>
+        <createIndex tableName="Appointments" indexName="IX_Appointments_ProviderId_DateTime">
+            <column name="ProviderId"/>
+            <column name="AppointmentDateTime"/>
+        </createIndex>
+    </changeSet>
+</databaseChangeLog>
