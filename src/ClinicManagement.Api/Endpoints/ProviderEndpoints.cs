@@ -99,6 +99,20 @@ public static class ProviderEndpoints
             .Produces(StatusCodes.Status400BadRequest)
             .Produces(StatusCodes.Status404NotFound);
 
+        app.MapGet("/api/providers/{id}/patients", async (
+            Guid id,
+            [AsParameters] PageQuery query,
+            [FromServices] IProviderService service) =>
+            Results.Ok(await service.GetPatientRosterAsync(id, query)))
+            .WithName("GetProviderPatientRoster")
+            .RequireAuthorization(AuthorizationPolicies.Authenticated)
+            .WithSummary("List a provider's patients")
+            .WithDescription("Patients with at least one appointment with the provider, paged and optionally searched by patient name (search). Each row has the latest past and earliest upcoming visit relative to now, ignoring declined and cancelled appointments. Visible to the provider, an administrator, or a clinic administrator of the provider's clinic.")
+            .Produces<PagedResponse<ProviderPatientRosterItem>>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status401Unauthorized)
+            .Produces(StatusCodes.Status403Forbidden)
+            .Produces(StatusCodes.Status404NotFound);
+
         app.MapGet("/api/providers/{id}", async (Guid id, [FromServices] IProviderService service) =>
             Results.Ok(await service.GetProviderByIdAsync(id)));
 

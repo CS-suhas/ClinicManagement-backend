@@ -7,6 +7,8 @@ using ClinicManagement.Application.Appointments.Interfaces;
 using ClinicManagement.Domain.Entities;
 using ClinicManagement.Domain.Enums;
 using ClinicManagement.Domain.Exceptions;
+using PageQuery = ClinicManagement.Application.Models.PageQuery;
+using ProviderPatientRosterItem = ClinicManagement.Application.Models.ProviderPatientRosterItem;
 
 namespace ClinicManagement.Application.Tests;
 
@@ -378,6 +380,120 @@ public class ProviderServiceTests
     }
 
     [Fact]
+    public async Task GetPatientRosterAsync_ReturnsPagedRosterForTheProviderItself()
+    {
+        var provider = Provider.Create(Guid.NewGuid(), Guid.NewGuid(), "Grace", "Hopper", "Computing");
+        var repository = new FakeProviderRepository { ExistingProvider = provider };
+        var now = new DateTimeOffset(2030, 1, 1, 9, 0, 0, TimeSpan.Zero);
+        var service = new ProviderService(
+            repository,
+            new FakeClinicRepository(),
+            new FakeAppointmentRepository(),
+            new TestCurrentUser { Provider = provider, Roles = ["doctor"] },
+            new FixedClock(now));
+
+        var page = await service.GetPatientRosterAsync(provider.Id, new PageQuery(Search: " Ada ", Page: 2, PageSize: 10));
+
+        Assert.Equal(2, page.TotalCount);
+        Assert.Equal(2, page.Page);
+        Assert.Equal(10, page.PageSize);
+        Assert.Equal(provider.Id, repository.RosterRequest?.ProviderId);
+        Assert.Equal(10, repository.RosterRequest?.Offset);
+        Assert.Equal("Ada", repository.RosterRequest?.Query.NormalizedSearch);
+        Assert.Equal(now, repository.RosterRequest?.Now);
+    }
+
+    [Fact]
+    public async Task GetPatientRosterAsync_AllowsAdministrator()
+    {
+        var provider = Provider.Create(Guid.NewGuid(), Guid.NewGuid(), "Grace", "Hopper", "Computing");
+        var repository = new FakeProviderRepository { ExistingProvider = provider };
+        var service = new ProviderService(
+            repository,
+            new FakeClinicRepository(),
+            new FakeAppointmentRepository(),
+            new TestCurrentUser { Roles = ["admin"] });
+
+        await service.GetPatientRosterAsync(provider.Id, new PageQuery());
+
+        Assert.NotNull(repository.RosterRequest);
+    }
+
+    [Fact]
+    public async Task GetPatientRosterAsync_AllowsClinicAdminOfTheProvidersClinic()
+    {
+        var clinicId = Guid.NewGuid();
+        var provider = Provider.Create(Guid.NewGuid(), clinicId, "Grace", "Hopper", "Computing");
+        var repository = new FakeProviderRepository { ExistingProvider = provider };
+        var service = new ProviderService(
+            repository,
+            new FakeClinicRepository(),
+            new FakeAppointmentRepository(),
+            new TestCurrentUser { AdministeredClinicIds = [clinicId] });
+
+        await service.GetPatientRosterAsync(provider.Id, new PageQuery());
+
+        Assert.NotNull(repository.RosterRequest);
+    }
+
+    [Fact]
+    public async Task GetPatientRosterAsync_ForbidsAnotherDoctorWithoutQuerying()
+    {
+        var provider = Provider.Create(Guid.NewGuid(), Guid.NewGuid(), "Grace", "Hopper", "Computing");
+        var other = Provider.Create(Guid.NewGuid(), Guid.NewGuid(), "Alan", "Turing", "Computing");
+        var repository = new FakeProviderRepository { ExistingProvider = provider };
+        var service = new ProviderService(
+            repository,
+            new FakeClinicRepository(),
+            new FakeAppointmentRepository(),
+            new TestCurrentUser { Provider = other, Roles = ["doctor"] });
+
+        await Assert.ThrowsAsync<ForbiddenException>(() => service.GetPatientRosterAsync(provider.Id, new PageQuery()));
+        Assert.Null(repository.RosterRequest);
+    }
+
+    [Fact]
+    public async Task GetPatientRosterAsync_ForbidsClinicAdminOfAnotherClinic()
+    {
+        var provider = Provider.Create(Guid.NewGuid(), Guid.NewGuid(), "Grace", "Hopper", "Computing");
+        var service = new ProviderService(
+            new FakeProviderRepository { ExistingProvider = provider },
+            new FakeClinicRepository(),
+            new FakeAppointmentRepository(),
+            new TestCurrentUser { AdministeredClinicIds = [Guid.NewGuid()] });
+
+        await Assert.ThrowsAsync<ForbiddenException>(() => service.GetPatientRosterAsync(provider.Id, new PageQuery()));
+    }
+
+    [Fact]
+    public async Task GetPatientRosterAsync_ThrowsNotFoundForUnknownProvider()
+    {
+        var service = new ProviderService(
+            new FakeProviderRepository(),
+            new FakeClinicRepository(),
+            new FakeAppointmentRepository(),
+            new TestCurrentUser { Roles = ["admin"] });
+
+        await Assert.ThrowsAsync<ResourceNotFoundException>(() => service.GetPatientRosterAsync(Guid.NewGuid(), new PageQuery()));
+    }
+
+    [Fact]
+    public async Task GetPatientRosterAsync_RejectsInvalidPageBeforeQuerying()
+    {
+        var provider = Provider.Create(Guid.NewGuid(), Guid.NewGuid(), "Grace", "Hopper", "Computing");
+        var repository = new FakeProviderRepository { ExistingProvider = provider };
+        var service = new ProviderService(
+            repository,
+            new FakeClinicRepository(),
+            new FakeAppointmentRepository(),
+            new TestCurrentUser { Roles = ["admin"] });
+
+        await Assert.ThrowsAsync<DomainValidationException>(
+            () => service.GetPatientRosterAsync(provider.Id, new PageQuery(Page: 0)));
+        Assert.Null(repository.RosterRequest);
+    }
+
+    [Fact]
     public async Task GetAppointmentsByProviderIdAsync_ForbidsClinicAdminOfAnotherClinic()
     {
         var provider = Provider.Create(Guid.NewGuid(), Guid.NewGuid(), "Grace", "Hopper", "Computing");
@@ -390,9 +506,25 @@ public class ProviderServiceTests
         await Assert.ThrowsAsync<ForbiddenException>(() => service.GetAppointmentsByProviderIdAsync(provider.Id));
     }
 
+    private sealed class FixedClock(DateTimeOffset now) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => now;
+    }
+
     private sealed class FakeProviderRepository : IProviderRepository
     {
         public Provider? ExistingByIdentitySubject { get; init; }
+        public (Guid ProviderId, PageQuery Query, int Offset, DateTimeOffset Now)? RosterRequest { get; private set; }
+
+        public Task<(IReadOnlyList<ProviderPatientRosterItem> Items, int TotalCount)> SearchPatientRosterAsync(
+            Guid providerId,
+            PageQuery query,
+            int offset,
+            DateTimeOffset now)
+        {
+            RosterRequest = (providerId, query, offset, now);
+            return Task.FromResult<(IReadOnlyList<ProviderPatientRosterItem>, int)>(([], 2));
+        }
         public Task<Provider?> GetByIdentitySubjectAsync(string identitySubject) => Task.FromResult(ExistingByIdentitySubject);
         public Task<(IReadOnlyList<Provider> Items, int TotalCount)> SearchPublicProvidersAsync(
             ClinicManagement.Application.Models.PageQuery query,

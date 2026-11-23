@@ -795,6 +795,12 @@ public class AppointmentServiceTests
     /// <summary>Unless configured otherwise, any requested provider exists and accepts appointments.</summary>
     private sealed class FakeProviderRepository : IProviderRepository
     {
+        public Task<(IReadOnlyList<ClinicManagement.Application.Models.ProviderPatientRosterItem> Items, int TotalCount)>
+            SearchPatientRosterAsync(
+                Guid providerId,
+                ClinicManagement.Application.Models.PageQuery query,
+                int offset,
+                DateTimeOffset now) => throw new NotSupportedException();
         public Task<Provider?> GetByIdentitySubjectAsync(string identitySubject) => Task.FromResult<Provider?>(null);
         public Provider? ConfiguredProvider { get; init; }
         public bool ProviderMissing { get; init; }

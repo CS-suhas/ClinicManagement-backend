@@ -21,8 +21,11 @@ public class ProviderService(
     IProviderRepository providerRepository,
     IClinicRepository clinicRepository,
     IAppointmentRepository appointmentRepository,
-    ICurrentUser currentUser) : IProviderService
+    ICurrentUser currentUser,
+    TimeProvider? timeProvider = null) : IProviderService
 {
+    private TimeProvider Clock => timeProvider ?? TimeProvider.System;
+
     public async Task<ProviderResponse> GetProviderByIdAsync(Guid providerId)
     {
         RequestValidator.EnsureGuid(providerId, nameof(providerId), "Provider ID");
@@ -102,6 +105,23 @@ public class ProviderService(
             to,
             includeInactive);
         return appointments.ToList();
+    }
+
+    public async Task<PagedResponse<ProviderPatientRosterItem>> GetPatientRosterAsync(Guid providerId, PageQuery query)
+    {
+        RequestValidator.EnsureGuid(providerId, nameof(providerId), "Provider ID");
+
+        var provider = await providerRepository.GetProviderByIdAsync(providerId)
+            ?? throw new ResourceNotFoundException("Provider", providerId);
+        await EnsureCanViewProviderAppointmentsAsync(provider);
+
+        var offset = query.GetOffset();
+        var (items, totalCount) = await providerRepository.SearchPatientRosterAsync(
+            providerId,
+            query,
+            offset,
+            Clock.GetUtcNow());
+        return new PagedResponse<ProviderPatientRosterItem>(items, totalCount, query.Page, query.PageSize);
     }
 
     public async Task<ClinicResponse> GetClinicByProviderIdAsync(Guid providerId)

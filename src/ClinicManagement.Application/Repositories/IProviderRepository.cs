@@ -24,6 +24,15 @@ public interface IProviderRepository
         PageQuery query,
         int offset,
         Guid? clinicId);
+    /// <summary>
+    /// Patients with at least one appointment with the provider, matched by name when searched. Last and next
+    /// visits are relative to <paramref name="now"/> and ignore declined and cancelled appointments.
+    /// </summary>
+    Task<(IReadOnlyList<ProviderPatientRosterItem> Items, int TotalCount)> SearchPatientRosterAsync(
+        Guid providerId,
+        PageQuery query,
+        int offset,
+        DateTimeOffset now);
     /// <summary>Inserts a self-registered provider that has no clinic yet.</summary>
     Task<Guid> AddRegistrationAsync(Provider provider);
     /// <summary>Returns false when the stored status is no longer <paramref name="expected"/>.</summary>

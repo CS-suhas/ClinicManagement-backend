@@ -30,4 +30,6 @@ public interface IProviderService
         DateTimeOffset from,
         DateTimeOffset to,
         bool includeInactive);
+    /// <summary>Patients of a provider. Visible to the provider, an administrator, or the provider's clinic administrator.</summary>
+    Task<PagedResponse<ProviderPatientRosterItem>> GetPatientRosterAsync(Guid providerId, PageQuery query);
 }

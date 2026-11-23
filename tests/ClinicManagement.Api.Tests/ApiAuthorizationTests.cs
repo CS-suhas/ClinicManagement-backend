@@ -828,6 +828,84 @@ public sealed class ApiAuthorizationTests(ClinicApiFactory factory)
     }
 
     [Fact]
+    public async Task PatientRoster_RequiresSignIn()
+    {
+        var world = SeedWorld();
+
+        using var response = await SendAsync(HttpMethod.Get, $"/api/providers/{world.Doctor.Id}/patients", subject: null);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Theory]
+    [InlineData("doctor")]
+    [InlineData("admin")]
+    [InlineData("clinicadmin")]
+    public async Task PatientRoster_AllowsProviderAdministratorAndClinicAdminOfTheClinic(string role)
+    {
+        var world = SeedWorld();
+        using var response = await SendAsync(HttpMethod.Get, $"/api/providers/{world.Doctor.Id}/patients", world.SubjectFor(role));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Theory]
+    [InlineData("patient")]
+    [InlineData("other-doctor")]
+    [InlineData("other-clinicadmin")]
+    public async Task PatientRoster_ForbidsEveryoneElse(string who)
+    {
+        var world = SeedWorld();
+        var subject = who switch
+        {
+            "patient" => world.PatientSubject,
+            "other-doctor" => world.OtherDoctorSubject,
+            _ => world.OtherClinicAdminSubject
+        };
+
+        using var response = await SendAsync(HttpMethod.Get, $"/api/providers/{world.Doctor.Id}/patients", subject);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task PatientRoster_ReturnsPatientsWithVisitsAndCount()
+    {
+        var world = SeedWorld();
+
+        using var response = await SendAsync(HttpMethod.Get, $"/api/providers/{world.Doctor.Id}/patients", world.DoctorSubject);
+        using var document = System.Text.Json.JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var row = document.RootElement.GetProperty("items").EnumerateArray().Single();
+        var patient = row.GetProperty("patient");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(world.Patient.Id, patient.GetProperty("id").GetGuid());
+        Assert.Equal("Ada", patient.GetProperty("firstName").GetString());
+        Assert.Equal("Lovelace", patient.GetProperty("lastName").GetString());
+        Assert.Equal("1985-12-10", patient.GetProperty("dateOfBirth").GetString());
+        Assert.Equal("ada@example.com", patient.GetProperty("email").GetString());
+        Assert.Equal("555-0102", patient.GetProperty("phoneNumber").GetString());
+        Assert.Equal(1, row.GetProperty("appointmentCount").GetInt32());
+        Assert.Equal(System.Text.Json.JsonValueKind.Null, row.GetProperty("lastVisit").ValueKind);
+        Assert.Equal(world.Appointment.Id, row.GetProperty("nextVisit").GetProperty("id").GetGuid());
+        Assert.Equal("Checkup", row.GetProperty("nextVisit").GetProperty("reasonForVisit").GetString());
+    }
+
+    [Fact]
+    public async Task PatientRoster_SearchMatchesPatientName()
+    {
+        var world = SeedWorld();
+
+        using var matching = await SendAsync(HttpMethod.Get, $"/api/providers/{world.Doctor.Id}/patients?search=lovel", world.DoctorSubject);
+        using var other = await SendAsync(HttpMethod.Get, $"/api/providers/{world.Doctor.Id}/patients?search=hopper", world.DoctorSubject);
+        using var matchingDocument = System.Text.Json.JsonDocument.Parse(await matching.Content.ReadAsStringAsync());
+        using var otherDocument = System.Text.Json.JsonDocument.Parse(await other.Content.ReadAsStringAsync());
+
+        Assert.Equal(1, matchingDocument.RootElement.GetProperty("totalCount").GetInt32());
+        Assert.Equal(0, otherDocument.RootElement.GetProperty("totalCount").GetInt32());
+    }
+
+    [Fact]
     public async Task AppointmentStatus_IsTheEnumNameOnDetailAndProviderListings()
     {
         var world = SeedWorld();

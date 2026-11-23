@@ -200,6 +200,92 @@ public class ProviderRepository(IDbConnectionFactory connectionFactory) : IProvi
         return (providers, totalCount);
     }
 
+    public async Task<(IReadOnlyList<ProviderPatientRosterItem> Items, int TotalCount)> SearchPatientRosterAsync(
+        Guid providerId,
+        PageQuery query,
+        int offset,
+        DateTimeOffset now)
+    {
+        using var connection = connectionFactory.CreateConnection();
+        const string patientFilter = """
+            WHERE EXISTS (SELECT 1 FROM Appointments va WHERE va.PatientId = p.Id AND va.ProviderId = :ProviderId)
+              AND (:Search IS NULL
+                OR UPPER(p.FirstName) LIKE '%' || UPPER(:Search) || '%'
+                OR UPPER(p.LastName) LIKE '%' || UPPER(:Search) || '%'
+                OR UPPER(p.FirstName || ' ' || p.LastName) LIKE '%' || UPPER(:Search) || '%')
+            """;
+        const string patientJoin = """
+            FROM Patients p
+            INNER JOIN (
+                SELECT PatientId, COUNT(1) AS AppointmentCount
+                FROM Appointments
+                WHERE ProviderId = :ProviderId
+                GROUP BY PatientId
+            ) counts ON counts.PatientId = p.Id
+            """;
+        var parameters = new
+        {
+            ProviderId = providerId.ToString(),
+            Search = query.NormalizedSearch,
+            Offset = offset,
+            query.PageSize
+        };
+
+        var totalCount = await connection.ExecuteScalarAsync<int>(
+            $"SELECT COUNT(1) FROM Patients p {patientFilter}",
+            parameters);
+        var patientRows = (await connection.QueryAsync<RosterPatientRow>(
+            $"""
+            SELECT p.Id, p.FirstName, p.LastName, p.DateOfBirth, p.Email, p.PhoneNumber, counts.AppointmentCount
+            {patientJoin}
+            {patientFilter}
+            ORDER BY p.LastName, p.FirstName, p.Id
+            OFFSET :Offset ROWS FETCH NEXT :PageSize ROWS ONLY
+            """,
+            parameters)).AsList();
+        if (patientRows.Count == 0)
+            return ([], totalCount);
+
+        // One query finds the latest past and the earliest upcoming visit for every patient on the page.
+        var visitRows = (await connection.QueryAsync<RosterVisitRow>(
+            """
+            SELECT Kind, PatientId, Id, AppointmentDateTime, ReasonForVisit
+            FROM (
+                SELECT 'LAST' AS Kind, PatientId, Id, AppointmentDateTime, ReasonForVisit,
+                       ROW_NUMBER() OVER (PARTITION BY PatientId ORDER BY AppointmentDateTime DESC, Id) AS RankNo
+                FROM Appointments
+                WHERE ProviderId = :ProviderId
+                  AND PatientId IN :PatientIds
+                  AND AppointmentDateTime < :Now
+                  AND Status NOT IN ('DECLINED', 'CANCELLED')
+                UNION ALL
+                SELECT 'NEXT' AS Kind, PatientId, Id, AppointmentDateTime, ReasonForVisit,
+                       ROW_NUMBER() OVER (PARTITION BY PatientId ORDER BY AppointmentDateTime, Id) AS RankNo
+                FROM Appointments
+                WHERE ProviderId = :ProviderId
+                  AND PatientId IN :PatientIds
+                  AND AppointmentDateTime >= :Now
+                  AND Status NOT IN ('DECLINED', 'CANCELLED')
+            )
+            WHERE RankNo = 1
+            """,
+            new
+            {
+                ProviderId = providerId.ToString(),
+                PatientIds = patientRows.Select(row => row.Id.ToString()).ToArray(),
+                Now = now
+            })).AsList();
+
+        var lastVisits = visitRows.Where(visit => visit.Kind == "LAST").ToDictionary(visit => visit.PatientId);
+        var nextVisits = visitRows.Where(visit => visit.Kind == "NEXT").ToDictionary(visit => visit.PatientId);
+        var items = patientRows.Select(row => new ProviderPatientRosterItem(
+            new RosterPatient(row.Id, row.FirstName, row.LastName, row.DateOfBirth, row.Email, row.PhoneNumber),
+            lastVisits.TryGetValue(row.Id, out var last) ? ToRosterVisit(last) : null,
+            nextVisits.TryGetValue(row.Id, out var next) ? ToRosterVisit(next) : null,
+            checked((int)row.AppointmentCount))).ToList();
+        return (items, totalCount);
+    }
+
     public async Task<Provider?> GetByIdentitySubjectAsync(string identitySubject)
     {
         using var connection = connectionFactory.CreateConnection();
@@ -209,6 +295,25 @@ public class ProviderRepository(IDbConnectionFactory connectionFactory) : IProvi
             new { IdentitySubject = identitySubject });
         return providers.SingleOrDefault();
     }
+
+    private sealed record RosterPatientRow(
+        Guid Id,
+        string FirstName,
+        string LastName,
+        DateOnly DateOfBirth,
+        string Email,
+        string PhoneNumber,
+        decimal AppointmentCount);
+
+    private sealed record RosterVisitRow(
+        string Kind,
+        Guid PatientId,
+        Guid Id,
+        DateTimeOffset AppointmentDateTime,
+        string? ReasonForVisit);
+
+    private static RosterVisit ToRosterVisit(RosterVisitRow visit) =>
+        new(visit.Id, visit.AppointmentDateTime, visit.ReasonForVisit);
 
     private static Task<IEnumerable<Provider>> QueryProvidersAsync(
         System.Data.IDbConnection connection,

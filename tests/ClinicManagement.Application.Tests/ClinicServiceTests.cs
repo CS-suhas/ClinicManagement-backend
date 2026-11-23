@@ -264,6 +264,12 @@ public class ClinicServiceTests
 
     private sealed class FakeProviderRepository : IProviderRepository
     {
+        public Task<(IReadOnlyList<ClinicManagement.Application.Models.ProviderPatientRosterItem> Items, int TotalCount)>
+            SearchPatientRosterAsync(
+                Guid providerId,
+                ClinicManagement.Application.Models.PageQuery query,
+                int offset,
+                DateTimeOffset now) => throw new NotSupportedException();
         public Task<Provider?> GetByIdentitySubjectAsync(string identitySubject) => Task.FromResult<Provider?>(null);
         public Task<(IReadOnlyList<Provider> Items, int TotalCount)> SearchPublicProvidersAsync(
             ClinicManagement.Application.Models.PageQuery query,

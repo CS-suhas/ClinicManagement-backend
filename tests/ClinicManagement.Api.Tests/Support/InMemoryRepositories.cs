@@ -84,6 +84,41 @@ internal sealed class InMemoryPatientRepository(InMemoryStore store) : IPatientR
 
 internal sealed class InMemoryProviderRepository(InMemoryStore store) : IProviderRepository
 {
+    public Task<(IReadOnlyList<ProviderPatientRosterItem> Items, int TotalCount)> SearchPatientRosterAsync(
+        Guid providerId,
+        PageQuery query,
+        int offset,
+        DateTimeOffset now)
+    {
+        var providerAppointments = store.Appointments.Where(appointment => appointment.ProviderId == providerId).ToList();
+        var patients = store.Patients
+            .Where(patient => providerAppointments.Any(appointment => appointment.PatientId == patient.Id))
+            .Where(patient => query.NormalizedSearch is not { } search
+                || patient.FirstName.Contains(search, StringComparison.OrdinalIgnoreCase)
+                || patient.LastName.Contains(search, StringComparison.OrdinalIgnoreCase)
+                || $"{patient.FirstName} {patient.LastName}".Contains(search, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(patient => patient.LastName).ThenBy(patient => patient.FirstName).ThenBy(patient => patient.Id)
+            .ToList();
+
+        var items = patients.Skip(offset).Take(query.PageSize).Select(patient =>
+        {
+            var visits = providerAppointments
+                .Where(appointment => appointment.PatientId == patient.Id
+                    && appointment.Status is not (AppointmentStatus.DECLINED or AppointmentStatus.CANCELLED))
+                .ToList();
+            var last = visits.Where(visit => visit.AppointmentDateTime < now)
+                .OrderByDescending(visit => visit.AppointmentDateTime).FirstOrDefault();
+            var next = visits.Where(visit => visit.AppointmentDateTime >= now)
+                .OrderBy(visit => visit.AppointmentDateTime).FirstOrDefault();
+            return new ProviderPatientRosterItem(
+                new RosterPatient(patient.Id, patient.FirstName, patient.LastName, patient.DateOfBirth, patient.Email, patient.PhoneNumber),
+                last is null ? null : new RosterVisit(last.Id, last.AppointmentDateTime, last.ReasonForVisit),
+                next is null ? null : new RosterVisit(next.Id, next.AppointmentDateTime, next.ReasonForVisit),
+                providerAppointments.Count(appointment => appointment.PatientId == patient.Id));
+        }).ToList();
+        return Task.FromResult<(IReadOnlyList<ProviderPatientRosterItem>, int)>((items, patients.Count));
+    }
+
     public Task<Provider?> GetProviderByIdAsync(Guid providerId) =>
         Task.FromResult(store.Providers.FirstOrDefault(provider => provider.Id == providerId));
 
