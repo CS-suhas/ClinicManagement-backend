@@ -28,19 +28,21 @@ builder.Services.AddHealthChecks();
 builder.Services.AddExceptionHandler<ApiExceptionHandler>();
 builder.Services.AddProblemDetails();
 builder.Services.AddClinicAuthentication(builder.Configuration);
-var corsAllowedOrigins = builder.Configuration["CORS_ALLOWED_ORIGINS"]?
-    .Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries) ?? [];
+var corsAllowedOrigins = FrontendCors.ResolveAllowedOrigins(
+    builder.Configuration[FrontendCors.SettingName],
+    builder.Environment.IsDevelopment());
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("Frontend", policy =>
+    options.AddPolicy(FrontendCors.PolicyName, policy =>
         policy.WithOrigins(corsAllowedOrigins)
-            .AllowAnyHeader()
-            .AllowAnyMethod());
+            .WithMethods(FrontendCors.AllowedMethods)
+            .WithHeaders(FrontendCors.AllowedHeaders)
+            .AllowCredentials());
 });
 
 var app = builder.Build();
 app.UseExceptionHandler();
-app.UseCors("Frontend");
+app.UseCors(FrontendCors.PolicyName);
 app.UseAuthentication();
 app.UseAuthorization();
 
