@@ -23,7 +23,7 @@ public class ClinicJoinRequestService(
         RequestValidator.EnsureGuid(providerId, nameof(providerId), "Provider ID");
         RequestValidator.EnsureGuid(clinicId, nameof(clinicId), "Clinic ID");
 
-        var provider = await CurrentUserGuard.RequireVerifiedProviderAsync(currentUser, providerId);
+        var provider = await currentUser.RequireVerifiedProviderAsync(providerId);
         if (!await clinicRepository.ClinicExistsAsync(clinicId))
             throw new ResourceNotFoundException("Clinic", clinicId);
 
@@ -39,7 +39,7 @@ public class ClinicJoinRequestService(
     public async Task<IReadOnlyList<ClinicJoinRequestResponse>> GetByProviderIdAsync(Guid providerId)
     {
         RequestValidator.EnsureGuid(providerId, nameof(providerId), "Provider ID");
-        await CurrentUserGuard.RequireProviderOrAdministratorAsync(currentUser, providerId);
+        await currentUser.RequireProviderOrAdministratorAsync(providerId);
 
         if (await providerRepository.GetProviderByIdAsync(providerId) is null)
             throw new ResourceNotFoundException("Provider", providerId);
@@ -52,7 +52,7 @@ public class ClinicJoinRequestService(
         ClinicJoinRequestStatus? status)
     {
         RequestValidator.EnsureGuid(clinicId, nameof(clinicId), "Clinic ID");
-        await CurrentUserGuard.RequireClinicAdminOrAdministratorAsync(currentUser, clinicId);
+        await currentUser.RequireClinicAdminOrAdministratorAsync(clinicId);
 
         if (!await clinicRepository.ClinicExistsAsync(clinicId))
             throw new ResourceNotFoundException("Clinic", clinicId);
@@ -79,7 +79,7 @@ public class ClinicJoinRequestService(
     public async Task CancelAsync(Guid requestId)
     {
         var request = await GetRequiredAsync(requestId);
-        await CurrentUserGuard.RequireProviderAsync(currentUser, request.ProviderId);
+        await currentUser.RequireProviderAsync(request.ProviderId);
         request.Cancel(timeProvider.GetUtcNow());
         await PersistDecisionAsync(request);
     }
@@ -93,7 +93,7 @@ public class ClinicJoinRequestService(
     private async Task<ClinicJoinRequest> GetManagedRequestAsync(Guid requestId)
     {
         var request = await GetRequiredAsync(requestId);
-        await CurrentUserGuard.RequireClinicAdminOrAdministratorAsync(currentUser, request.ClinicId);
+        await currentUser.RequireClinicAdminOrAdministratorAsync(request.ClinicId);
         return request;
     }
 

@@ -5,30 +5,35 @@ using ClinicManagement.Domain.Enums;
 
 namespace ClinicManagement.Application.Common;
 
+/// <summary>
+/// Authorization checks on the signed-in user. Each <c>Require...</c> method throws
+/// <see cref="UnauthorizedAccessException"/> when nobody is signed in and <see cref="ForbiddenException"/> when the
+/// signed-in user may not act.
+/// </summary>
 public static class CurrentUserGuard
 {
-    public static void RequireAuthenticated(ICurrentUser currentUser)
+    public static void RequireAuthenticated(this ICurrentUser currentUser)
     {
         if (!currentUser.IsAuthenticated || string.IsNullOrWhiteSpace(currentUser.Subject))
             throw new UnauthorizedAccessException("A signed-in user is required.");
     }
 
-    public static string RequireSubject(ICurrentUser currentUser) =>
+    public static string RequireSubject(this ICurrentUser currentUser) =>
         string.IsNullOrWhiteSpace(currentUser.Subject)
             ? throw new UnauthorizedAccessException("A signed-in user is required.")
             : currentUser.Subject;
 
-    public static Guid RequireUserId(ICurrentUser currentUser)
+    public static Guid RequireUserId(this ICurrentUser currentUser)
     {
-        RequireAuthenticated(currentUser);
+        currentUser.RequireAuthenticated();
         return currentUser.UserId ?? throw new UnauthorizedAccessException("A signed-in user is required.");
     }
 
-    public static bool IsAdministrator(ICurrentUser currentUser) => currentUser.IsInRole(Roles.Admin);
+    public static bool IsAdministrator(this ICurrentUser currentUser) => currentUser.IsInRole(Roles.Admin);
 
-    public static async Task<Provider> RequireProviderAsync(ICurrentUser currentUser, Guid providerId)
+    public static async Task<Provider> RequireProviderAsync(this ICurrentUser currentUser, Guid providerId)
     {
-        RequireAuthenticated(currentUser);
+        currentUser.RequireAuthenticated();
 
         var provider = await currentUser.GetProviderAsync()
             ?? throw new ForbiddenException("The signed-in user is not a registered provider.");
@@ -38,62 +43,62 @@ public static class CurrentUserGuard
         return provider;
     }
 
-    public static async Task<Provider> RequireVerifiedProviderAsync(ICurrentUser currentUser, Guid providerId)
+    public static async Task<Provider> RequireVerifiedProviderAsync(this ICurrentUser currentUser, Guid providerId)
     {
-        var provider = await RequireProviderAsync(currentUser, providerId);
+        var provider = await currentUser.RequireProviderAsync(providerId);
         if (provider.VerificationStatus != ProviderVerificationStatus.VERIFIED)
             throw new ForbiddenException($"Provider '{providerId}' has not been verified.");
 
         return provider;
     }
 
-    public static async Task RequireProviderOrAdministratorAsync(ICurrentUser currentUser, Guid providerId)
+    public static async Task RequireProviderOrAdministratorAsync(this ICurrentUser currentUser, Guid providerId)
     {
-        RequireAuthenticated(currentUser);
-        if (IsAdministrator(currentUser))
+        currentUser.RequireAuthenticated();
+        if (currentUser.IsAdministrator())
             return;
 
-        await RequireProviderAsync(currentUser, providerId);
+        await currentUser.RequireProviderAsync(providerId);
     }
 
-    public static async Task RequireClinicAdminAsync(ICurrentUser currentUser, Guid clinicId)
+    public static async Task RequireClinicAdminAsync(this ICurrentUser currentUser, Guid clinicId)
     {
-        RequireAuthenticated(currentUser);
+        currentUser.RequireAuthenticated();
 
         if (!await currentUser.IsClinicAdminOfAsync(clinicId))
             throw new ForbiddenException($"The signed-in user does not administer clinic '{clinicId}'.");
     }
 
-    public static async Task RequireClinicAdminOrAdministratorAsync(ICurrentUser currentUser, Guid clinicId)
+    public static async Task RequireClinicAdminOrAdministratorAsync(this ICurrentUser currentUser, Guid clinicId)
     {
-        RequireAuthenticated(currentUser);
-        if (IsAdministrator(currentUser))
+        currentUser.RequireAuthenticated();
+        if (currentUser.IsAdministrator())
             return;
 
-        await RequireClinicAdminAsync(currentUser, clinicId);
+        await currentUser.RequireClinicAdminAsync(clinicId);
     }
 
-    public static async Task<Patient> RequirePatientAsync(ICurrentUser currentUser)
+    public static async Task<Patient> RequirePatientAsync(this ICurrentUser currentUser)
     {
-        RequireAuthenticated(currentUser);
+        currentUser.RequireAuthenticated();
 
         return await currentUser.GetPatientAsync()
             ?? throw new ForbiddenException("The signed-in user is not a registered patient.");
     }
 
-    public static async Task RequirePatientSelfAsync(ICurrentUser currentUser, Guid patientId)
+    public static async Task RequirePatientSelfAsync(this ICurrentUser currentUser, Guid patientId)
     {
-        var patient = await RequirePatientAsync(currentUser);
+        var patient = await currentUser.RequirePatientAsync();
         if (patient.Id != patientId)
             throw new ForbiddenException($"Patient '{patientId}' is not the signed-in patient.");
     }
 
-    public static async Task RequirePatientSelfOrAdministratorAsync(ICurrentUser currentUser, Guid patientId)
+    public static async Task RequirePatientSelfOrAdministratorAsync(this ICurrentUser currentUser, Guid patientId)
     {
-        RequireAuthenticated(currentUser);
-        if (IsAdministrator(currentUser))
+        currentUser.RequireAuthenticated();
+        if (currentUser.IsAdministrator())
             return;
 
-        await RequirePatientSelfAsync(currentUser, patientId);
+        await currentUser.RequirePatientSelfAsync(patientId);
     }
 }

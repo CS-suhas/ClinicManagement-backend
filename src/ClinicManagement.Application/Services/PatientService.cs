@@ -31,7 +31,7 @@ public class PatientService(
     public async Task<PatientResponse> GetPatientByIdAsync(Guid patientId)
     {
         RequestValidator.EnsureGuid(patientId, nameof(patientId), "Patient ID");
-        await CurrentUserGuard.RequirePatientSelfOrAdministratorAsync(currentUser, patientId);
+        await currentUser.RequirePatientSelfOrAdministratorAsync(patientId);
 
         var patient = await patientRepository.GetPatientByIdAsync(patientId)
             ?? throw new ResourceNotFoundException("Patient", patientId);
@@ -48,7 +48,7 @@ public class PatientService(
     public async Task<PatientSummaryResponse> GetPatientSummaryAsync(Guid patientId)
     {
         RequestValidator.EnsureGuid(patientId, nameof(patientId), "Patient ID");
-        CurrentUserGuard.RequireAuthenticated(currentUser);
+        currentUser.RequireAuthenticated();
 
         var appointments = (await appointmentRepository.GetAppointmentsByPatientIdAsync(patientId)).ToList();
         var scope = await ResolvePatientSummaryScopeAsync(patientId, appointments);
@@ -112,7 +112,7 @@ public class PatientService(
         IReadOnlyCollection<Appointment> appointments)
     {
         // The broadest applicable role wins: administrator, then the patient, then clinic administrator, then doctor.
-        if (CurrentUserGuard.IsAdministrator(currentUser))
+        if (currentUser.IsAdministrator())
             return PatientSummaryScope.All;
 
         if (await currentUser.GetPatientAsync() is { } self && self.Id == patientId)
@@ -182,7 +182,7 @@ public class PatientService(
     public async Task<IEnumerable<PatientAllergyResponse>> GetPatientAllergiesAsync(Guid patientId)
     {
         RequestValidator.EnsureGuid(patientId, nameof(patientId), "Patient ID");
-        await CurrentUserGuard.RequirePatientSelfOrAdministratorAsync(currentUser, patientId);
+        await currentUser.RequirePatientSelfOrAdministratorAsync(patientId);
 
         _ = await patientRepository.GetPatientByIdAsync(patientId)
             ?? throw new ResourceNotFoundException("Patient", patientId);
@@ -196,7 +196,7 @@ public class PatientService(
         PageQuery query)
     {
         RequestValidator.EnsureGuid(patientId, nameof(patientId), "Patient ID");
-        await CurrentUserGuard.RequirePatientSelfOrAdministratorAsync(currentUser, patientId);
+        await currentUser.RequirePatientSelfOrAdministratorAsync(patientId);
         _ = await patientRepository.GetPatientByIdAsync(patientId)
             ?? throw new ResourceNotFoundException("Patient", patientId);
 
@@ -215,7 +215,7 @@ public class PatientService(
         PageQuery query)
     {
         RequestValidator.EnsureGuid(patientId, nameof(patientId), "Patient ID");
-        await CurrentUserGuard.RequirePatientSelfOrAdministratorAsync(currentUser, patientId);
+        await currentUser.RequirePatientSelfOrAdministratorAsync(patientId);
         _ = await patientRepository.GetPatientByIdAsync(patientId)
             ?? throw new ResourceNotFoundException("Patient", patientId);
         if (selectedAllergyId.HasValue)
@@ -239,7 +239,7 @@ public class PatientService(
     {
         RequestValidator.EnsureGuid(patientId, nameof(patientId), "Patient ID");
         RequestValidator.EnsureGuid(request.AllergyId, nameof(request.AllergyId), "Allergy type ID");
-        await CurrentUserGuard.RequirePatientSelfAsync(currentUser, patientId);
+        await currentUser.RequirePatientSelfAsync(patientId);
 
         _ = await patientRepository.GetPatientByIdAsync(patientId)
             ?? throw new ResourceNotFoundException("Patient", patientId);
@@ -263,7 +263,7 @@ public class PatientService(
     {
         RequestValidator.EnsureGuid(patientId, nameof(patientId), "Patient ID");
         RequestValidator.EnsureGuid(allergyId, nameof(allergyId), "Allergy type ID");
-        await CurrentUserGuard.RequirePatientSelfAsync(currentUser, patientId);
+        await currentUser.RequirePatientSelfAsync(patientId);
 
         _ = await patientRepository.GetPatientByIdAsync(patientId)
             ?? throw new ResourceNotFoundException("Patient", patientId);
@@ -275,7 +275,7 @@ public class PatientService(
     public async Task<List<AppointmentResponse>> GetAppointmentsByPatientIdAsync(Guid patientId)
     {
         RequestValidator.EnsureGuid(patientId, nameof(patientId), "Patient ID");
-        await CurrentUserGuard.RequirePatientSelfOrAdministratorAsync(currentUser, patientId);
+        await currentUser.RequirePatientSelfOrAdministratorAsync(patientId);
 
         _ = await patientRepository.GetPatientByIdAsync(patientId)
             ?? throw new ResourceNotFoundException("Patient", patientId);
@@ -297,7 +297,7 @@ public class PatientService(
     public async Task<Guid> UpdatePatientAsync(PatientRequest request)
     {
         ValidateRequest(request);
-        await CurrentUserGuard.RequirePatientSelfAsync(currentUser, request.Id);
+        await currentUser.RequirePatientSelfAsync(request.Id);
 
         var patient = await patientRepository.GetPatientByIdAsync(request.Id)
             ?? throw new ResourceNotFoundException("Patient", request.Id);

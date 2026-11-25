@@ -12,7 +12,7 @@ public sealed class MeDashboardService(
 {
     public async Task<MeDashboardResponse> GetDashboardAsync()
     {
-        CurrentUserGuard.RequireAuthenticated(currentUser);
+        currentUser.RequireAuthenticated();
 
         // All day and week boundaries are UTC: "today" is [todayStart, todayEnd) and "this week" is the seven
         // days starting at todayStart.

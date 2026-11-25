@@ -25,14 +25,14 @@ public sealed class SearchService(
 
     public async Task<SearchResponse> SearchAsync(string? query, string? limit)
     {
-        CurrentUserGuard.RequireAuthenticated(currentUser);
+        currentUser.RequireAuthenticated();
 
         var term = query?.Trim() ?? string.Empty;
         if (term.Length < MinQueryLength)
             throw new DomainValidationException($"Search text must be at least {MinQueryLength} characters.", "q");
         var take = ParseLimit(limit);
 
-        var isAdministrator = CurrentUserGuard.IsAdministrator(currentUser);
+        var isAdministrator = currentUser.IsAdministrator();
         var scope = await ResolvePatientScopeAsync(isAdministrator);
 
         IReadOnlyList<SearchPatientResult> patients = [];

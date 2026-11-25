@@ -59,7 +59,7 @@ public class ClinicService(
     public async Task<ClinicSummaryResponse> GetClinicSummaryAsync(Guid clinicId)
     {
         RequestValidator.EnsureGuid(clinicId, nameof(clinicId), "Clinic ID");
-        CurrentUserGuard.RequireAuthenticated(currentUser);
+        currentUser.RequireAuthenticated();
 
         var clinic = await clinicRepository.GetClinicByIdAsync(clinicId)
             ?? throw new ResourceNotFoundException("Clinic", clinicId);
@@ -79,7 +79,7 @@ public class ClinicService(
 
         // Pending requests are an administrative detail, so they are only shown to administrators of this clinic.
         int? pendingJoinRequestCount = null;
-        if (CurrentUserGuard.IsAdministrator(currentUser) || await currentUser.IsClinicAdminOfAsync(clinicId))
+        if (currentUser.IsAdministrator() || await currentUser.IsClinicAdminOfAsync(clinicId))
             pendingJoinRequestCount = await statusRepository.CountPendingJoinRequestsAsync([clinicId]);
 
         var topSpecialties = verifiedProviders
@@ -116,7 +116,7 @@ public class ClinicService(
     public async Task<List<AppointmentResponse>> GetAppointmentsByClinicIdAsync(Guid clinicId)
     {
         RequestValidator.EnsureGuid(clinicId, nameof(clinicId), "Clinic ID");
-        await CurrentUserGuard.RequireClinicAdminOrAdministratorAsync(currentUser, clinicId);
+        await currentUser.RequireClinicAdminOrAdministratorAsync(clinicId);
 
         _ = await clinicRepository.GetClinicByIdAsync(clinicId)
             ?? throw new ResourceNotFoundException("Clinic", clinicId);

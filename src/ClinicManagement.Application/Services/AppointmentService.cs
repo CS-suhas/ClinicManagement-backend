@@ -32,7 +32,7 @@ public class AppointmentService(
 {
     public async Task<Guid> AddAppointmentAsync(AppointmentRequest request)
     {
-        var patient = await CurrentUserGuard.RequirePatientAsync(currentUser);
+        var patient = await currentUser.RequirePatientAsync();
         request = request with { PatientId = patient.Id };
         var currentTime = timeProvider.GetUtcNow();
         ValidateRequest(request, currentTime);
@@ -228,7 +228,7 @@ public class AppointmentService(
     public async Task CancelAppointmentAsync(Guid appointmentId)
     {
         var appointment = await GetRequiredAppointmentAsync(appointmentId);
-        CurrentUserGuard.RequireAuthenticated(currentUser);
+        currentUser.RequireAuthenticated();
         if (!await IsParticipantAsync(appointment))
             throw new ForbiddenException("Only the appointment's patient or provider can cancel it.");
         await ApplyStatusChangeAsync(appointment, (item, now) => item.Cancel(now));
@@ -240,7 +240,7 @@ public class AppointmentService(
     private async Task ChangeProviderStatusAsync(Guid appointmentId, Action<Appointment, DateTimeOffset> transition)
     {
         var appointment = await GetRequiredAppointmentAsync(appointmentId);
-        await CurrentUserGuard.RequireVerifiedProviderAsync(currentUser, appointment.ProviderId);
+        await currentUser.RequireVerifiedProviderAsync(appointment.ProviderId);
         await ApplyStatusChangeAsync(appointment, transition);
     }
 
@@ -274,8 +274,8 @@ public class AppointmentService(
 
     private async Task<AppointmentSearchQuery> ScopeSearchAsync(AppointmentSearchQuery query)
     {
-        CurrentUserGuard.RequireAuthenticated(currentUser);
-        if (CurrentUserGuard.IsAdministrator(currentUser))
+        currentUser.RequireAuthenticated();
+        if (currentUser.IsAdministrator())
             return query;
         if (await currentUser.GetPatientAsync() is { } patient)
             return query with { PatientId = ScopeTo(query.PatientId, patient.Id) };
@@ -314,8 +314,8 @@ public class AppointmentService(
 
     private async Task EnsureCanViewAsync(Appointment appointment)
     {
-        CurrentUserGuard.RequireAuthenticated(currentUser);
-        if (CurrentUserGuard.IsAdministrator(currentUser) || await IsParticipantAsync(appointment))
+        currentUser.RequireAuthenticated();
+        if (currentUser.IsAdministrator() || await IsParticipantAsync(appointment))
             return;
         if (appointment.Provider.ClinicId is { } clinicId && await currentUser.IsClinicAdminOfAsync(clinicId))
             return;

@@ -14,7 +14,7 @@ public class MeService(
 {
     public async Task<MeResponse> GetCurrentUserAsync()
     {
-        CurrentUserGuard.RequireAuthenticated(currentUser);
+        currentUser.RequireAuthenticated();
 
         var patient = await currentUser.GetPatientAsync();
         var provider = await currentUser.GetProviderAsync();
@@ -31,8 +31,8 @@ public class MeService(
 
     public async Task<Guid> CreatePatientProfileAsync(PatientRequest request)
     {
-        var userId = CurrentUserGuard.RequireUserId(currentUser);
-        var subject = CurrentUserGuard.RequireSubject(currentUser);
+        var userId = currentUser.RequireUserId();
+        var subject = currentUser.RequireSubject();
 
         if (await currentUser.GetPatientAsync() is not null)
             throw new IdentityAlreadyLinkedException("patient", subject);

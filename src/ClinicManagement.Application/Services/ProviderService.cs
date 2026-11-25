@@ -69,8 +69,8 @@ public class ProviderService(
         RequestValidator.EnsureText(request.LastName, "lastName", "Last name");
         RequestValidator.EnsureText(request.Specialty, "specialty", "Specialty");
 
-        var userId = CurrentUserGuard.RequireUserId(currentUser);
-        var subject = CurrentUserGuard.RequireSubject(currentUser);
+        var userId = currentUser.RequireUserId();
+        var subject = currentUser.RequireSubject();
         if (await providerRepository.GetByUserIdAsync(userId) is not null)
             throw new IdentityAlreadyLinkedException("provider", subject);
 
@@ -92,7 +92,7 @@ public class ProviderService(
         bool includeInactive)
     {
         RequestValidator.EnsureGuid(providerId, nameof(providerId), "Provider ID");
-        await CurrentUserGuard.RequireVerifiedProviderAsync(currentUser, providerId);
+        await currentUser.RequireVerifiedProviderAsync(providerId);
         if (from >= to)
             throw new DomainValidationException("'from' must be earlier than 'to'.", nameof(from));
         if (to - from > MaxCalendarRange)
@@ -225,18 +225,18 @@ public class ProviderService(
 
     private async Task EnsureCanUpdateProviderAsync(ProviderRequest request)
     {
-        if (CurrentUserGuard.IsAdministrator(currentUser))
+        if (currentUser.IsAdministrator())
             return;
 
-        var self = await CurrentUserGuard.RequireProviderAsync(currentUser, request.Id);
+        var self = await currentUser.RequireProviderAsync(request.Id);
         if (self.ClinicId != request.ClinicId)
             throw new ForbiddenException("Providers cannot change their own clinic.");
     }
 
     private async Task EnsureCanViewProviderAppointmentsAsync(Provider provider)
     {
-        CurrentUserGuard.RequireAuthenticated(currentUser);
-        if (CurrentUserGuard.IsAdministrator(currentUser))
+        currentUser.RequireAuthenticated();
+        if (currentUser.IsAdministrator())
             return;
         if (await currentUser.GetProviderAsync() is { } self && self.Id == provider.Id)
             return;
