@@ -20,14 +20,14 @@ public static class PatientEndpoints
         })
             .WithSummary("List all patients (admin)")
             .WithDescription("Returns every patient. Each item carries allergyCount (the number of recorded allergies) and highestSeverity (MILD, MODERATE or SEVERE, null when there are none).")
-            .RequireAuthorization(AuthorizationPolicies.AdminOnly);
+            .RequirePermission(Permissions.PatientsReadAll);
 
         app.MapGet("/api/patients/search", async (
             [AsParameters] PageQuery query,
             [FromServices] IPatientService patientService) =>
             Results.Ok(await patientService.SearchPatientsAsync(query)))
             .WithName("SearchPatients")
-            .RequireAuthorization(AuthorizationPolicies.AdminOnly)
+            .RequirePermission(Permissions.PatientsReadAll)
             .WithSummary("Search patients")
             .WithDescription("Searches patient names, email, and phone number, and returns a page. Each item carries allergyCount (the number of recorded allergies) and highestSeverity (MILD, MODERATE or SEVERE, null when there are none).")
             .Produces<PagedResponse<PatientResponse>>(StatusCodes.Status200OK);
@@ -85,7 +85,7 @@ public static class PatientEndpoints
             return Results.Created($"/api/patients/{id}/allergies/{request.AllergyId}", new { allergyId });
         })
             .WithName("AddPatientAllergy")
-            .RequireAuthorization(AuthorizationPolicies.PatientOnly)
+            .RequirePermission(Permissions.OwnPatientProfileEdit)
             .WithSummary("Add or upsert a patient's allergy")
             .Produces(StatusCodes.Status201Created);
 
@@ -101,7 +101,7 @@ public static class PatientEndpoints
             return Results.NoContent();
         })
             .WithName("UpdatePatientAllergy")
-            .RequireAuthorization(AuthorizationPolicies.PatientOnly)
+            .RequirePermission(Permissions.OwnPatientProfileEdit)
             .WithSummary("Update a patient's recorded allergy")
             .Produces(StatusCodes.Status204NoContent);
 
@@ -114,7 +114,7 @@ public static class PatientEndpoints
             return Results.NoContent();
         })
             .WithName("DeletePatientAllergy")
-            .RequireAuthorization(AuthorizationPolicies.PatientOnly)
+            .RequirePermission(Permissions.OwnPatientProfileEdit)
             .WithSummary("Delete a patient's recorded allergy")
             .Produces(StatusCodes.Status204NoContent);
 
@@ -136,21 +136,21 @@ public static class PatientEndpoints
 
             return Results.Created($"/api/patients/{id}", new { id });
         })
-            .RequireAuthorization(AuthorizationPolicies.AdminOnly);
+            .RequirePermission(Permissions.PatientsManage);
 
         app.MapPut("/api/patients/{id}", async (Guid id, [FromBody] PatientRequest patientRequest, [FromServices] IPatientService patientService) =>
         {
             await patientService.UpdatePatientAsync(patientRequest with { Id = id });
             return Results.NoContent();
         })
-        .RequireAuthorization(AuthorizationPolicies.PatientOnly);
+        .RequirePermission(Permissions.OwnPatientProfileEdit);
 
         app.MapDelete("/api/patients/{id}", async (Guid id, [FromServices] IPatientService patientService) =>
         {
             await patientService.DeletePatientAsync(id);
             return Results.NoContent();
         })
-        .RequireAuthorization(AuthorizationPolicies.AdminOnly);
+        .RequirePermission(Permissions.PatientsManage);
         return app;
     }
 }

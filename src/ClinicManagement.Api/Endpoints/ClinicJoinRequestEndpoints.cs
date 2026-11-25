@@ -19,7 +19,7 @@ public static class ClinicJoinRequestEndpoints
             return Results.Created($"/api/clinic-join-requests/{id}", new { id });
         })
             .WithName("RequestToJoinClinic")
-            .RequireAuthorization(AuthorizationPolicies.DoctorOnly)
+            .RequirePermission(Permissions.JoinRequestsSubmit)
             .WithSummary("Ask a clinic to accept a provider")
             .WithDescription("The provider must be verified and not already in a clinic, and can have only one pending request.")
             .Produces(StatusCodes.Status201Created)
@@ -42,7 +42,7 @@ public static class ClinicJoinRequestEndpoints
             [FromServices] IClinicJoinRequestService service) =>
             Results.Ok(await service.GetByClinicIdAsync(clinicId, status)))
             .WithName("GetClinicJoinRequests")
-            .RequireAuthorization(AuthorizationPolicies.ClinicAdminOrAdministratorOnly)
+            .RequirePermission(Permissions.JoinRequestsReview)
             .WithSummary("Get the join requests a clinic must decide on")
             .WithDescription("Optionally filtered by status, for example PENDING.")
             .Produces<IReadOnlyList<ClinicJoinRequestResponse>>(StatusCodes.Status200OK)
@@ -56,7 +56,7 @@ public static class ClinicJoinRequestEndpoints
             return Results.NoContent();
         })
             .WithName("ApproveClinicJoinRequest")
-            .RequireAuthorization(AuthorizationPolicies.ClinicAdminOrAdministratorOnly)
+            .RequirePermission(Permissions.JoinRequestsReview)
             .WithSummary("Approve a join request and assign the provider to the clinic")
             .Produces(StatusCodes.Status204NoContent)
             .Produces(StatusCodes.Status404NotFound)
@@ -70,7 +70,7 @@ public static class ClinicJoinRequestEndpoints
             return Results.NoContent();
         })
             .WithName("RejectClinicJoinRequest")
-            .RequireAuthorization(AuthorizationPolicies.ClinicAdminOrAdministratorOnly)
+            .RequirePermission(Permissions.JoinRequestsReview)
             .WithSummary("Reject a pending join request")
             .Produces(StatusCodes.Status204NoContent)
             .Produces(StatusCodes.Status404NotFound)
@@ -84,7 +84,7 @@ public static class ClinicJoinRequestEndpoints
             return Results.NoContent();
         })
             .WithName("CancelClinicJoinRequest")
-            .RequireAuthorization(AuthorizationPolicies.DoctorOnly)
+            .RequirePermission(Permissions.JoinRequestsSubmit)
             .WithSummary("Withdraw a pending join request (by the provider)")
             .Produces(StatusCodes.Status204NoContent)
             .Produces(StatusCodes.Status404NotFound)

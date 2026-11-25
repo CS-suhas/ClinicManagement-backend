@@ -18,7 +18,7 @@ public static class ProviderEndpoints
     {
         app.MapGet("/api/providers", async ([FromServices] IProviderService service) =>
             Results.Ok(await service.GetAllProvidersAsync()))
-            .RequireAuthorization(AuthorizationPolicies.AdminOnly);
+            .RequirePermission(Permissions.ProvidersReadAll);
 
         app.MapGet("/api/providers/search", async (
             [AsParameters] PageQuery query,
@@ -68,7 +68,7 @@ public static class ProviderEndpoints
             return Results.NoContent();
         })
             .WithName("VerifyProvider")
-            .RequireAuthorization(AuthorizationPolicies.AdminOnly)
+            .RequirePermission(Permissions.ProvidersVerify)
             .WithSummary("Verify a provider (admin)")
             .Produces(StatusCodes.Status204NoContent)
             .Produces(StatusCodes.Status404NotFound)
@@ -80,7 +80,7 @@ public static class ProviderEndpoints
             return Results.NoContent();
         })
             .WithName("RejectProvider")
-            .RequireAuthorization(AuthorizationPolicies.AdminOnly)
+            .RequirePermission(Permissions.ProvidersVerify)
             .WithSummary("Reject a pending provider (admin)")
             .Produces(StatusCodes.Status204NoContent)
             .Produces(StatusCodes.Status404NotFound)
@@ -94,7 +94,7 @@ public static class ProviderEndpoints
             [FromServices] IProviderService service) =>
             Results.Ok(await service.GetProviderCalendarAsync(id, from, to, includeInactive ?? false)))
             .WithName("GetProviderCalendar")
-            .RequireAuthorization(AuthorizationPolicies.DoctorOnly)
+            .RequirePermission(Permissions.OwnCalendarRead)
             .WithSummary("Get a provider's appointments in a date range")
             .WithDescription("Appointments starting in [from, to), at most 62 days, ordered by time. Declined and cancelled appointments are left out unless includeInactive is true.")
             .Produces<List<AppointmentListResponse>>(StatusCodes.Status200OK)
@@ -164,7 +164,7 @@ public static class ProviderEndpoints
             var id = await service.AddProviderAsync(request with { Id = Guid.NewGuid() });
             return Results.Created($"/api/providers/{id}", new { id });
         })
-        .RequireAuthorization(AuthorizationPolicies.AdminOnly);
+        .RequirePermission(Permissions.ProvidersManage);
 
         app.MapPut("/api/providers/{id}", async (Guid id, [FromBody] ProviderRequest request, [FromServices] IProviderService service) =>
         {
@@ -178,7 +178,7 @@ public static class ProviderEndpoints
             await service.DeleteProviderAsync(id);
             return Results.NoContent();
         })
-        .RequireAuthorization(AuthorizationPolicies.AdminOnly);
+        .RequirePermission(Permissions.ProvidersManage);
 
         return app;
     }

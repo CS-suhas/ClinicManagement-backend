@@ -71,21 +71,21 @@ public static class ClinicEndpoints
             var id = await service.AddClinicAsync(request with { Id = Guid.NewGuid() });
             return Results.Created($"/api/clinics/{id}", new { id });
         })
-        .RequireAuthorization(AuthorizationPolicies.AdminOnly);
+        .RequirePermission(Permissions.ClinicsManage);
 
         clinics.MapPut("/{id}", async (Guid id, [FromBody] ClinicRequest request, [FromServices] IClinicService service) =>
         {
             await service.UpdateClinicAsync(request with { Id = id });
             return Results.NoContent();
         })
-        .RequireAuthorization(AuthorizationPolicies.AdminOnly);
+        .RequirePermission(Permissions.ClinicsManage);
 
         clinics.MapDelete("/{id}", async (Guid id, [FromServices] IClinicService service) =>
         {
             await service.DeleteClinicAsync(id);
             return Results.NoContent();
         })
-        .RequireAuthorization(AuthorizationPolicies.AdminOnly);
+        .RequirePermission(Permissions.ClinicsManage);
 
         clinics.MapPost("/{clinicId}/admins", async (
             Guid clinicId,
@@ -96,7 +96,7 @@ public static class ClinicEndpoints
             return Results.Created($"/api/clinics/{clinicId}/admins", new { id });
         })
             .WithName("AddClinicAdmin")
-            .RequireAuthorization(AuthorizationPolicies.AdminOnly)
+            .RequirePermission(Permissions.ClinicAdminsAssign)
             .WithSummary("Assign an identity as an administrator of a clinic (admin)")
             .Produces(StatusCodes.Status201Created)
             .Produces(StatusCodes.Status404NotFound)

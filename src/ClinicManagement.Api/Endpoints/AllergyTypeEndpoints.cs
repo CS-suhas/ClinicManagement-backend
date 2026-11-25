@@ -34,28 +34,28 @@ public static class AllergyTypeEndpoints
 
         app.MapGet("/api/allergy-types/{id}/patients", async (Guid id, [FromServices] IAllergyTypeService service) =>
             Results.Ok(await service.GetPatientsByAllergyTypeIdAsync(id)))
-            .RequireAuthorization(AuthorizationPolicies.AdminOnly);
+            .RequirePermission(Permissions.PatientsReadAll);
 
         app.MapPost("/api/allergy-types", async ([FromBody] AllergyTypeRequest request, [FromServices] IAllergyTypeService service) =>
         {
             var id = await service.AddAllergyTypeAsync(request with { Id = Guid.NewGuid() });
             return Results.Created($"/api/allergy-types/{id}", new { id });
         })
-        .RequireAuthorization(AuthorizationPolicies.AdminOnly);
+        .RequirePermission(Permissions.AllergyTypesManage);
 
         app.MapPut("/api/allergy-types/{id}", async (Guid id, [FromBody] AllergyTypeRequest request, [FromServices] IAllergyTypeService service) =>
         {
             await service.UpdateAllergyTypeAsync(request with { Id = id });
             return Results.NoContent();
         })
-        .RequireAuthorization(AuthorizationPolicies.AdminOnly);
+        .RequirePermission(Permissions.AllergyTypesManage);
 
         app.MapDelete("/api/allergy-types/{id}", async (Guid id, [FromServices] IAllergyTypeService service) =>
         {
             await service.DeleteAllergyTypeAsync(id);
             return Results.NoContent();
         })
-        .RequireAuthorization(AuthorizationPolicies.AdminOnly);
+        .RequirePermission(Permissions.AllergyTypesManage);
 
         return app;
     }

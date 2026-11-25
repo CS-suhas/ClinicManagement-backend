@@ -16,7 +16,7 @@ public static class StatusEndpoints
 
         app.MapGet("/api/dashboard", async (IStatusService service) =>
                 Results.Ok(await service.GetDashboardAsync()))
-            .RequireAuthorization(AuthorizationPolicies.AdminOnly)
+            .RequirePermission(Permissions.PlatformDashboardRead)
             .WithName("GetDashboard")
             .WithSummary("Get dashboard counts and upcoming appointments")
             .WithDescription("Returns resource totals and the next five appointments with patient, provider, and clinic names.")

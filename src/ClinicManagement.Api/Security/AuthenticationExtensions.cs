@@ -54,17 +54,19 @@ public static class AuthenticationExtensions
         services.AddOptions<PublicAccessSettings>().BindConfiguration(PublicAccessSettings.SectionName);
         services.AddSingleton<IAuthorizationHandler, PublicDoctorsAuthorizationHandler>();
 
-        services.AddAuthorizationBuilder()
+        services.AddSingleton<IAuthorizationHandler, PermissionAuthorizationHandler>();
+
+        var authorization = services.AddAuthorizationBuilder()
             .AddPolicy(AuthorizationPolicies.Authenticated, policy => policy.RequireAuthenticatedUser())
-            .AddPolicy(AuthorizationPolicies.PatientOnly, policy => policy.RequireRole(Roles.Patient))
-            .AddPolicy(AuthorizationPolicies.DoctorOnly, policy => policy.RequireRole(Roles.Doctor))
-            .AddPolicy(AuthorizationPolicies.AdminOnly, policy => policy.RequireRole(Roles.Admin))
-            .AddPolicy(AuthorizationPolicies.ClinicAdminOnly, policy =>
-                policy.RequireRole(Roles.ClinicAdmin))
-            .AddPolicy(AuthorizationPolicies.ClinicAdminOrAdministratorOnly, policy =>
-                policy.RequireRole(Roles.Admin, Roles.ClinicAdmin))
             .AddPolicy(AuthorizationPolicies.PublicDoctors, policy =>
                 policy.AddRequirements(new PublicDoctorsRequirement()));
+
+        foreach (var permission in Permissions.All)
+        {
+            authorization.AddPolicy(permission, policy => policy
+                .RequireAuthenticatedUser()
+                .AddRequirements(new PermissionRequirement(permission)));
+        }
 
         return services;
     }

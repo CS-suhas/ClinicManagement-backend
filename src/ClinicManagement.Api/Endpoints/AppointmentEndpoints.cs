@@ -15,7 +15,7 @@ public static class AppointmentEndpoints
     {
         app.MapGet("/api/appointments", async ([FromServices] IAppointmentService service) =>
             Results.Ok(await service.GetAllAppointmentsAsync()))
-            .RequireAuthorization(AuthorizationPolicies.AdminOnly);
+            .RequirePermission(Permissions.AppointmentsReadAll);
 
         app.MapGet("/api/appointments/search", async (
             [AsParameters] AppointmentSearchQuery query,
@@ -68,21 +68,21 @@ public static class AppointmentEndpoints
             var id = await service.AddAppointmentAsync(request with { Id = Guid.NewGuid() });
             return Results.Created($"/api/appointments/{id}", new { id });
         })
-        .RequireAuthorization(AuthorizationPolicies.PatientOnly);
+        .RequirePermission(Permissions.AppointmentsBook);
 
         app.MapPut("/api/appointments/{id}", async (Guid id, [FromBody] AppointmentRequest request, [FromServices] IAppointmentService service) =>
         {
             await service.UpdateAppointmentAsync(request with { Id = id });
             return Results.NoContent();
         })
-        .RequireAuthorization(AuthorizationPolicies.AdminOnly);
+        .RequirePermission(Permissions.AppointmentsManage);
 
         app.MapDelete("/api/appointments/{id}", async (Guid id, [FromServices] IAppointmentService service) =>
         {
             await service.DeleteAppointmentAsync(id);
             return Results.NoContent();
         })
-        .RequireAuthorization(AuthorizationPolicies.AdminOnly);
+        .RequirePermission(Permissions.AppointmentsManage);
 
         app.MapPost("/api/appointments/{id}/confirm", async (Guid id, [FromServices] IAppointmentService service) =>
         {
@@ -90,7 +90,7 @@ public static class AppointmentEndpoints
             return Results.NoContent();
         })
             .WithName("ConfirmAppointment")
-            .RequireAuthorization(AuthorizationPolicies.DoctorOnly)
+            .RequirePermission(Permissions.AppointmentsRespond)
             .WithSummary("Accept a requested appointment (provider)")
             .Produces(StatusCodes.Status204NoContent)
             .Produces(StatusCodes.Status404NotFound)
@@ -102,7 +102,7 @@ public static class AppointmentEndpoints
             return Results.NoContent();
         })
             .WithName("DeclineAppointment")
-            .RequireAuthorization(AuthorizationPolicies.DoctorOnly)
+            .RequirePermission(Permissions.AppointmentsRespond)
             .WithSummary("Decline a requested appointment (provider)")
             .Produces(StatusCodes.Status204NoContent)
             .Produces(StatusCodes.Status404NotFound)
@@ -126,7 +126,7 @@ public static class AppointmentEndpoints
             return Results.NoContent();
         })
             .WithName("CompleteAppointment")
-            .RequireAuthorization(AuthorizationPolicies.DoctorOnly)
+            .RequirePermission(Permissions.AppointmentsRespond)
             .WithSummary("Mark a confirmed appointment as completed")
             .Produces(StatusCodes.Status204NoContent)
             .Produces(StatusCodes.Status404NotFound)
