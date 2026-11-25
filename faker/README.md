@@ -81,6 +81,24 @@ Otherwise it tops the Patients table up to 600 and books appointments for both n
 It avoids existing patient emails and allergy type names. A database seeded by the earlier v1 seeder gets the
 v2 data added once. Remove the `oracle-data` volume (`docker compose down -v`) for a clean data set.
 
+## Demo account activity
+
+`demo.js` (`node demo.js` in the seeder image) fills in the demo accounts that the deploy repository's
+`demo/demo-accounts.sh` creates, which runs it after creating them. It finds them by user email
+(`demo-patient@clinic.local` and `demo-doctor@clinic.local`; override with `DEMO_PATIENT_EMAIL` and
+`DEMO_DOCTOR_EMAIL`) and writes, with the same catalogues and rules as the seeder (`demo-data.js`):
+
+- Demo patient: three allergies, and nine appointments over the last two months and the next few weeks,
+  covering every status, some with the demo doctor and some with other providers (same clinic first).
+- Demo doctor: six weeks of history, today's list (Monday to Saturday), three weeks ahead, and at least
+  five requests waiting for a decision, with up to 40 existing patients. Run the seeder first; with no
+  other patients the doctor only gets the demo patient's visits.
+
+Its rows have fixed Id prefixes (`d3300000-0000-4000-8001-` appointments, `d3300000-0000-4000-8002-`
+allergies). Each run deletes them and writes new ones dated around today, in one transaction, so re-run it
+before a demo. Anything else, including appointments booked through the UI, is kept, and new rows avoid
+the slots it holds.
+
 ## Tests
 
 ```powershell
