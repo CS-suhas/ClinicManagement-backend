@@ -20,7 +20,7 @@ RUN dotnet publish src/ClinicManagement.Api/ClinicManagement.Api.csproj \
     --no-restore
 
 # Stage 2, runtime image
-FROM mcr.microsoft.com/dotnet/runtime-deps:10.0.15@sha256:e6702e45635272155c2aa35568bcbdb975595c0afa73e2656a973d0a87703282 AS final
+FROM mcr.microsoft.com/dotnet/runtime-deps:11.0.0@sha256:b392cb6e185b0c02cd8066b8b3b2e78d58f7cc15ba5d52ea3e2bfe8f3c0060f9 AS final
 WORKDIR /app
 COPY --from=build /app/publish .
 
