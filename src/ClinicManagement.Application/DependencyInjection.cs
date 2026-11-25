@@ -32,6 +32,7 @@ public static class DependencyInjection
         services.AddScoped<IMeService, MeService>();
         services.AddScoped<IMeDashboardService, MeDashboardService>();
         services.AddScoped<ISearchService, SearchService>();
+        services.AddScoped<IUserRoleService, UserRoleService>();
 
         return services;
     }

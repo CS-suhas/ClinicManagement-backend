@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Options;
+using ClinicManagement.Application.Common.Settings;
 using ClinicManagement.Application.Common;
 using System.Security.Claims;
 using ClinicManagement.Application.Interfaces;
@@ -52,6 +54,7 @@ public static class AuthenticationExtensions
         services.AddScoped<IClaimsTransformation, RoleClaimsTransformation>();
 
         services.AddOptions<AuthorizationSettings>().BindConfiguration(AuthorizationSettings.SectionName);
+        services.AddSingleton(provider => provider.GetRequiredService<IOptions<AuthorizationSettings>>().Value);
         services.AddOptions<PublicAccessSettings>().BindConfiguration(PublicAccessSettings.SectionName);
         services.AddSingleton<IAuthorizationHandler, PublicDoctorsAuthorizationHandler>();
 

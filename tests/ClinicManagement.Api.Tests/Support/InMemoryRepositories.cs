@@ -21,6 +21,7 @@ public sealed class InMemoryStore
     public List<ClinicJoinRequest> JoinRequests { get; } = [];
     public List<ClinicAdmin> ClinicAdmins { get; } = [];
     public List<User> Users { get; } = [];
+    public List<StoredUserRole> UserRoles { get; } = [];
     public List<AllergyType> AllergyTypes { get; } = [];
     /// <summary>When each appointment last changed status, mirroring Appointments.StatusChangedAtUtc.</summary>
     public Dictionary<Guid, DateTimeOffset> StatusChangedAt { get; } = [];
@@ -40,6 +41,8 @@ public sealed class InMemoryStore
         }
     }
 }
+
+public sealed record StoredUserRole(Guid UserId, string Role, DateTimeOffset GrantedAtUtc, Guid? GrantedByUserId);
 
 /// <summary>Allergy summary of a patient, computed the way the SQL summaries are.</summary>
 internal static class InMemoryAllergySummary
@@ -519,23 +522,56 @@ internal sealed class InMemoryUserRepository(InMemoryStore store) : IUserReposit
         return Task.FromResult(user);
     }
 
-    public Task GrantPlatformAdminAsync(Guid userId)
-    {
-        store.Users.First(user => user.Id == userId).GrantPlatformAdmin();
-        return Task.CompletedTask;
-    }
-
     public Task<UserAccessContext> GetAccessContextAsync(Guid userId)
     {
-        var user = store.Users.FirstOrDefault(candidate => candidate.Id == userId);
         var provider = store.Providers.FirstOrDefault(candidate => candidate.UserId == userId);
         return Task.FromResult(new UserAccessContext(
             userId,
-            user?.IsPlatformAdmin == true,
+            store.UserRoles.Where(role => role.UserId == userId).Select(role => role.Role).Order(StringComparer.Ordinal).ToList(),
             store.Patients.FirstOrDefault(patient => patient.UserId == userId)?.Id,
             provider?.Id,
             provider?.VerificationStatus,
             store.ClinicAdmins.Where(admin => admin.UserId == userId).Select(admin => admin.ClinicId).Distinct().ToList()));
+    }
+}
+
+internal sealed class InMemoryUserRoleRepository(InMemoryStore store) : IUserRoleRepository
+{
+    public Task<bool> AssignAsync(Guid userId, string role, Guid? grantedByUserId)
+    {
+        lock (store.UserRoles)
+        {
+            if (store.UserRoles.Any(existing => existing.UserId == userId && existing.Role == role))
+                return Task.FromResult(false);
+            store.UserRoles.Add(new StoredUserRole(userId, role, DateTimeOffset.UtcNow, grantedByUserId));
+            return Task.FromResult(true);
+        }
+    }
+
+    public Task<bool> RevokeAsync(Guid userId, string role)
+    {
+        lock (store.UserRoles)
+            return Task.FromResult(store.UserRoles.RemoveAll(existing => existing.UserId == userId && existing.Role == role) > 0);
+    }
+
+    public Task<IReadOnlyList<UserRoleAssignment>> ListAsync()
+    {
+        lock (store.UserRoles)
+        {
+            return Task.FromResult<IReadOnlyList<UserRoleAssignment>>(store.UserRoles
+                .Select(role => (Role: role, User: store.Users.First(user => user.Id == role.UserId)))
+                .OrderBy(pair => pair.Role.Role, StringComparer.Ordinal)
+                .ThenBy(pair => pair.User.IdentitySubject, StringComparer.Ordinal)
+                .Select(pair => new UserRoleAssignment(
+                    pair.User.Id,
+                    pair.User.IdentitySubject,
+                    pair.User.Email,
+                    pair.User.DisplayName,
+                    pair.Role.Role,
+                    pair.Role.GrantedAtUtc,
+                    pair.Role.GrantedByUserId))
+                .ToList());
+        }
     }
 }
 

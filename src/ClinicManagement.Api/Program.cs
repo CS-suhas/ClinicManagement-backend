@@ -61,6 +61,7 @@ app.MapClinicJoinRequestEndpoints();
 app.MapReferenceDataEndpoints();
 app.MapStatusEndpoints();
 app.MapSearchEndpoints();
+app.MapUserRoleEndpoints();
 app.MapControllers();
 app.MapHealthChecks("/health");
 app.Run();

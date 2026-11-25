@@ -40,7 +40,8 @@ public static class RolePermissions
                 Permissions.ProvidersReadAll,
                 Permissions.ProvidersManage,
                 Permissions.ProvidersVerify,
-                Permissions.PlatformDashboardRead
+                Permissions.PlatformDashboardRead,
+                Permissions.UserRolesManage
             ]
         }.ToFrozenDictionary(
             entry => entry.Key,

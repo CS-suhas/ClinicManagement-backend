@@ -4,7 +4,7 @@ using ClinicManagement.Api.Tests.Support;
 using ClinicManagement.Application.Models;
 using ClinicManagement.Application.Repositories;
 using ClinicManagement.Domain.Entities;
-using Microsoft.Extensions.Options;
+using ClinicManagement.Application.Common.Settings;
 
 namespace ClinicManagement.Api.Tests;
 
@@ -80,18 +80,30 @@ public class RoleClaimsTransformationTests
     {
         await RolesFor(Subject, configuredAdmins: [Subject]);
 
-        Assert.True(store.UserFor(Subject).IsPlatformAdmin);
+        var stored = Assert.Single(store.UserRoles);
+        Assert.Equal((store.UserFor(Subject).Id, "admin", (Guid?)null), (stored.UserId, stored.Role, stored.GrantedByUserId));
         Assert.Equal(["admin"], await RolesFor(Subject));
     }
 
     [Fact]
-    public async Task PlatformAdminUser_DerivesAdminRole()
+    public async Task AssignedAdminRole_DerivesAdminRole()
     {
-        store.UserFor(Subject).GrantPlatformAdmin();
+        store.UserRoles.Add(new StoredUserRole(store.UserFor(Subject).Id, "admin", DateTimeOffset.UtcNow, null));
 
         var roles = await RolesFor(Subject);
 
         Assert.Equal(["admin"], roles);
+    }
+
+    [Fact]
+    public async Task AssignedAndDerivedRoles_AreCombined()
+    {
+        AddPatient(Subject);
+        store.UserRoles.Add(new StoredUserRole(store.UserFor(Subject).Id, "admin", DateTimeOffset.UtcNow, null));
+
+        var roles = await RolesFor(Subject);
+
+        Assert.Equal(["patient", "admin"], roles);
     }
 
     [Fact]
@@ -186,7 +198,7 @@ public class RoleClaimsTransformationTests
         AddPatient(Subject);
         var repository = new CountingUserRepository(new InMemoryUserRepository(store));
         var transformation = new RoleClaimsTransformation(
-            Options.Create(new AuthorizationSettings()), repository, new UserAccessContextHolder());
+            new AuthorizationSettings(), repository, new InMemoryUserRoleRepository(store), new UserAccessContextHolder());
         var principal = new ClaimsPrincipal(new ClaimsIdentity([new Claim("sub", Subject)], "test"));
 
         await transformation.TransformAsync(principal);
@@ -219,8 +231,9 @@ public class RoleClaimsTransformationTests
 
     private RoleClaimsTransformation CreateTransformation(IEnumerable<string> configuredAdmins) =>
         new(
-            Options.Create(new AuthorizationSettings { AdminSubjects = configuredAdmins.ToArray() }),
+            new AuthorizationSettings { AdminSubjects = configuredAdmins.ToArray() },
             new InMemoryUserRepository(store),
+            new InMemoryUserRoleRepository(store),
             new UserAccessContextHolder());
 
     private void AddPatient(string subject)
@@ -247,8 +260,6 @@ public class RoleClaimsTransformationTests
 
         public Task<User> GetOrCreateAsync(string identitySubject, string? email = null, string? displayName = null) =>
             inner.GetOrCreateAsync(identitySubject, email, displayName);
-
-        public Task GrantPlatformAdminAsync(Guid userId) => inner.GrantPlatformAdminAsync(userId);
 
         public Task<UserAccessContext> GetAccessContextAsync(Guid userId)
         {

@@ -1,19 +1,22 @@
 using System.Security.Claims;
+using ClinicManagement.Application.Common;
+using ClinicManagement.Application.Common.Settings;
 using ClinicManagement.Application.Models;
 using ClinicManagement.Application.Repositories;
 using Microsoft.AspNetCore.Authentication;
-using Microsoft.Extensions.Options;
 
 namespace ClinicManagement.Api.Security;
 
 /// <summary>
 /// Resolves the signed-in identity to a <c>Users</c> row (creating it on first sign-in) and replaces any
-/// inbound role claims with roles derived from that user's data. The access data is loaded once per request
-/// and shared through <see cref="UserAccessContextHolder"/>.
+/// inbound role claims with the roles the backend grants: those derived from the user's data plus those assigned
+/// in <c>UserRoles</c>. The access data is loaded once per request and shared through
+/// <see cref="UserAccessContextHolder"/>.
 /// </summary>
 public sealed class RoleClaimsTransformation(
-    IOptions<AuthorizationSettings> settings,
+    AuthorizationSettings settings,
     IUserRepository userRepository,
+    IUserRoleRepository userRoleRepository,
     UserAccessContextHolder holder) : IClaimsTransformation
 {
     public async Task<ClaimsPrincipal> TransformAsync(ClaimsPrincipal principal)
@@ -53,10 +56,10 @@ public sealed class RoleClaimsTransformation(
             principal.FindFirst("name")?.Value ?? principal.FindFirst("preferred_username")?.Value);
         var context = await userRepository.GetAccessContextAsync(user.Id);
 
-        if (!context.IsPlatformAdmin && settings.Value.AdminSubjects.Contains(subject, StringComparer.Ordinal))
+        if (!context.HasAssignedRole(Roles.Admin) && settings.IsConfiguredAdmin(subject))
         {
-            await userRepository.GrantPlatformAdminAsync(user.Id);
-            context = context with { IsPlatformAdmin = true };
+            await userRoleRepository.AssignAsync(user.Id, Roles.Admin, grantedByUserId: null);
+            context = context with { AssignedRoles = [.. context.AssignedRoles, Roles.Admin] };
         }
 
         return context;

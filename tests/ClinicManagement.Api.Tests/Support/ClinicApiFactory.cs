@@ -76,6 +76,7 @@ public sealed class ClinicApiFactory : WebApplicationFactory<Program>
             services.RemoveAll<IClinicJoinRequestRepository>();
             services.RemoveAll<IClinicAdminRepository>();
             services.RemoveAll<IUserRepository>();
+            services.RemoveAll<IUserRoleRepository>();
             services.RemoveAll<IAllergyTypeRepository>();
             services.RemoveAll<IStatusRepository>();
             services.RemoveAll<ISearchRepository>();
@@ -87,6 +88,7 @@ public sealed class ClinicApiFactory : WebApplicationFactory<Program>
             services.AddSingleton<IClinicJoinRequestRepository>(new InMemoryClinicJoinRequestRepository(Store));
             services.AddSingleton<IClinicAdminRepository>(new InMemoryClinicAdminRepository(Store));
             services.AddSingleton<IUserRepository>(new InMemoryUserRepository(Store));
+            services.AddSingleton<IUserRoleRepository>(new InMemoryUserRoleRepository(Store));
             services.AddSingleton<IAllergyTypeRepository>(new InMemoryAllergyTypeRepository(Store));
             services.AddSingleton<IStatusRepository>(new InMemoryStatusRepository(Store));
             services.AddSingleton<ISearchRepository>(new InMemorySearchRepository(Store));

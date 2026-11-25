@@ -22,12 +22,12 @@ public sealed class FakeUserRepository : IUserRepository
         return Task.FromResult(user);
     }
 
-    public Task GrantPlatformAdminAsync(Guid userId)
-    {
-        Users.First(user => user.Id == userId).GrantPlatformAdmin();
-        return Task.CompletedTask;
-    }
+    /// <summary>Assigned roles by user, as <c>UserRoles</c> would hold them.</summary>
+    public Dictionary<Guid, List<string>> AssignedRoles { get; } = [];
 
     public Task<UserAccessContext> GetAccessContextAsync(Guid userId) =>
-        Task.FromResult(UserAccessContext.Empty(userId));
+        Task.FromResult(UserAccessContext.Empty(userId) with
+        {
+            AssignedRoles = AssignedRoles.TryGetValue(userId, out var roles) ? roles.ToList() : []
+        });
 }

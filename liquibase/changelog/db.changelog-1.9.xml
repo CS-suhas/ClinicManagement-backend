@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- Roles granted explicitly by an administrator, as opposed to roles derived from a user's data (patient,
+         doctor, clinic admin). Users.IsPlatformAdmin becomes an 'admin' row here. Which role names are valid is
+         decided by the application, so adding an assignable role needs no migration. -->
+    <changeSet id="1.9-create-user-roles" author="clinic-management">
+        <createTable tableName="UserRoles">
+            <column name="UserId" type="VARCHAR2(36)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="Role" type="VARCHAR2(32)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="GrantedAtUtc" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="SYSTIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <!-- Null for grants made by configuration or migration rather than by a signed-in administrator. -->
+            <column name="GrantedByUserId" type="VARCHAR2(36)"/>
+        </createTable>
+        <addPrimaryKey tableName="UserRoles" columnNames="UserId, Role" constraintName="PK_UserRoles"/>
+        <addForeignKeyConstraint baseTableName="UserRoles" baseColumnNames="UserId"
+            referencedTableName="Users" referencedColumnNames="Id"
+            constraintName="FK_UserRoles_Users" onDelete="CASCADE"/>
+        <addForeignKeyConstraint baseTableName="UserRoles" baseColumnNames="GrantedByUserId"
+            referencedTableName="Users" referencedColumnNames="Id"
+            constraintName="FK_UserRoles_GrantedBy" onDelete="SET NULL"/>
+    </changeSet>
+
+    <changeSet id="1.9-backfill-admin-roles" author="clinic-management">
+        <sql>INSERT INTO UserRoles (UserId, Role) SELECT Id, 'admin' FROM Users WHERE IsPlatformAdmin = 1</sql>
+        <rollback>
+            <sql>DELETE FROM UserRoles WHERE Role = 'admin'</sql>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="1.9-drop-is-platform-admin" author="clinic-management">
+        <sql>ALTER TABLE Users DROP CONSTRAINT CK_Users_IsPlatformAdmin</sql>
+        <dropColumn tableName="Users" columnName="IsPlatformAdmin"/>
+        <rollback>
+            <addColumn tableName="Users">
+                <column name="IsPlatformAdmin" type="NUMBER(1)" defaultValueNumeric="0">
+                    <constraints nullable="false"/>
+                </column>
+            </addColumn>
+            <sql>ALTER TABLE Users ADD CONSTRAINT CK_Users_IsPlatformAdmin CHECK (IsPlatformAdmin IN (0, 1))</sql>
+            <sql>UPDATE Users SET IsPlatformAdmin = 1 WHERE Id IN (SELECT UserId FROM UserRoles WHERE Role = 'admin')</sql>
+        </rollback>
+    </changeSet>
+</databaseChangeLog>

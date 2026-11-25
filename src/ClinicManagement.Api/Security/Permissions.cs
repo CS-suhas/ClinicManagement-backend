@@ -30,6 +30,8 @@ public static class Permissions
 
     public const string PlatformDashboardRead = "platform:dashboard";
 
+    public const string UserRolesManage = "user-roles:manage";
+
     public static readonly IReadOnlyList<string> All =
     [
         AllergyTypesManage,
@@ -38,6 +40,7 @@ public static class Permissions
         JoinRequestsSubmit, JoinRequestsReview,
         PatientsReadAll, PatientsManage, OwnPatientProfileEdit,
         ProvidersReadAll, ProvidersManage, ProvidersVerify, OwnCalendarRead,
-        PlatformDashboardRead
+        PlatformDashboardRead,
+        UserRolesManage
     ];
 }

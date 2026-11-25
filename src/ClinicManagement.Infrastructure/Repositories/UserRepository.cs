@@ -13,7 +13,7 @@ public sealed class UserRepository(IDbConnectionFactory connectionFactory) : IUs
     private const int UniqueConstraintViolation = 1;
 
     private const string SelectUser = """
-        SELECT Id, IdentitySubject, Email, DisplayName, IsPlatformAdmin
+        SELECT Id, IdentitySubject, Email, DisplayName
         FROM Users
         """;
 
@@ -39,8 +39,8 @@ public sealed class UserRepository(IDbConnectionFactory connectionFactory) : IUs
         var user = User.Create(Guid.NewGuid(), identitySubject, email, displayName);
         using var connection = connectionFactory.CreateConnection();
         const string sql = """
-            INSERT INTO Users (Id, IdentitySubject, Email, DisplayName, IsPlatformAdmin)
-            VALUES (:Id, :IdentitySubject, :Email, :DisplayName, 0)
+            INSERT INTO Users (Id, IdentitySubject, Email, DisplayName)
+            VALUES (:Id, :IdentitySubject, :Email, :DisplayName)
             """;
         try
         {
@@ -61,25 +61,16 @@ public sealed class UserRepository(IDbConnectionFactory connectionFactory) : IUs
         }
     }
 
-    public async Task GrantPlatformAdminAsync(Guid userId)
-    {
-        using var connection = connectionFactory.CreateConnection();
-        const string sql = """
-            UPDATE Users
-            SET IsPlatformAdmin = 1, UpdatedAtUtc = SYSTIMESTAMP
-            WHERE Id = :Id AND IsPlatformAdmin = 0
-            """;
-        await connection.ExecuteAsync(sql, new { Id = userId.ToString() });
-    }
-
     public async Task<UserAccessContext> GetAccessContextAsync(Guid userId)
     {
         using var connection = connectionFactory.CreateConnection();
         // Patients.UserId and Providers.UserId are unique, so the result has one row per administered clinic,
-        // or a single row with a null ClinicId when the user administers none.
+        // or a single row with a null ClinicId when the user administers none. Assigned roles are few and short,
+        // so they come back as one comma-separated value rather than multiplying the rows.
         const string sql = """
             SELECT
-                u.IsPlatformAdmin,
+                (SELECT LISTAGG(r.Role, ',') WITHIN GROUP (ORDER BY r.Role)
+                 FROM UserRoles r WHERE r.UserId = u.Id) AS AssignedRoles,
                 p.Id AS PatientId,
                 pr.Id AS ProviderId,
                 pr.VerificationStatus AS ProviderStatus,
@@ -98,7 +89,7 @@ public sealed class UserRepository(IDbConnectionFactory connectionFactory) : IUs
         var first = rows[0];
         return new UserAccessContext(
             userId,
-            first.IsPlatformAdmin != 0,
+            first.AssignedRoles?.Split(',', StringSplitOptions.RemoveEmptyEntries) ?? [],
             first.PatientId is null ? null : Guid.Parse(first.PatientId),
             first.ProviderId is null ? null : Guid.Parse(first.ProviderId),
             first.ProviderStatus is null ? null : Enum.Parse<ProviderVerificationStatus>(first.ProviderStatus),
@@ -117,7 +108,7 @@ public sealed class UserRepository(IDbConnectionFactory connectionFactory) : IUs
     }
 
     private sealed record AccessContextRow(
-        short IsPlatformAdmin,
+        string? AssignedRoles,
         string? PatientId,
         string? ProviderId,
         string? ProviderStatus,
@@ -127,15 +118,8 @@ public sealed class UserRepository(IDbConnectionFactory connectionFactory) : IUs
         string Id,
         string IdentitySubject,
         string? Email,
-        string? DisplayName,
-        short IsPlatformAdmin)
+        string? DisplayName)
     {
-        public User ToEntity()
-        {
-            var user = User.Create(Guid.Parse(Id), IdentitySubject, Email, DisplayName);
-            if (IsPlatformAdmin != 0)
-                user.GrantPlatformAdmin();
-            return user;
-        }
+        public User ToEntity() => User.Create(Guid.Parse(Id), IdentitySubject, Email, DisplayName);
     }
 }

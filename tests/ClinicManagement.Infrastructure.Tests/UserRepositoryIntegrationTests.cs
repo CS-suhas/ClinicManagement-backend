@@ -9,7 +9,7 @@ namespace ClinicManagement.Infrastructure.Tests;
 public class UserRepositoryIntegrationTests
 {
     [Fact]
-    public async Task UserRepository_CreatesUsersLinksProfilesAndResolvesAccessContextInOracle()
+    public async Task UserRepository_CreatesUsersLinksProfilesAndManagesRolesAndResolvesAccessContextInOracle()
     {
         var connectionString = Environment.GetEnvironmentVariable("TEST_DATABASE_CONNECTION_STRING");
         Assert.False(
@@ -20,6 +20,7 @@ public class UserRepositoryIntegrationTests
 
         var connectionFactory = new OracleConnectionFactory(connectionString!);
         var users = new UserRepository(connectionFactory);
+        var userRoles = new UserRoleRepository(connectionFactory);
         var patients = new PatientRepository(connectionFactory);
         var providers = new ProviderRepository(connectionFactory);
         var subject = $"it-{Guid.NewGuid():N}";
@@ -39,10 +40,9 @@ public class UserRepositoryIntegrationTests
             Assert.NotNull(stored);
             Assert.Equal("ada@example.com", stored.Email);
             Assert.Equal("Ada King", stored.DisplayName);
-            Assert.False(stored.IsPlatformAdmin);
 
             var empty = await users.GetAccessContextAsync(created.Id);
-            Assert.False(empty.IsPlatformAdmin);
+            Assert.Empty(empty.AssignedRoles);
             Assert.Null(empty.PatientId);
             Assert.Null(empty.ProviderId);
             Assert.Empty(empty.AdministeredClinicIds);
@@ -58,16 +58,26 @@ public class UserRepositoryIntegrationTests
             Assert.Equal(patientId, (await patients.GetByUserIdAsync(created.Id))?.Id);
             Assert.Equal(providerId, (await providers.GetByUserIdAsync(created.Id))?.Id);
 
-            await users.GrantPlatformAdminAsync(created.Id);
-            await users.GrantPlatformAdminAsync(created.Id);
+            Assert.True(await userRoles.AssignAsync(created.Id, "admin", grantedByUserId: null));
+            Assert.False(await userRoles.AssignAsync(created.Id, "admin", grantedByUserId: null));
+            Assert.True(await userRoles.AssignAsync(created.Id, "auditor", grantedByUserId: created.Id));
 
             var context = await users.GetAccessContextAsync(created.Id);
             Assert.Equal(patientId, context.PatientId);
             Assert.Equal(providerId, context.ProviderId);
             Assert.Equal(ProviderVerificationStatus.PENDING, context.ProviderStatus);
             Assert.Empty(context.AdministeredClinicIds);
-            Assert.True(context.IsPlatformAdmin);
-            Assert.True((await users.GetBySubjectAsync(subject))!.IsPlatformAdmin);
+            Assert.Equal(["admin", "auditor"], context.AssignedRoles);
+
+            var assignments = (await userRoles.ListAsync()).Where(assignment => assignment.UserId == created.Id).ToList();
+            Assert.Equal(["admin", "auditor"], assignments.Select(assignment => assignment.Role));
+            Assert.All(assignments, assignment => Assert.Equal(subject, assignment.IdentitySubject));
+            Assert.Null(assignments[0].GrantedByUserId);
+            Assert.Equal(created.Id, assignments[1].GrantedByUserId);
+
+            Assert.True(await userRoles.RevokeAsync(created.Id, "auditor"));
+            Assert.False(await userRoles.RevokeAsync(created.Id, "auditor"));
+            Assert.Equal(["admin"], (await users.GetAccessContextAsync(created.Id)).AssignedRoles);
         }
         finally
         {

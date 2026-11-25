@@ -13,9 +13,6 @@ public interface IUserRepository
     /// </summary>
     Task<User> GetOrCreateAsync(string identitySubject, string? email = null, string? displayName = null);
 
-    /// <summary>Marks the user as a platform administrator. Granting an existing administrator is a no-op.</summary>
-    Task GrantPlatformAdminAsync(Guid userId);
-
     /// <summary>Everything authorization needs about one user, in a single round trip.</summary>
     Task<UserAccessContext> GetAccessContextAsync(Guid userId);
 }

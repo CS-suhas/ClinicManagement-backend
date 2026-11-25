@@ -12,7 +12,6 @@ public class User : BaseEntity
     public string IdentitySubject { get; private set; } = string.Empty;
     public string? Email { get; private set; }
     public string? DisplayName { get; private set; }
-    public bool IsPlatformAdmin { get; private set; }
 
     private User() { }
 
@@ -47,12 +46,6 @@ public class User : BaseEntity
         DisplayName = newDisplayName;
         UpdatedAtUtc = DateTimeOffset.UtcNow;
         return true;
-    }
-
-    public void GrantPlatformAdmin()
-    {
-        IsPlatformAdmin = true;
-        UpdatedAtUtc = DateTimeOffset.UtcNow;
     }
 
     private static string? Normalize(string? value) =>
