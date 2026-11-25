@@ -1,10 +1,10 @@
+using ClinicManagement.Api.Security;
+using ClinicManagement.Application.Appointments.Models;
 using ClinicManagement.Application.Clinics.Interfaces;
 using ClinicManagement.Application.Clinics.Models;
-using ClinicManagement.Application.Appointments.Models;
-using ClinicManagement.Application.Providers.Models;
-using ClinicManagement.Api.Security;
-using Microsoft.AspNetCore.Mvc;
 using ClinicManagement.Application.Models;
+using ClinicManagement.Application.Providers.Models;
+using Microsoft.AspNetCore.Mvc;
 
 namespace ClinicManagement.Api.Endpoints;
 
@@ -12,95 +12,133 @@ public static class ClinicEndpoints
 {
     public static IEndpointRouteBuilder MapClinicEndpoints(this WebApplication app)
     {
-        // Outside the group: the group's sign-in requirement would apply on top of the toggle.
+        var clinics = app.MapGroup("/api/clinics").WithTags(ApiTags.Clinics);
+
+        // Every other clinic endpoint needs a signed-in user. The list stays outside this subgroup: the subgroup's
+        // sign-in requirement would apply on top of the PublicDoctors toggle.
+        var signedIn = clinics.MapGroup("").RequireAuthorization(AuthorizationPolicies.Authenticated);
+
+        // Queries
+
         // The list carries only clinic contact details and a count, no patient or user data.
-        app.MapGet("/api/clinics", async ([FromServices] IClinicService service) =>
+        clinics.MapGet("", async ([FromServices] IClinicService service) =>
             Results.Ok(await service.GetAllClinicsAsync()))
             .WithName("GetClinics")
-            .RequireAuthorization(AuthorizationPolicies.PublicDoctors)
             .WithSummary("List clinics")
             .WithDescription("Every clinic (id, name, address, phoneNumber), each with providerCount: the number of verified providers at the clinic. Public while PublicAccess:Doctors is true (the default), for the doctor directory; otherwise signed-in users only.")
+            .RequireAuthorization(AuthorizationPolicies.PublicDoctors)
             .Produces<List<ClinicListItemResponse>>(StatusCodes.Status200OK)
             .Produces(StatusCodes.Status401Unauthorized);
 
-        var clinics = app.MapGroup("/api/clinics").RequireAuthorization(AuthorizationPolicies.Authenticated);
-
-        clinics.MapGet("/search", async (
+        signedIn.MapGet("/search", async (
             [AsParameters] PageQuery query,
             [FromServices] IClinicService service) =>
             Results.Ok(await service.SearchClinicsAsync(query)))
             .WithName("SearchClinics")
             .WithSummary("Search clinics")
-            .WithDescription("Searches clinic names, addresses, and phone numbers, and returns a page. Each item includes providerCount, the number of verified providers at the clinic.")
-            .Produces<PagedResponse<ClinicListItemResponse>>(StatusCodes.Status200OK);
+            .WithDescription("Signed-in users. Searches clinic names, addresses, and phone numbers, and returns a page (page from 1, pageSize 1 to 100, default 20). Each item includes providerCount, the number of verified providers at the clinic.")
+            .Produces<PagedResponse<ClinicListItemResponse>>(StatusCodes.Status200OK)
+            .ProducesValidationProblem()
+            .Produces(StatusCodes.Status401Unauthorized);
 
-        clinics.MapGet("/{id}", async (Guid id, [FromServices] IClinicService service) =>
-            Results.Ok(await service.GetClinicByIdAsync(id)));
+        signedIn.MapGet("/{id}", async (Guid id, [FromServices] IClinicService service) =>
+            Results.Ok(await service.GetClinicByIdAsync(id)))
+            .WithName("GetClinic")
+            .WithSummary("Get a clinic")
+            .WithDescription("Signed-in users. Returns the clinic's contact details.")
+            .Produces<ClinicResponse>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status404NotFound);
 
-        clinics.MapGet("/{id}/summary", async (
-            Guid id,
-            [FromServices] IClinicService service) =>
+        signedIn.MapGet("/{id}/summary", async (Guid id, [FromServices] IClinicService service) =>
             Results.Ok(await service.GetClinicSummaryAsync(id)))
             .WithName("GetClinicSummary")
             .WithSummary("Get a clinic summary")
-            .WithDescription("Signed-in users only. Returns the clinic, providerCount (verified providers), todayAppointmentCount (UTC day, declined and cancelled excluded), topSpecialties (up to 3 by verified provider count, ties alphabetical) and up to 5 verified providers ordered by last and first name. Returns 404 for an unknown clinic.")
+            .WithDescription("Signed-in users. Returns the clinic, providerCount (verified providers), todayAppointmentCount (UTC day, declined and cancelled excluded), topSpecialties (up to 3 by verified provider count, ties alphabetical) and up to 5 verified providers ordered by last and first name.")
             .Produces<ClinicSummaryResponse>(StatusCodes.Status200OK)
             .Produces(StatusCodes.Status401Unauthorized)
-            .Produces(StatusCodes.Status404NotFound);
+            .ProducesProblem(StatusCodes.Status404NotFound);
 
-        clinics.MapGet("/{id}/providers", async (
-            Guid id,
-            [FromServices] IClinicService service) =>
+        signedIn.MapGet("/{id}/providers", async (Guid id, [FromServices] IClinicService service) =>
             Results.Ok(await service.GetProvidersByClinicIdAsync(id)))
             .WithName("GetClinicProviders")
-            .WithSummary("Get providers at a clinic")
+            .WithSummary("List a clinic's providers")
+            .WithDescription("Signed-in users. Returns every provider at the clinic, whatever their verification status.")
             .Produces<List<ProviderResponse>>(StatusCodes.Status200OK)
-            .Produces(StatusCodes.Status404NotFound);
+            .Produces(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status404NotFound);
 
-        clinics.MapGet("/{id}/appointments", async (
-            Guid id,
-            [FromServices] IClinicService service) =>
+        signedIn.MapGet("/{id}/appointments", async (Guid id, [FromServices] IClinicService service) =>
             Results.Ok(await service.GetAppointmentsByClinicIdAsync(id)))
             .WithName("GetClinicAppointments")
-            .WithSummary("Get appointments for a clinic")
+            .WithSummary("List a clinic's appointments")
+            .WithDescription("Administrators and administrators of this clinic; other callers get 403. Returns every appointment with a provider at the clinic, unpaged.")
             .Produces<List<AppointmentResponse>>(StatusCodes.Status200OK)
-            .Produces(StatusCodes.Status404NotFound);
+            .Produces(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound);
 
-        clinics.MapPost("", async ([FromBody] ClinicRequest request, [FromServices] IClinicService service) =>
+        // Commands
+
+        signedIn.MapPost("", async ([FromBody] ClinicRequest request, [FromServices] IClinicService service) =>
         {
             var id = await service.AddClinicAsync(request with { Id = Guid.NewGuid() });
-            return Results.Created($"/api/clinics/{id}", new { id });
+            return Results.Created($"/api/clinics/{id}", new CreatedResponse(id));
         })
-        .RequirePermission(Permissions.ClinicsManage);
+            .WithName("CreateClinic")
+            .WithSummary("Create a clinic (admin)")
+            .WithDescription("Administrators only. The id in the body is ignored; a new one is generated and returned. name is required.")
+            .RequirePermission(Permissions.ClinicsManage)
+            .ProducesCreated()
+            .ProducesValidationProblem()
+            .ProducesAuthFailures();
 
-        clinics.MapPut("/{id}", async (Guid id, [FromBody] ClinicRequest request, [FromServices] IClinicService service) =>
+        signedIn.MapPut("/{id}", async (Guid id, [FromBody] ClinicRequest request, [FromServices] IClinicService service) =>
         {
             await service.UpdateClinicAsync(request with { Id = id });
             return Results.NoContent();
         })
-        .RequirePermission(Permissions.ClinicsManage);
+            .WithName("UpdateClinic")
+            .WithSummary("Update a clinic (admin)")
+            .WithDescription("Administrators only. The id in the route wins over any id in the body. name is required.")
+            .RequirePermission(Permissions.ClinicsManage)
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesValidationProblem()
+            .ProducesAuthFailures()
+            .ProducesProblem(StatusCodes.Status404NotFound);
 
-        clinics.MapDelete("/{id}", async (Guid id, [FromServices] IClinicService service) =>
+        signedIn.MapDelete("/{id}", async (Guid id, [FromServices] IClinicService service) =>
         {
             await service.DeleteClinicAsync(id);
             return Results.NoContent();
         })
-        .RequirePermission(Permissions.ClinicsManage);
+            .WithName("DeleteClinic")
+            .WithSummary("Delete a clinic (admin)")
+            .WithDescription("Administrators only.")
+            .RequirePermission(Permissions.ClinicsManage)
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesAuthFailures()
+            .ProducesProblem(StatusCodes.Status404NotFound);
 
-        clinics.MapPost("/{clinicId}/admins", async (
+        // Clinic administrators
+
+        signedIn.MapPost("/{clinicId}/admins", async (
             Guid clinicId,
             [FromBody] ClinicAdminRequest request,
             [FromServices] IClinicService service) =>
         {
             var id = await service.AddClinicAdminAsync(clinicId, request.IdentitySubject);
-            return Results.Created($"/api/clinics/{clinicId}/admins", new { id });
+            return Results.Created($"/api/clinics/{clinicId}/admins", new CreatedResponse(id));
         })
             .WithName("AddClinicAdmin")
+            .WithSummary("Assign a clinic administrator (admin)")
+            .WithDescription("Administrators only. Makes the identity subject an administrator of the clinic and returns the new assignment's id. The person does not need to have signed in yet. Returns 409 when they already administer the clinic.")
             .RequirePermission(Permissions.ClinicAdminsAssign)
-            .WithSummary("Assign an identity as an administrator of a clinic (admin)")
-            .Produces(StatusCodes.Status201Created)
-            .Produces(StatusCodes.Status404NotFound)
-            .Produces(StatusCodes.Status409Conflict);
+            .ProducesCreated()
+            .ProducesValidationProblem()
+            .ProducesAuthFailures()
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
 
         return app;
     }

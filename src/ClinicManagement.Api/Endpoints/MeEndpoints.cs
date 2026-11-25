@@ -10,36 +10,38 @@ public static class MeEndpoints
 {
     public static IEndpointRouteBuilder MapMeEndpoints(this WebApplication app)
     {
-        app.MapGet("/api/me", async ([FromServices] IMeService service) =>
+        var me = app.MapGroup("/api/me")
+            .WithTags(ApiTags.Me)
+            .RequireAuthorization(AuthorizationPolicies.Authenticated);
+
+        me.MapGet("", async ([FromServices] IMeService service) =>
             Results.Ok(await service.GetCurrentUserAsync()))
             .WithName("GetCurrentUser")
-            .RequireAuthorization(AuthorizationPolicies.Authenticated)
             .WithSummary("Get the signed-in user")
-            .WithDescription("Returns the token subject, roles, and the linked patient and provider, or nulls when none exist. provider.clinicId is the provider's clinic, or null while the provider has none.")
-            .Produces<MeResponse>(StatusCodes.Status200OK);
+            .WithDescription("Returns the token subject, display name, roles, the clinics the caller administers, and the linked patient and provider, or nulls when none exist. provider.clinicId is the provider's clinic, or null while the provider has none.")
+            .Produces<MeResponse>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status401Unauthorized);
 
-        app.MapGet("/api/me/dashboard", async ([FromServices] IMeDashboardService service) =>
+        me.MapGet("/dashboard", async ([FromServices] IMeDashboardService service) =>
             Results.Ok(await service.GetDashboardAsync()))
             .WithName("GetMyDashboard")
-            .RequireAuthorization(AuthorizationPolicies.Authenticated)
-            .WithSummary("Get the role-aware dashboard for the signed-in user")
+            .WithSummary("Get the signed-in user's dashboard")
             .WithDescription("Returns one section per role the caller holds: admin (platform counts), clinicAdmin (counts for the caller's clinics), doctor (today, this week in UTC, the next appointment, and pendingRequestCount: REQUESTED appointments starting now or later), and patient (next appointment, upcoming count, and recentDecisions: up to five CONFIRMED or DECLINED appointments, newest decision first). Sections for roles the caller does not hold are null.")
             .Produces<MeDashboardResponse>(StatusCodes.Status200OK)
             .Produces(StatusCodes.Status401Unauthorized);
 
-        app.MapPost("/api/me/patient", async (
-            [FromBody] PatientRequest request,
-            [FromServices] IMeService service) =>
+        me.MapPost("/patient", async ([FromBody] PatientRequest request, [FromServices] IMeService service) =>
         {
             var id = await service.CreatePatientProfileAsync(request);
-            return Results.Created($"/api/patients/{id}", new { id });
+            return Results.Created($"/api/patients/{id}", new CreatedResponse(id));
         })
             .WithName("CreateMyPatientProfile")
-            .RequireAuthorization(AuthorizationPolicies.Authenticated)
             .WithSummary("Create the signed-in user's patient profile")
-            .WithDescription("Links a new patient to the caller's identity. Returns 409 when the identity already has a patient.")
-            .Produces(StatusCodes.Status201Created)
-            .Produces(StatusCodes.Status409Conflict);
+            .WithDescription("Creates a patient linked to the caller's identity; the id in the body is ignored. firstName, lastName, dateOfBirth, phoneNumber and a valid email are required. Returns 409 when the identity already has a patient.")
+            .ProducesCreated()
+            .ProducesValidationProblem()
+            .Produces(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status409Conflict);
 
         return app;
     }

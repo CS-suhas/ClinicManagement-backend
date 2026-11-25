@@ -7,21 +7,23 @@ public static class ReferenceDataEndpoints
 {
     public static IEndpointRouteBuilder MapReferenceDataEndpoints(this WebApplication app)
     {
-        app.MapGet("/api/allergy-severities", () =>
+        var referenceData = app.MapGroup("/api").WithTags(ApiTags.ReferenceData);
+
+        referenceData.MapGet("/allergy-severities", () =>
                 TypedResults.Ok(Enum.GetNames<AllergySeverity>()))
             .WithName("GetAllergySeverities")
-            .WithSummary("Get available allergy severity levels")
-            .WithDescription("Returns the severity values that can be assigned to a patient's allergy.")
+            .WithSummary("List allergy severities")
+            .WithDescription("Public. Returns the severity values that can be recorded for a patient's allergy, mildest first.")
             .Produces<string[]>(StatusCodes.Status200OK);
 
-        app.MapGet("/api/appointment-settings", (ClinicManagementSettings settings) =>
+        referenceData.MapGet("/appointment-settings", (ClinicManagementSettings settings) =>
                 TypedResults.Ok(new AppointmentSettingsResponse(
                     settings.DefaultAppointmentDurationMinutes,
                     settings.DefaultClinicStartTime,
                     settings.DefaultClinicEndTime)))
             .WithName("GetAppointmentSettings")
             .WithSummary("Get appointment duration and clinic hours")
-            .WithDescription("Returns the configured appointment duration and clinic opening hours.")
+            .WithDescription("Public. Returns the configured appointment duration in minutes and the clinic opening and closing times, used to build booking slots.")
             .Produces<AppointmentSettingsResponse>(StatusCodes.Status200OK);
 
         return app;

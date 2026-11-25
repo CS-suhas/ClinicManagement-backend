@@ -23,7 +23,7 @@ builder.Services
 builder.Services.AddSingleton(
     serviceProvider => serviceProvider.GetRequiredService<IOptions<ClinicManagementSettings>>().Value);
 builder.Services.AddControllers();
-builder.Services.AddOpenApi();
+builder.Services.AddClinicManagementOpenApi();
 builder.Services.AddHealthChecks();
 builder.Services.AddExceptionHandler<ApiExceptionHandler>();
 builder.Services.AddProblemDetails();
