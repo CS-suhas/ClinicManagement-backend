@@ -4,12 +4,31 @@ on:
   push:
 
 jobs:
+  # Static analysis. Any finding fails CI, and image publishing only runs after CI
+  # passes. C# is also covered by the .NET security analyzers (Directory.Build.props).
+  # False positives: `// nosemgrep: <rule-id>` on the line, with the reason.
+  sast:
+    name: Static analysis (Semgrep)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    container:
+      image: semgrep/semgrep:1.186.0@sha256:6e1b04340e60e910fbb4ddbf3c857ab0918f064417ad5ac530014ccb3cf8c8f1
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - name: Semgrep scan
+        run: >-
+          semgrep scan --metrics=off --error
+          --config p/owasp-top-ten --config p/secrets --config p/csharp
+          --config p/javascript --config p/dockerfile --config p/github-actions
+
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     services:
       oracle:
-        image: gvenzl/oracle-free:23-slim-faststart
+        image: gvenzl/oracle-free:23-slim-faststart@sha256:cebd977833411a42170777d8e9ccf616a028a2bb137ae96498354ab6c7510268
         env:
           ORACLE_PASSWORD: test_system_password
           APP_USER: clinic_test
@@ -25,8 +44,8 @@ jobs:
     env:
       TEST_DATABASE_CONNECTION_STRING: "User Id=clinic_test;Password=clinic_test_password;Data Source=localhost:1521/FREEPDB1"
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
         with:
           dotnet-version: 10.0.x
       - name: Apply database migrations

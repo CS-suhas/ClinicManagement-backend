@@ -1,0 +1,8 @@
+<Project>
+  <!-- Static analysis: enable every .NET security rule (SQL injection, weak crypto,
+       insecure deserialization, ...) and fail the build on any code-analysis finding. -->
+  <PropertyGroup>
+    <AnalysisModeSecurity>All</AnalysisModeSecurity>
+    <CodeAnalysisTreatWarningsAsErrors>true</CodeAnalysisTreatWarningsAsErrors>
+  </PropertyGroup>
+</Project>
