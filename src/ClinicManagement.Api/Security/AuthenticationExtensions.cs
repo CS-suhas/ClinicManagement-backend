@@ -1,3 +1,4 @@
+using ClinicManagement.Application.Common;
 using System.Security.Claims;
 using ClinicManagement.Application.Interfaces;
 using Microsoft.AspNetCore.Authentication;
@@ -54,13 +55,13 @@ public static class AuthenticationExtensions
 
         services.AddAuthorizationBuilder()
             .AddPolicy(AuthorizationPolicies.Authenticated, policy => policy.RequireAuthenticatedUser())
-            .AddPolicy(AuthorizationPolicies.PatientOnly, policy => policy.RequireRole(AuthorizationPolicies.PatientRole))
-            .AddPolicy(AuthorizationPolicies.DoctorOnly, policy => policy.RequireRole(AuthorizationPolicies.DoctorRole))
-            .AddPolicy(AuthorizationPolicies.AdminOnly, policy => policy.RequireRole(AuthorizationPolicies.AdminRole))
+            .AddPolicy(AuthorizationPolicies.PatientOnly, policy => policy.RequireRole(Roles.Patient))
+            .AddPolicy(AuthorizationPolicies.DoctorOnly, policy => policy.RequireRole(Roles.Doctor))
+            .AddPolicy(AuthorizationPolicies.AdminOnly, policy => policy.RequireRole(Roles.Admin))
             .AddPolicy(AuthorizationPolicies.ClinicAdminOnly, policy =>
-                policy.RequireRole(AuthorizationPolicies.ClinicAdminRole))
+                policy.RequireRole(Roles.ClinicAdmin))
             .AddPolicy(AuthorizationPolicies.ClinicAdminOrAdministratorOnly, policy =>
-                policy.RequireRole(AuthorizationPolicies.AdminRole, AuthorizationPolicies.ClinicAdminRole))
+                policy.RequireRole(Roles.Admin, Roles.ClinicAdmin))
             .AddPolicy(AuthorizationPolicies.PublicDoctors, policy =>
                 policy.AddRequirements(new PublicDoctorsRequirement()));
 

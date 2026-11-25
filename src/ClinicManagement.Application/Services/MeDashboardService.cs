@@ -10,11 +10,6 @@ public sealed class MeDashboardService(
     ICurrentUser currentUser,
     TimeProvider timeProvider) : IMeDashboardService
 {
-    private const string AdminRole = "admin";
-    private const string ClinicAdminRole = "clinicadmin";
-    private const string DoctorRole = "doctor";
-    private const string PatientRole = "patient";
-
     public async Task<MeDashboardResponse> GetDashboardAsync()
     {
         CurrentUserGuard.RequireAuthenticated(currentUser);
@@ -27,7 +22,7 @@ public sealed class MeDashboardService(
         var weekEnd = todayStart.AddDays(7);
 
         AdminDashboardSection? admin = null;
-        if (currentUser.IsInRole(AdminRole))
+        if (currentUser.IsInRole(Roles.Admin))
         {
             var counts = await statusRepository.GetPlatformCountsAsync(todayStart, todayEnd);
             admin = new AdminDashboardSection(
@@ -40,7 +35,7 @@ public sealed class MeDashboardService(
         }
 
         ClinicAdminDashboardSection? clinicAdmin = null;
-        if (currentUser.IsInRole(ClinicAdminRole))
+        if (currentUser.IsInRole(Roles.ClinicAdmin))
         {
             var clinicIds = await currentUser.GetAdministeredClinicIdsAsync();
             var counts = clinicIds.Count == 0
@@ -59,11 +54,11 @@ public sealed class MeDashboardService(
         }
 
         DoctorDashboardSection? doctor = null;
-        if (currentUser.IsInRole(DoctorRole) && await currentUser.GetProviderAsync() is { } provider)
+        if (currentUser.IsInRole(Roles.Doctor) && await currentUser.GetProviderAsync() is { } provider)
             doctor = await statusRepository.GetDoctorDashboardAsync(provider.Id, now, todayStart, todayEnd, weekEnd);
 
         PatientDashboardSection? patient = null;
-        if (currentUser.IsInRole(PatientRole) && await currentUser.GetPatientAsync() is { } linkedPatient)
+        if (currentUser.IsInRole(Roles.Patient) && await currentUser.GetPatientAsync() is { } linkedPatient)
             patient = await statusRepository.GetPatientDashboardAsync(linkedPatient.Id, now);
 
         return new MeDashboardResponse(admin, clinicAdmin, doctor, patient);

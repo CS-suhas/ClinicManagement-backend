@@ -1,3 +1,4 @@
+using ClinicManagement.Application.Common;
 using System.Security.Claims;
 using ClinicManagement.Application.Repositories;
 using ClinicManagement.Domain.Enums;
@@ -36,13 +37,13 @@ public sealed class RoleClaimsTransformation(
         var facts = await userRepository.GetRoleFactsAsync(user.Id);
 
         if (facts.HasPatientProfile)
-            identity.AddClaim(new Claim(ClaimTypes.Role, AuthorizationPolicies.PatientRole));
+            identity.AddClaim(new Claim(ClaimTypes.Role, Roles.Patient));
         if (facts.ProviderStatus == ProviderVerificationStatus.VERIFIED)
-            identity.AddClaim(new Claim(ClaimTypes.Role, AuthorizationPolicies.DoctorRole));
+            identity.AddClaim(new Claim(ClaimTypes.Role, Roles.Doctor));
         if (facts.IsClinicAdmin)
-            identity.AddClaim(new Claim(ClaimTypes.Role, AuthorizationPolicies.ClinicAdminRole));
+            identity.AddClaim(new Claim(ClaimTypes.Role, Roles.ClinicAdmin));
         if (facts.IsPlatformAdmin || IsConfiguredAdmin(subject))
-            identity.AddClaim(new Claim(ClaimTypes.Role, AuthorizationPolicies.AdminRole));
+            identity.AddClaim(new Claim(ClaimTypes.Role, Roles.Admin));
 
         return principal;
     }

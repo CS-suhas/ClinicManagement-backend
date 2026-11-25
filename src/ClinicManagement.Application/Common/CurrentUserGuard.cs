@@ -7,8 +7,6 @@ namespace ClinicManagement.Application.Common;
 
 public static class CurrentUserGuard
 {
-    private const string AdminRole = "admin";
-
     public static void RequireAuthenticated(ICurrentUser currentUser)
     {
         if (!currentUser.IsAuthenticated || string.IsNullOrWhiteSpace(currentUser.Subject))
@@ -26,7 +24,7 @@ public static class CurrentUserGuard
         return currentUser.UserId ?? throw new UnauthorizedAccessException("A signed-in user is required.");
     }
 
-    public static bool IsAdministrator(ICurrentUser currentUser) => currentUser.IsInRole(AdminRole);
+    public static bool IsAdministrator(ICurrentUser currentUser) => currentUser.IsInRole(Roles.Admin);
 
     public static async Task<Provider> RequireProviderAsync(ICurrentUser currentUser, Guid providerId)
     {

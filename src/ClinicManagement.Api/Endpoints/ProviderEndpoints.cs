@@ -1,3 +1,4 @@
+using ClinicManagement.Application.Common;
 using System.Security.Claims;
 using ClinicManagement.Application.Providers.Interfaces;
 using ClinicManagement.Application.Providers.Models;
@@ -27,7 +28,7 @@ public static class ProviderEndpoints
             [FromServices] IProviderService service) =>
         {
             // Only administrators may see unverified providers; everyone else is limited to verified ones.
-            var effectiveStatus = user.IsInRole(AuthorizationPolicies.AdminRole)
+            var effectiveStatus = user.IsInRole(Roles.Admin)
                 ? verificationStatus
                 : ProviderVerificationStatus.VERIFIED;
             return Results.Ok(await service.SearchProvidersAsync(query, clinicId, effectiveStatus));

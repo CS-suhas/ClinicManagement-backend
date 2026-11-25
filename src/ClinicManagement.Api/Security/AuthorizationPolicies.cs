@@ -11,9 +11,4 @@ public static class AuthorizationPolicies
 
     /// <summary>Anonymous while <see cref="PublicAccessSettings.Doctors"/> is on, otherwise signed-in users only.</summary>
     public const string PublicDoctors = "PublicDoctors";
-
-    public const string PatientRole = "patient";
-    public const string DoctorRole = "doctor";
-    public const string AdminRole = "admin";
-    public const string ClinicAdminRole = "clinicadmin";
 }
