@@ -13,6 +13,6 @@ public interface IUserRepository
     /// </summary>
     Task<User> GetOrCreateAsync(string identitySubject, string? email = null, string? displayName = null);
 
-    /// <summary>Everything role resolution needs about one user, in a single round trip.</summary>
-    Task<UserRoleFacts> GetRoleFactsAsync(Guid userId);
+    /// <summary>Everything authorization needs about one user, in a single round trip.</summary>
+    Task<UserAccessContext> GetAccessContextAsync(Guid userId);
 }

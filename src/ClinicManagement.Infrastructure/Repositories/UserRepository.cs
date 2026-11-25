@@ -61,28 +61,37 @@ public sealed class UserRepository(IDbConnectionFactory connectionFactory) : IUs
         }
     }
 
-    public async Task<UserRoleFacts> GetRoleFactsAsync(Guid userId)
+    public async Task<UserAccessContext> GetAccessContextAsync(Guid userId)
     {
         using var connection = connectionFactory.CreateConnection();
+        // Patients.UserId and Providers.UserId are unique, so the result has one row per administered clinic,
+        // or a single row with a null ClinicId when the user administers none.
         const string sql = """
             SELECT
-                (SELECT COUNT(1) FROM Patients p WHERE p.UserId = u.Id) AS PatientCount,
-                -- Providers.UserId is unique, so MAX only collapses zero-or-one row.
-                (SELECT MAX(pr.VerificationStatus) FROM Providers pr WHERE pr.UserId = u.Id) AS ProviderStatus,
-                (SELECT COUNT(1) FROM ClinicAdmins ca WHERE ca.UserId = u.Id) AS ClinicAdminCount,
-                u.IsPlatformAdmin
+                u.IsPlatformAdmin,
+                p.Id AS PatientId,
+                pr.Id AS ProviderId,
+                pr.VerificationStatus AS ProviderStatus,
+                ca.ClinicId
             FROM Users u
+            LEFT JOIN Patients p ON p.UserId = u.Id
+            LEFT JOIN Providers pr ON pr.UserId = u.Id
+            LEFT JOIN ClinicAdmins ca ON ca.UserId = u.Id
             WHERE u.Id = :UserId
+            ORDER BY ca.ClinicId
             """;
-        var row = await connection.QuerySingleOrDefaultAsync<RoleFactsRow>(sql, new { UserId = userId.ToString() });
-        if (row is null)
-            return new UserRoleFacts(false, null, false, false);
+        var rows = (await connection.QueryAsync<AccessContextRow>(sql, new { UserId = userId.ToString() })).ToList();
+        if (rows.Count == 0)
+            return UserAccessContext.Empty(userId);
 
-        return new UserRoleFacts(
-            row.PatientCount > 0,
-            row.ProviderStatus is null ? null : Enum.Parse<ProviderVerificationStatus>(row.ProviderStatus),
-            row.ClinicAdminCount > 0,
-            row.IsPlatformAdmin != 0);
+        var first = rows[0];
+        return new UserAccessContext(
+            userId,
+            first.IsPlatformAdmin != 0,
+            first.PatientId is null ? null : Guid.Parse(first.PatientId),
+            first.ProviderId is null ? null : Guid.Parse(first.ProviderId),
+            first.ProviderStatus is null ? null : Enum.Parse<ProviderVerificationStatus>(first.ProviderStatus),
+            rows.Where(row => row.ClinicId is not null).Select(row => Guid.Parse(row.ClinicId!)).Distinct().ToList());
     }
 
     private async Task UpdateProfileAsync(User user)
@@ -96,7 +105,12 @@ public sealed class UserRepository(IDbConnectionFactory connectionFactory) : IUs
         await connection.ExecuteAsync(sql, new { Id = user.Id.ToString(), user.Email, user.DisplayName });
     }
 
-    private sealed record RoleFactsRow(decimal PatientCount, string? ProviderStatus, decimal ClinicAdminCount, short IsPlatformAdmin);
+    private sealed record AccessContextRow(
+        short IsPlatformAdmin,
+        string? PatientId,
+        string? ProviderId,
+        string? ProviderStatus,
+        string? ClinicId);
 
     private sealed record UserRow(
         string Id,

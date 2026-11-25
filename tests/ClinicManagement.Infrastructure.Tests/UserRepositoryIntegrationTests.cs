@@ -9,7 +9,7 @@ namespace ClinicManagement.Infrastructure.Tests;
 public class UserRepositoryIntegrationTests
 {
     [Fact]
-    public async Task UserRepository_CreatesUsersLinksProfilesAndResolvesRoleFactsInOracle()
+    public async Task UserRepository_CreatesUsersLinksProfilesAndResolvesAccessContextInOracle()
     {
         var connectionString = Environment.GetEnvironmentVariable("TEST_DATABASE_CONNECTION_STRING");
         Assert.False(
@@ -41,7 +41,11 @@ public class UserRepositoryIntegrationTests
             Assert.Equal("Ada King", stored.DisplayName);
             Assert.False(stored.IsPlatformAdmin);
 
-            Assert.Equal(new(false, null, false, false), await users.GetRoleFactsAsync(created.Id));
+            var empty = await users.GetAccessContextAsync(created.Id);
+            Assert.False(empty.IsPlatformAdmin);
+            Assert.Null(empty.PatientId);
+            Assert.Null(empty.ProviderId);
+            Assert.Empty(empty.AdministeredClinicIds);
 
             var patient = Patient.Create(patientId, "Ada", "Lovelace", new DateOnly(1985, 12, 10), $"ada.{patientId:N}@example.com", "555-0100");
             patient.AssignUser(created.Id);
@@ -57,11 +61,12 @@ public class UserRepositoryIntegrationTests
             using (var connection = connectionFactory.CreateConnection())
                 await connection.ExecuteAsync("UPDATE Users SET IsPlatformAdmin = 1 WHERE Id = :Id", new { Id = created.Id.ToString() });
 
-            var facts = await users.GetRoleFactsAsync(created.Id);
-            Assert.True(facts.HasPatientProfile);
-            Assert.Equal(ProviderVerificationStatus.PENDING, facts.ProviderStatus);
-            Assert.False(facts.IsClinicAdmin);
-            Assert.True(facts.IsPlatformAdmin);
+            var context = await users.GetAccessContextAsync(created.Id);
+            Assert.Equal(patientId, context.PatientId);
+            Assert.Equal(providerId, context.ProviderId);
+            Assert.Equal(ProviderVerificationStatus.PENDING, context.ProviderStatus);
+            Assert.Empty(context.AdministeredClinicIds);
+            Assert.True(context.IsPlatformAdmin);
             Assert.True((await users.GetBySubjectAsync(subject))!.IsPlatformAdmin);
         }
         finally

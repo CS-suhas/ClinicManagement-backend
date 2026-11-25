@@ -22,6 +22,6 @@ public sealed class FakeUserRepository : IUserRepository
         return Task.FromResult(user);
     }
 
-    public Task<UserRoleFacts> GetRoleFactsAsync(Guid userId) =>
-        Task.FromResult(new UserRoleFacts(false, null, false, false));
+    public Task<UserAccessContext> GetAccessContextAsync(Guid userId) =>
+        Task.FromResult(UserAccessContext.Empty(userId));
 }

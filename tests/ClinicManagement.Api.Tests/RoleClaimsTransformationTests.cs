@@ -1,6 +1,8 @@
 using System.Security.Claims;
 using ClinicManagement.Api.Security;
 using ClinicManagement.Api.Tests.Support;
+using ClinicManagement.Application.Models;
+using ClinicManagement.Application.Repositories;
 using ClinicManagement.Domain.Entities;
 using Microsoft.Extensions.Configuration;
 
@@ -161,11 +163,28 @@ public class RoleClaimsTransformationTests
         var transformation = CreateTransformation([]);
         var principal = new ClaimsPrincipal(new ClaimsIdentity([new Claim("sub", Subject)], "test"));
 
-        await transformation.TransformAsync(principal);
-        await transformation.TransformAsync(principal);
+        var once = await transformation.TransformAsync(principal);
+        var twice = await transformation.TransformAsync(once);
 
-        Assert.Single(principal.FindAll(ClaimTypes.Role));
-        Assert.Single(principal.FindAll(ClinicClaimTypes.UserId));
+        Assert.Single(twice.FindAll(ClaimTypes.Role));
+        Assert.Single(twice.FindAll(ClinicClaimTypes.UserId));
+        Assert.Empty(principal.FindAll(ClaimTypes.Role));
+    }
+
+    [Fact]
+    public async Task SecondRunInSameRequest_ReusesLoadedAccessContext()
+    {
+        AddPatient(Subject);
+        var repository = new CountingUserRepository(new InMemoryUserRepository(store));
+        var transformation = new RoleClaimsTransformation(
+            new ConfigurationBuilder().Build(), repository, new UserAccessContextHolder());
+        var principal = new ClaimsPrincipal(new ClaimsIdentity([new Claim("sub", Subject)], "test"));
+
+        await transformation.TransformAsync(principal);
+        var second = await transformation.TransformAsync(principal);
+
+        Assert.Equal(1, repository.AccessContextLoads);
+        Assert.Equal(["patient"], second.FindAll(ClaimTypes.Role).Select(claim => claim.Value));
     }
 
     private async Task<ClaimsPrincipal> TransformAsync(string subject, params Claim[] extraClaims)
@@ -198,7 +217,7 @@ public class RoleClaimsTransformationTests
 
         var configuration = new ConfigurationBuilder().AddInMemoryCollection(values).Build();
 
-        return new RoleClaimsTransformation(configuration, new InMemoryUserRepository(store));
+        return new RoleClaimsTransformation(configuration, new InMemoryUserRepository(store), new UserAccessContextHolder());
     }
 
     private void AddPatient(string subject)
@@ -215,5 +234,21 @@ public class RoleClaimsTransformationTests
         if (verified)
             provider.Verify();
         store.Providers.Add(provider);
+    }
+
+    private sealed class CountingUserRepository(IUserRepository inner) : IUserRepository
+    {
+        public int AccessContextLoads { get; private set; }
+
+        public Task<User?> GetBySubjectAsync(string identitySubject) => inner.GetBySubjectAsync(identitySubject);
+
+        public Task<User> GetOrCreateAsync(string identitySubject, string? email = null, string? displayName = null) =>
+            inner.GetOrCreateAsync(identitySubject, email, displayName);
+
+        public Task<UserAccessContext> GetAccessContextAsync(Guid userId)
+        {
+            AccessContextLoads++;
+            return inner.GetAccessContextAsync(userId);
+        }
     }
 }

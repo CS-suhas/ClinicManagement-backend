@@ -519,14 +519,17 @@ internal sealed class InMemoryUserRepository(InMemoryStore store) : IUserReposit
         return Task.FromResult(user);
     }
 
-    public Task<UserRoleFacts> GetRoleFactsAsync(Guid userId)
+    public Task<UserAccessContext> GetAccessContextAsync(Guid userId)
     {
         var user = store.Users.FirstOrDefault(candidate => candidate.Id == userId);
-        return Task.FromResult(new UserRoleFacts(
-            store.Patients.Any(patient => patient.UserId == userId),
-            store.Providers.FirstOrDefault(provider => provider.UserId == userId)?.VerificationStatus,
-            store.ClinicAdmins.Any(admin => admin.UserId == userId),
-            user?.IsPlatformAdmin == true));
+        var provider = store.Providers.FirstOrDefault(candidate => candidate.UserId == userId);
+        return Task.FromResult(new UserAccessContext(
+            userId,
+            user?.IsPlatformAdmin == true,
+            store.Patients.FirstOrDefault(patient => patient.UserId == userId)?.Id,
+            provider?.Id,
+            provider?.VerificationStatus,
+            store.ClinicAdmins.Where(admin => admin.UserId == userId).Select(admin => admin.ClinicId).Distinct().ToList()));
     }
 }
 

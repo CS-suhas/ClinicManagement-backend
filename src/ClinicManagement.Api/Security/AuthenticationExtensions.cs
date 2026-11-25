@@ -25,6 +25,7 @@ public static class AuthenticationExtensions
         var validIssuer = keycloak["ValidIssuer"];
 
         services.AddHttpContextAccessor();
+        services.AddScoped<UserAccessContextHolder>();
         services.AddScoped<ICurrentUser, CurrentUser>();
 
         services
