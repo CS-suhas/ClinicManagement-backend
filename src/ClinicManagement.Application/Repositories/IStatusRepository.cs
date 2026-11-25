@@ -13,9 +13,6 @@ public interface IStatusRepository
         IReadOnlyCollection<Guid> clinicIds,
         DateTimeOffset todayStart,
         DateTimeOffset todayEnd);
-    Task<int> CountPendingJoinRequestsAsync(IReadOnlyCollection<Guid> clinicIds);
-    /// <summary>Pending join requests across every clinic.</summary>
-    Task<int> CountAllPendingJoinRequestsAsync();
     /// <summary>Doctor counts and next active appointment. The week is [todayStart, weekEnd).</summary>
     Task<DoctorDashboardSection> GetDoctorDashboardAsync(
         Guid providerId,

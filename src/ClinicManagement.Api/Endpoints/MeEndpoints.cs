@@ -23,7 +23,7 @@ public static class MeEndpoints
             .WithName("GetMyDashboard")
             .RequireAuthorization(AuthorizationPolicies.Authenticated)
             .WithSummary("Get the role-aware dashboard for the signed-in user")
-            .WithDescription("Returns one section per role the caller holds: admin (platform counts plus pendingJoinRequestCount), clinicAdmin (counts for the caller's clinics plus pendingJoinRequestCount), doctor (today, this week in UTC, the next appointment, and pendingRequestCount: REQUESTED appointments starting now or later), and patient (next appointment, upcoming count, and recentDecisions: up to five CONFIRMED or DECLINED appointments, newest decision first). Sections for roles the caller does not hold are null.")
+            .WithDescription("Returns one section per role the caller holds: admin (platform counts), clinicAdmin (counts for the caller's clinics), doctor (today, this week in UTC, the next appointment, and pendingRequestCount: REQUESTED appointments starting now or later), and patient (next appointment, upcoming count, and recentDecisions: up to five CONFIRMED or DECLINED appointments, newest decision first). Sections for roles the caller does not hold are null.")
             .Produces<MeDashboardResponse>(StatusCodes.Status200OK)
             .Produces(StatusCodes.Status401Unauthorized);
 

@@ -16,17 +16,15 @@ public sealed record AdminDashboardSection(
     int ProviderCount,
     int PatientCount,
     int PendingProviderVerificationCount,
-    int TodayAppointmentCount,
-    int PendingJoinRequestCount);
+    int TodayAppointmentCount);
 
-/// <summary>The same counts as the admin section, scoped to the clinics the caller administers, plus join requests.</summary>
+/// <summary>The same counts as the admin section, scoped to the clinics the caller administers.</summary>
 public sealed record ClinicAdminDashboardSection(
     int ClinicCount,
     int ProviderCount,
     int PatientCount,
     int PendingProviderVerificationCount,
-    int TodayAppointmentCount,
-    int PendingJoinRequestCount);
+    int TodayAppointmentCount);
 
 /// <summary>PendingRequestCount counts REQUESTED appointments starting now or later.</summary>
 public sealed record DoctorDashboardSection(

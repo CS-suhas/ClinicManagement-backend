@@ -30,8 +30,7 @@ public sealed class MeDashboardService(
                 counts.ProviderCount,
                 counts.PatientCount,
                 counts.PendingProviderVerificationCount,
-                counts.TodayAppointmentCount,
-                await statusRepository.CountAllPendingJoinRequestsAsync());
+                counts.TodayAppointmentCount);
         }
 
         ClinicAdminDashboardSection? clinicAdmin = null;
@@ -41,16 +40,12 @@ public sealed class MeDashboardService(
             var counts = clinicIds.Count == 0
                 ? new DashboardScopeCounts(0, 0, 0, 0, 0)
                 : await statusRepository.GetClinicCountsAsync(clinicIds, todayStart, todayEnd);
-            var pendingJoinRequests = clinicIds.Count == 0
-                ? 0
-                : await statusRepository.CountPendingJoinRequestsAsync(clinicIds);
             clinicAdmin = new ClinicAdminDashboardSection(
                 counts.ClinicCount,
                 counts.ProviderCount,
                 counts.PatientCount,
                 counts.PendingProviderVerificationCount,
-                counts.TodayAppointmentCount,
-                pendingJoinRequests);
+                counts.TodayAppointmentCount);
         }
 
         DoctorDashboardSection? doctor = null;

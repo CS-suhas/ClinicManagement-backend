@@ -1,8 +1,6 @@
 using ClinicManagement.Application.Allergies.Interfaces;
 using ClinicManagement.Application.Appointments.Interfaces;
 using ClinicManagement.Application.Clinics.Interfaces;
-using ClinicManagement.Application.ClinicJoinRequests.Interfaces;
-using ClinicManagement.Application.ClinicJoinRequests.Models;
 using ClinicManagement.Application.Models;
 using ClinicManagement.Application.Patients.Interfaces;
 using ClinicManagement.Application.Providers.Interfaces;
@@ -18,7 +16,6 @@ public sealed class InMemoryStore
     public List<Provider> Providers { get; } = [];
     public List<Clinic> Clinics { get; } = [];
     public List<Appointment> Appointments { get; } = [];
-    public List<ClinicJoinRequest> JoinRequests { get; } = [];
     public List<ClinicAdmin> ClinicAdmins { get; } = [];
     public List<User> Users { get; } = [];
     public List<StoredUserRole> UserRoles { get; } = [];
@@ -443,47 +440,6 @@ internal sealed class InMemoryAppointmentRepository(InMemoryStore store) : IAppo
         throw new NotSupportedException();
 }
 
-internal sealed class InMemoryClinicJoinRequestRepository(InMemoryStore store) : IClinicJoinRequestRepository
-{
-    public Task<ClinicJoinRequest?> GetByIdAsync(Guid requestId) =>
-        Task.FromResult(store.JoinRequests.FirstOrDefault(request => request.Id == requestId));
-
-    public Task<IReadOnlyList<ClinicJoinRequestResponse>> GetByProviderIdAsync(Guid providerId) =>
-        throw new NotSupportedException();
-
-    public Task<IReadOnlyList<ClinicJoinRequestResponse>> GetByClinicIdAsync(
-        Guid clinicId,
-        ClinicJoinRequestStatus? status) =>
-        Task.FromResult<IReadOnlyList<ClinicJoinRequestResponse>>(store.JoinRequests
-            .Where(request => request.ClinicId == clinicId && (status is null || request.Status == status))
-            .Select(request => new ClinicJoinRequestResponse(
-                request.Id,
-                request.ProviderId,
-                string.Empty,
-                string.Empty,
-                request.ClinicId,
-                string.Empty,
-                request.Status.ToString(),
-                request.CreatedAtUtc,
-                request.DecidedAtUtc))
-            .ToList());
-
-    public Task<bool> HasPendingAsync(Guid providerId) =>
-        Task.FromResult(store.JoinRequests.Any(request =>
-            request.ProviderId == providerId && request.Status == ClinicJoinRequestStatus.PENDING));
-
-    public Task<Guid> AddAsync(ClinicJoinRequest request)
-    {
-        store.JoinRequests.Add(request);
-        return Task.FromResult(request.Id);
-    }
-
-    public Task<bool> TryApproveAsync(ClinicJoinRequest approvedRequest) =>
-        Task.FromResult(approvedRequest.Status == ClinicJoinRequestStatus.APPROVED);
-
-    public Task<bool> TryDecideAsync(ClinicJoinRequest decidedRequest) => Task.FromResult(true);
-}
-
 internal sealed class InMemoryClinicAdminRepository(InMemoryStore store) : IClinicAdminRepository
 {
     public Task<bool> IsAdminOfClinicAsync(Guid userId, Guid clinicId) =>
@@ -654,13 +610,6 @@ internal sealed class InMemoryStatusRepository(InMemoryStore store) : IStatusRep
             providers.Count(provider => provider.VerificationStatus == ProviderVerificationStatus.PENDING),
             CountToday(appointments, todayStart, todayEnd)));
     }
-
-    public Task<int> CountAllPendingJoinRequestsAsync() =>
-        Task.FromResult(store.JoinRequests.Count(request => request.Status == ClinicJoinRequestStatus.PENDING));
-
-    public Task<int> CountPendingJoinRequestsAsync(IReadOnlyCollection<Guid> clinicIds) =>
-        Task.FromResult(store.JoinRequests.Count(request =>
-            clinicIds.Contains(request.ClinicId) && request.Status == ClinicJoinRequestStatus.PENDING));
 
     public Task<DoctorDashboardSection> GetDoctorDashboardAsync(
         Guid providerId,

@@ -48,17 +48,6 @@ const tables = [
     },
   },
   {
-    name: "ClinicJoinRequests",
-    key: "clinicJoinRequests",
-    sql: `INSERT INTO ClinicJoinRequests (Id, ProviderId, ClinicId, Status, DecidedAtUtc, CreatedAtUtc, UpdatedAtUtc)
-          VALUES (:Id, :ProviderId, :ClinicId, :Status, ${timestampSql("DecidedAtUtc")},
-                  ${timestampSql("CreatedAtUtc")}, ${timestampSql("UpdatedAtUtc")})`,
-    bindDefs: {
-      Id: id, ProviderId: id, ClinicId: id, Status: string(20),
-      DecidedAtUtc: timestamp, CreatedAtUtc: timestamp, UpdatedAtUtc: timestamp,
-    },
-  },
-  {
     name: "AllergyTypes",
     key: "allergyTypes",
     sql: `INSERT INTO AllergyTypes (Id, Name, CreatedAtUtc, UpdatedAtUtc)
@@ -143,7 +132,6 @@ function summarize(data) {
   return [
     ...tables.map((table) => `  ${table.name}: ${data[table.key].length}`),
     `  Provider verification: ${countBy(data.providers, "VerificationStatus")}`,
-    `  Join requests: ${countBy(data.clinicJoinRequests, "Status")}`,
     `  Appointments: ${countBy(data.appointments, "Status")}`,
   ].join("\n");
 }

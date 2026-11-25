@@ -7,8 +7,6 @@ using ClinicManagement.Application.AllergyTypes.Interfaces;
 using ClinicManagement.Application.AllergyTypes.Services;
 using ClinicManagement.Application.Clinics.Interfaces;
 using ClinicManagement.Application.Clinics.Services;
-using ClinicManagement.Application.ClinicJoinRequests.Interfaces;
-using ClinicManagement.Application.ClinicJoinRequests.Services;
 using ClinicManagement.Application.Providers.Interfaces;
 using ClinicManagement.Application.Providers.Services;
 using ClinicManagement.Application.Interfaces;
@@ -27,7 +25,6 @@ public static class DependencyInjection
         services.AddScoped<IAllergyTypeService, AllergyTypeService>();
         services.AddScoped<IClinicService, ClinicService>();
         services.AddScoped<IProviderService, ProviderService>();
-        services.AddScoped<IClinicJoinRequestService, ClinicJoinRequestService>();
         services.AddScoped<IStatusService, StatusService>();
         services.AddScoped<IMeService, MeService>();
         services.AddScoped<IMeDashboardService, MeDashboardService>();

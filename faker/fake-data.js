@@ -29,7 +29,6 @@ export const appointmentStatuses = ["REQUESTED", "CONFIRMED", "DECLINED", "CANCE
 export const activeAppointmentStatuses = ["REQUESTED", "CONFIRMED"];
 export const inactiveAppointmentStatuses = ["DECLINED", "CANCELLED"];
 export const providerVerificationStatuses = ["PENDING", "VERIFIED", "REJECTED"];
-export const joinRequestStatuses = ["PENDING", "APPROVED", "REJECTED", "CANCELLED"];
 export const allergySeverities = ["MILD", "MODERATE", "SEVERE"];
 export const genders = ["MALE", "FEMALE", "OTHER"];
 
@@ -165,26 +164,9 @@ export function createSeedData({
     UpdatedAtUtc: null,
   }));
 
-  // ---------------------------------------------------------------- providers and join requests
+  // ---------------------------------------------------------------- providers
   const providers = [];
   const providerMeta = [];
-  const clinicJoinRequests = [];
-
-  function addJoinRequest(providerId, clinicId, status, createdMs, decidedMs) {
-    clinicJoinRequests.push({
-      Id: faker.string.uuid(),
-      ProviderId: providerId,
-      ClinicId: clinicId,
-      Status: status,
-      DecidedAtUtc: toTimestamp(decidedMs),
-      CreatedAtUtc: toTimestamp(createdMs),
-      UpdatedAtUtc: toTimestamp(decidedMs),
-    });
-  }
-
-  function otherClinic(clinicId) {
-    return faker.helpers.arrayElement(clinics.filter((clinic) => clinic.Id !== clinicId)).Id;
-  }
 
   function workDays() {
     if (chance(0.7)) {
@@ -228,19 +210,11 @@ export function createSeedData({
       let updatedMs = null;
       let availableFromMs;
       if (chance(0.35)) {
-        // Self-registered, verified, then joined this clinic through an approved request.
-        const approvedMs = nowMs - between(120 * day, 700 * day);
-        const requestedMs = approvedMs - between(1 * day, 10 * day);
-        createdMs = requestedMs - between(5 * day, 60 * day);
-        if (chance(0.3)) {
-          const earlierStatus = chance(0.6) ? "REJECTED" : "CANCELLED";
-          const earlierCreatedMs = between(createdMs + 2 * day, requestedMs - 2 * day);
-          addJoinRequest(id, otherClinic(clinic.Id), earlierStatus, earlierCreatedMs,
-            between(earlierCreatedMs + hour, requestedMs - hour));
-        }
-        addJoinRequest(id, clinic.Id, "APPROVED", requestedMs, approvedMs);
-        updatedMs = approvedMs;
-        availableFromMs = approvedMs;
+        // Self-registered at this clinic, then verified by a platform administrator.
+        const verifiedMs = nowMs - between(120 * day, 700 * day);
+        createdMs = verifiedMs - between(1 * day, 10 * day);
+        updatedMs = verifiedMs;
+        availableFromMs = verifiedMs;
       } else {
         // Added directly by an administrator.
         createdMs = nowMs - between(1 * year, 5 * year);
@@ -275,13 +249,7 @@ export function createSeedData({
   });
 
   const allSpecialtyNames = Object.keys(specialties);
-  let pendingRequestClinic = 0;
   let registeredClinic = 0;
-  // A join request moves a provider to another clinic, so it never targets the one they are in.
-  const otherClinic = (preferred, homeClinicId) =>
-    clinics[preferred % clinics.length].Id !== homeClinicId
-      ? clinics[preferred % clinics.length].Id
-      : clinics[(preferred + 1) % clinics.length].Id;
   for (const [status, count] of Object.entries(selfRegisteredProviderPlan)) {
     for (let index = 0; index < count; index++) {
       const person = uniqueProviderPerson();
@@ -298,23 +266,9 @@ export function createSeedData({
         createdMs = nowMs - between(30 * day, 120 * day);
         updatedMs = createdMs + between(1 * day, 7 * day);
       } else {
-        // Verified, some asking to move clinic. Join requests need a verified provider and allow one pending each.
+        // Recently verified, not yet on the scheduled roster.
         createdMs = nowMs - between(20 * day, 150 * day);
-        const verifiedMs = createdMs + between(1 * day, 7 * day);
-        updatedMs = verifiedMs;
-        let cursorMs = verifiedMs;
-        const hasPending = index < 4;
-        if (index < 2 || !hasPending) {
-          const earlierStatus = index === 5 ? "CANCELLED" : "REJECTED";
-          const earlierCreatedMs = between(cursorMs + hour, cursorMs + 5 * day);
-          const earlierDecidedMs = between(earlierCreatedMs + hour, earlierCreatedMs + 6 * day);
-          addJoinRequest(id, otherClinic(index + 3, homeClinicId), earlierStatus, earlierCreatedMs, earlierDecidedMs);
-          cursorMs = earlierDecidedMs;
-        }
-        if (hasPending) {
-          const clinicId = otherClinic(pendingRequestClinic++, homeClinicId);
-          addJoinRequest(id, clinicId, "PENDING", between(cursorMs + hour, nowMs - hour), null);
-        }
+        updatedMs = createdMs + between(1 * day, 7 * day);
       }
 
       providers.push({
@@ -639,7 +593,6 @@ export function createSeedData({
   return {
     clinics,
     providers,
-    clinicJoinRequests,
     allergyTypes,
     patients,
     patientAllergies,

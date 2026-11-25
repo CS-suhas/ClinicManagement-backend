@@ -20,13 +20,9 @@ public static class RolePermissions
             [Roles.Doctor] =
             [
                 Permissions.AppointmentsRespond,
-                Permissions.JoinRequestsSubmit,
                 Permissions.OwnCalendarRead
             ],
-            [Roles.ClinicAdmin] =
-            [
-                Permissions.JoinRequestsReview
-            ],
+            [Roles.ClinicAdmin] = [],
             [Roles.Admin] =
             [
                 Permissions.AllergyTypesManage,
@@ -34,7 +30,6 @@ public static class RolePermissions
                 Permissions.AppointmentsManage,
                 Permissions.ClinicsManage,
                 Permissions.ClinicAdminsAssign,
-                Permissions.JoinRequestsReview,
                 Permissions.PatientsReadAll,
                 Permissions.PatientsManage,
                 Permissions.ProvidersReadAll,

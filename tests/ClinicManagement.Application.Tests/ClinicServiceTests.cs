@@ -308,29 +308,6 @@ public class ClinicServiceTests
     }
 
     [Fact]
-    public async Task GetClinicSummaryAsync_ShowsPendingJoinRequestsOnlyToAdministratorsOfThisClinic()
-    {
-        var clinic = Clinic.Create(Guid.NewGuid(), "Riverside", "1 River Road", "555-0100");
-        var otherClinic = Clinic.Create(Guid.NewGuid(), "Hillside", "2 Hill Road", "555-0101");
-        var status = new FakeStatusRepository { PendingJoinRequestCount = 3 };
-
-        async Task<int?> PendingFor(TestCurrentUser user)
-        {
-            var service = CreateService(
-                new FakeClinicRepository { ExistingClinic = clinic },
-                currentUser: user,
-                statusRepository: status);
-            return (await service.GetClinicSummaryAsync(clinic.Id)).PendingJoinRequestCount;
-        }
-
-        Assert.Equal(3, await PendingFor(new TestCurrentUser { Roles = ["admin"] }));
-        Assert.Equal(3, await PendingFor(new TestCurrentUser { Roles = ["clinicadmin"], AdministeredClinicIds = [clinic.Id] }));
-        Assert.Null(await PendingFor(new TestCurrentUser { Roles = ["clinicadmin"], AdministeredClinicIds = [otherClinic.Id] }));
-        Assert.Null(await PendingFor(new TestCurrentUser { Roles = ["doctor"] }));
-        Assert.Equal([clinic.Id], status.PendingJoinRequestClinicIds?.ToArray() ?? []);
-    }
-
-    [Fact]
     public async Task GetClinicSummaryAsync_ReturnsEmptyListsForClinicWithoutVerifiedProviders()
     {
         var clinic = Clinic.Create(Guid.NewGuid(), "Riverside", "1 River Road", "555-0100");
@@ -372,9 +349,7 @@ public class ClinicServiceTests
     private sealed class FakeStatusRepository : IStatusRepository
     {
         public int TodayAppointmentCount { get; init; }
-        public int PendingJoinRequestCount { get; init; }
         public (IReadOnlyCollection<Guid> ClinicIds, DateTimeOffset TodayStart, DateTimeOffset TodayEnd)? ClinicCountsRequest { get; private set; }
-        public IReadOnlyCollection<Guid>? PendingJoinRequestClinicIds { get; private set; }
 
         public Task<DashboardScopeCounts> GetClinicCountsAsync(
             IReadOnlyCollection<Guid> clinicIds,
@@ -385,17 +360,10 @@ public class ClinicServiceTests
             return Task.FromResult(new DashboardScopeCounts(1, 0, 0, 0, TodayAppointmentCount));
         }
 
-        public Task<int> CountPendingJoinRequestsAsync(IReadOnlyCollection<Guid> clinicIds)
-        {
-            PendingJoinRequestClinicIds = clinicIds;
-            return Task.FromResult(PendingJoinRequestCount);
-        }
-
         public Task<StatusStatistics> GetStatisticsAsync() => throw new NotSupportedException();
         public Task<DashboardResponse> GetDashboardAsync(DateTimeOffset now) => throw new NotSupportedException();
         public Task<DashboardScopeCounts> GetPlatformCountsAsync(DateTimeOffset todayStart, DateTimeOffset todayEnd) =>
             throw new NotSupportedException();
-        public Task<int> CountAllPendingJoinRequestsAsync() => throw new NotSupportedException();
         public Task<DoctorDashboardSection> GetDoctorDashboardAsync(
             Guid providerId,
             DateTimeOffset now,

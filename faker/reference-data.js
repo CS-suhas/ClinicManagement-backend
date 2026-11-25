@@ -225,8 +225,7 @@ export const clinicProfiles = [
   },
 ];
 
-// Self-registered providers outside the scheduled roster, by verification state. Each registers at a clinic;
-// only verified ones may file join requests to move to another.
+// Self-registered providers outside the scheduled roster, by verification state. Each registers at a clinic.
 export const selfRegisteredProviderPlan = { PENDING: 4, REJECTED: 2, VERIFIED: 6 };
 
 // prevalence: relative chance a given allergic patient has it. severityWeights: [MILD, MODERATE, SEVERE].

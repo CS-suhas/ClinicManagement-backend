@@ -77,11 +77,6 @@ public class ClinicService(
             todayStart,
             todayStart.AddDays(1));
 
-        // Pending requests are an administrative detail, so they are only shown to administrators of this clinic.
-        int? pendingJoinRequestCount = null;
-        if (currentUser.IsAdministrator() || await currentUser.IsClinicAdminOfAsync(clinicId))
-            pendingJoinRequestCount = await statusRepository.CountPendingJoinRequestsAsync([clinicId]);
-
         var topSpecialties = verifiedProviders
             .GroupBy(provider => provider.Specialty, StringComparer.Ordinal)
             .OrderByDescending(group => group.Count())
@@ -94,7 +89,6 @@ public class ClinicService(
             clinic.ToResponse(),
             verifiedProviders.Count,
             todayCounts.TodayAppointmentCount,
-            pendingJoinRequestCount,
             topSpecialties,
             verifiedProviders.Take(ProviderPreviewCount).Select(provider => provider.ToResponse()).ToList());
     }

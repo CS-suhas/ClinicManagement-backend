@@ -57,14 +57,13 @@ public class MeDashboardServiceTests
     {
         var repository = new FakeStatusRepository
         {
-            PlatformCounts = new DashboardScopeCounts(3, 10, 40, 2, 5),
-            AllPendingJoinRequests = 4
+            PlatformCounts = new DashboardScopeCounts(3, 10, 40, 2, 5)
         };
         var service = CreateService(repository, new TestCurrentUser { Roles = ["admin"] });
 
         var result = await service.GetDashboardAsync();
 
-        Assert.Equal(new AdminDashboardSection(3, 10, 40, 2, 5, 4), result.Admin);
+        Assert.Equal(new AdminDashboardSection(3, 10, 40, 2, 5), result.Admin);
         Assert.Null(result.ClinicAdmin);
         Assert.Equal((UtcTodayStart, UtcTodayStart.AddDays(1)), repository.PlatformWindow);
     }
@@ -76,8 +75,7 @@ public class MeDashboardServiceTests
         var clinicB = Guid.NewGuid();
         var repository = new FakeStatusRepository
         {
-            ClinicCounts = new DashboardScopeCounts(2, 4, 9, 1, 3),
-            PendingJoinRequests = 6
+            ClinicCounts = new DashboardScopeCounts(2, 4, 9, 1, 3)
         };
         var service = CreateService(repository, new TestCurrentUser
         {
@@ -87,7 +85,7 @@ public class MeDashboardServiceTests
 
         var result = await service.GetDashboardAsync();
 
-        Assert.Equal(new ClinicAdminDashboardSection(2, 4, 9, 1, 3, 6), result.ClinicAdmin);
+        Assert.Equal(new ClinicAdminDashboardSection(2, 4, 9, 1, 3), result.ClinicAdmin);
         Assert.Equal<Guid>(new[] { clinicA, clinicB }, repository.ClinicIdsQueried);
         Assert.Null(result.Admin);
     }
@@ -100,9 +98,8 @@ public class MeDashboardServiceTests
 
         var result = await service.GetDashboardAsync();
 
-        Assert.Equal(new ClinicAdminDashboardSection(0, 0, 0, 0, 0, 0), result.ClinicAdmin);
+        Assert.Equal(new ClinicAdminDashboardSection(0, 0, 0, 0, 0), result.ClinicAdmin);
         Assert.Null(repository.ClinicIdsQueried);
-        Assert.Null(repository.PendingJoinRequestsQueried);
     }
 
     [Fact]
@@ -202,14 +199,11 @@ public class MeDashboardServiceTests
     {
         public DashboardScopeCounts PlatformCounts { get; init; } = new(0, 0, 0, 0, 0);
         public DashboardScopeCounts ClinicCounts { get; init; } = new(0, 0, 0, 0, 0);
-        public int PendingJoinRequests { get; init; }
-        public int AllPendingJoinRequests { get; init; }
         public DoctorDashboardSection DoctorSection { get; init; } = new(0, 0, 0, null, 0);
         public PatientDashboardSection PatientSection { get; init; } = new(null, 0, []);
 
         public (DateTimeOffset Start, DateTimeOffset End)? PlatformWindow { get; private set; }
         public List<Guid>? ClinicIdsQueried { get; private set; }
-        public List<Guid>? PendingJoinRequestsQueried { get; private set; }
         public (Guid ProviderId, DateTimeOffset Now, DateTimeOffset TodayStart, DateTimeOffset TodayEnd, DateTimeOffset WeekEnd)? DoctorRequest { get; private set; }
         public (Guid PatientId, DateTimeOffset Now)? PatientRequest { get; private set; }
 
@@ -230,14 +224,6 @@ public class MeDashboardServiceTests
             ClinicIdsQueried = clinicIds.ToList();
             return Task.FromResult(ClinicCounts);
         }
-
-        public Task<int> CountPendingJoinRequestsAsync(IReadOnlyCollection<Guid> clinicIds)
-        {
-            PendingJoinRequestsQueried = clinicIds.ToList();
-            return Task.FromResult(PendingJoinRequests);
-        }
-
-        public Task<int> CountAllPendingJoinRequestsAsync() => Task.FromResult(AllPendingJoinRequests);
 
         public Task<DoctorDashboardSection> GetDoctorDashboardAsync(
             Guid providerId,

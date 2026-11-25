@@ -61,9 +61,6 @@ public abstract class ClinicApiTestBase(ClinicApiFactory factory)
             DateTimeOffset.UtcNow);
         store.Appointments.Add(appointment);
 
-        var joinRequest = ClinicJoinRequest.Create(Guid.NewGuid(), pending.Id, clinic.Id);
-        store.JoinRequests.Add(joinRequest);
-
         return new World(
             patientSubject, patient,
             otherPatientSubject, otherPatient,
@@ -72,7 +69,7 @@ public abstract class ClinicApiTestBase(ClinicApiFactory factory)
             pendingSubject, pending,
             clinicAdminSubject, clinic,
             otherClinicAdminSubject, otherClinic,
-            appointment, joinRequest);
+            appointment);
     }
 
     protected static string Subject(string role) => $"kc-{role}-{Guid.NewGuid():N}";
@@ -108,8 +105,7 @@ public sealed record World(
     Clinic Clinic,
     string OtherClinicAdminSubject,
     Clinic OtherClinic,
-    Appointment Appointment,
-    ClinicJoinRequest JoinRequest)
+    Appointment Appointment)
 {
     public string SubjectFor(string role) => role switch
     {

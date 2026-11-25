@@ -127,25 +127,6 @@ public sealed class StatusRepository(IDbConnectionFactory connectionFactory) : I
             checked((int)counts.TodayAppointmentCount));
     }
 
-    public async Task<int> CountPendingJoinRequestsAsync(IReadOnlyCollection<Guid> clinicIds)
-    {
-        using var connection = connectionFactory.CreateConnection();
-        const string sql = """
-            SELECT COUNT(1) FROM ClinicJoinRequests
-            WHERE Status = 'PENDING' AND ClinicId IN :ClinicIds
-            """;
-        return await connection.ExecuteScalarAsync<int>(
-            sql,
-            new { ClinicIds = clinicIds.Select(id => id.ToString()).ToArray() });
-    }
-
-    public async Task<int> CountAllPendingJoinRequestsAsync()
-    {
-        using var connection = connectionFactory.CreateConnection();
-        return await connection.ExecuteScalarAsync<int>(
-            "SELECT COUNT(1) FROM ClinicJoinRequests WHERE Status = 'PENDING'");
-    }
-
     public async Task<DoctorDashboardSection> GetDoctorDashboardAsync(
         Guid providerId,
         DateTimeOffset now,

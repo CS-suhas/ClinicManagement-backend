@@ -5,7 +5,6 @@ using ClinicManagement.Application.Patients.Interfaces;
 using ClinicManagement.Application.Clinics.Interfaces;
 using ClinicManagement.Application.Providers.Interfaces;
 using ClinicManagement.Application.Appointments.Interfaces;
-using ClinicManagement.Application.ClinicJoinRequests.Interfaces;
 using ClinicManagement.Application.Allergies.Interfaces;
 using ClinicManagement.Application.Repositories;
 using ClinicManagement.Infrastructure.Repositories;
@@ -28,7 +27,6 @@ public static class DependencyInjection
         services.AddScoped<IClinicRepository, ClinicRepository>();
         services.AddScoped<IProviderRepository, ProviderRepository>();
         services.AddScoped<IAppointmentRepository, AppointmentRepository>();
-        services.AddScoped<IClinicJoinRequestRepository, ClinicJoinRequestRepository>();
         services.AddScoped<IAllergyTypeRepository, AllergyTypeRepository>();
         services.AddScoped<IStatusRepository, StatusRepository>();
         services.AddScoped<ISearchRepository, SearchRepository>();

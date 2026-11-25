@@ -43,7 +43,7 @@ public static class ClinicEndpoints
             Results.Ok(await service.GetClinicSummaryAsync(id)))
             .WithName("GetClinicSummary")
             .WithSummary("Get a clinic summary")
-            .WithDescription("Signed-in users only. Returns the clinic, providerCount (verified providers), todayAppointmentCount (UTC day, declined and cancelled excluded), pendingJoinRequestCount (only for an administrator or an administrator of this clinic, otherwise null), topSpecialties (up to 3 by verified provider count, ties alphabetical) and up to 5 verified providers ordered by last and first name. Returns 404 for an unknown clinic.")
+            .WithDescription("Signed-in users only. Returns the clinic, providerCount (verified providers), todayAppointmentCount (UTC day, declined and cancelled excluded), topSpecialties (up to 3 by verified provider count, ties alphabetical) and up to 5 verified providers ordered by last and first name. Returns 404 for an unknown clinic.")
             .Produces<ClinicSummaryResponse>(StatusCodes.Status200OK)
             .Produces(StatusCodes.Status401Unauthorized)
             .Produces(StatusCodes.Status404NotFound);

@@ -11,18 +11,6 @@ public sealed class DashboardAndMeFieldTests(ClinicApiFactory factory)
     : ClinicApiTestBase(factory), IClassFixture<ClinicApiFactory>
 {
     [Fact]
-    public async Task Dashboard_AdminSectionCountsAllPendingJoinRequests()
-    {
-        var world = SeedWorld();
-        var expected = Factory.Store.JoinRequests.Count(request => request.Status == ClinicJoinRequestStatus.PENDING);
-
-        var section = await GetDashboardSectionAsync(world.SubjectFor("admin"), "admin");
-
-        Assert.True(expected >= 1);
-        Assert.Equal(expected, section.GetProperty("pendingJoinRequestCount").GetInt32());
-    }
-
-    [Fact]
     public async Task Dashboard_DoctorSectionCountsOnlyRequestsStartingNowOrLater()
     {
         var world = SeedWorld();

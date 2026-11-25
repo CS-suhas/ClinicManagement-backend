@@ -15,14 +15,6 @@ public class RolePermissionsTests
     }
 
     [Fact]
-    public void JoinRequestReview_IsHeldByClinicAdminAndAdmin()
-    {
-        Assert.True(RolePermissions.Grants("clinicadmin", Permissions.JoinRequestsReview));
-        Assert.True(RolePermissions.Grants("admin", Permissions.JoinRequestsReview));
-        Assert.False(RolePermissions.Grants("doctor", Permissions.JoinRequestsReview));
-    }
-
-    [Fact]
     public void Admin_DoesNotHoldPatientOrDoctorActions()
     {
         Assert.False(RolePermissions.Grants("admin", Permissions.AppointmentsBook));

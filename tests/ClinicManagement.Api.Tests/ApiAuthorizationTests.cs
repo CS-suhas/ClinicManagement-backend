@@ -38,10 +38,7 @@ public sealed class ApiAuthorizationTests(ClinicApiFactory factory)
             (HttpMethod.Post, $"/api/providers/{world.PendingProvider.Id}/reject"),
             (HttpMethod.Get, $"/api/providers/{world.Doctor.Id}/calendar?{CalendarQuery}"),
             (HttpMethod.Get, $"/api/patients/{world.Patient.Id}/appointments"),
-            (HttpMethod.Put, $"/api/patients/{world.Patient.Id}"),
-            (HttpMethod.Post, $"/api/clinic-join-requests/{world.JoinRequest.Id}/approve"),
-            (HttpMethod.Post, $"/api/clinic-join-requests/{world.JoinRequest.Id}/reject"),
-            (HttpMethod.Get, $"/api/clinics/{world.Clinic.Id}/join-requests")
+            (HttpMethod.Put, $"/api/patients/{world.Patient.Id}")
         };
 
         foreach (var (method, url) in routes)
@@ -192,47 +189,6 @@ public sealed class ApiAuthorizationTests(ClinicApiFactory factory)
 
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
         Assert.Equal(ProviderVerificationStatus.VERIFIED, world.PendingProvider.VerificationStatus);
-    }
-
-    [Theory]
-    [InlineData("patient")]
-    [InlineData("doctor")]
-    public async Task JoinRequestDecisions_RequireClinicAdminRole(string role)
-    {
-        var world = SeedWorld();
-        var subject = world.SubjectFor(role);
-
-        using var approve = await SendAsync(HttpMethod.Post, $"/api/clinic-join-requests/{world.JoinRequest.Id}/approve", subject);
-        using var reject = await SendAsync(HttpMethod.Post, $"/api/clinic-join-requests/{world.JoinRequest.Id}/reject", subject);
-
-        Assert.Equal(HttpStatusCode.Forbidden, approve.StatusCode);
-        Assert.Equal(HttpStatusCode.Forbidden, reject.StatusCode);
-    }
-
-    [Fact]
-    public async Task JoinRequestDecisions_ForbidClinicAdminOfAnotherClinic()
-    {
-        var world = SeedWorld();
-        var subject = world.OtherClinicAdminSubject;
-
-        using var approve = await SendAsync(HttpMethod.Post, $"/api/clinic-join-requests/{world.JoinRequest.Id}/approve", subject);
-        using var reject = await SendAsync(HttpMethod.Post, $"/api/clinic-join-requests/{world.JoinRequest.Id}/reject", subject);
-
-        Assert.Equal(HttpStatusCode.Forbidden, approve.StatusCode);
-        Assert.Equal(HttpStatusCode.Forbidden, reject.StatusCode);
-    }
-
-    [Fact]
-    public async Task JoinRequestApproval_AllowsClinicAdminOfThatClinic()
-    {
-        var world = SeedWorld();
-
-        using var response = await SendAsync(
-            HttpMethod.Post,
-            $"/api/clinic-join-requests/{world.JoinRequest.Id}/approve",
-            world.ClinicAdminSubject);
-
-        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
     }
 
     [Fact]
@@ -808,7 +764,6 @@ public sealed class ApiAuthorizationTests(ClinicApiFactory factory)
         Assert.Equal(1, section.GetProperty("clinicCount").GetInt32());
         Assert.Equal(1, section.GetProperty("providerCount").GetInt32());
         Assert.Equal(1, section.GetProperty("patientCount").GetInt32());
-        Assert.Equal(1, section.GetProperty("pendingJoinRequestCount").GetInt32());
         Assert.Equal(0, section.GetProperty("todayAppointmentCount").GetInt32());
         Assert.True(JsonValueKindNull(document.RootElement, "admin"));
     }
@@ -1368,7 +1323,7 @@ public sealed class ApiAuthorizationTests(ClinicApiFactory factory)
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal(
-            ["clinic", "providerCount", "todayAppointmentCount", "pendingJoinRequestCount", "topSpecialties", "providers"],
+            ["clinic", "providerCount", "todayAppointmentCount", "topSpecialties", "providers"],
             root.EnumerateObject().Select(property => property.Name).ToArray());
         Assert.Equal(
             ["id", "name", "address", "phoneNumber"],
@@ -1376,7 +1331,6 @@ public sealed class ApiAuthorizationTests(ClinicApiFactory factory)
         Assert.Equal(clinic.Id, root.GetProperty("clinic").GetProperty("id").GetGuid());
         Assert.Equal(3, root.GetProperty("providerCount").GetInt32());
         Assert.Equal(2, root.GetProperty("todayAppointmentCount").GetInt32());
-        Assert.Equal(JsonValueKind.Null, root.GetProperty("pendingJoinRequestCount").ValueKind);
         Assert.Equal(
             ["Cardiology", "Neurology"],
             root.GetProperty("topSpecialties").EnumerateArray().Select(element => element.GetString()!).ToArray());
@@ -1385,22 +1339,6 @@ public sealed class ApiAuthorizationTests(ClinicApiFactory factory)
             ["Ada Cole", "Ben Cole", "Cy Dunn"],
             providers.Select(provider => $"{provider.GetProperty("firstName").GetString()} {provider.GetProperty("lastName").GetString()}").ToArray());
         Assert.Equal(clinic.Name, providers[0].GetProperty("clinicName").GetString());
-    }
-
-    [Fact]
-    public async Task ClinicSummary_ShowsPendingJoinRequestsOnlyToAdministratorsOfThisClinic()
-    {
-        var world = SeedWorld();
-        var clinic = AddClinic($"Requests {Guid.NewGuid():N}");
-        var ownAdminSubject = Subject("clinicadmin");
-        Factory.Store.ClinicAdmins.Add(ClinicAdmin.Create(Guid.NewGuid(), clinic.Id, Factory.Store.UserFor(ownAdminSubject).Id));
-        Factory.Store.JoinRequests.Add(ClinicJoinRequest.Create(Guid.NewGuid(), world.PendingProvider.Id, clinic.Id));
-
-        Assert.Equal(1, await PendingJoinRequestCountAsync(clinic.Id, world.SubjectFor("admin")));
-        Assert.Equal(1, await PendingJoinRequestCountAsync(clinic.Id, ownAdminSubject));
-        Assert.Null(await PendingJoinRequestCountAsync(clinic.Id, world.ClinicAdminSubject));
-        Assert.Null(await PendingJoinRequestCountAsync(clinic.Id, world.DoctorSubject));
-        Assert.Null(await PendingJoinRequestCountAsync(clinic.Id, world.PatientSubject));
     }
 
     [Fact]
@@ -1519,7 +1457,6 @@ public sealed class ApiAuthorizationTests(ClinicApiFactory factory)
             $"/api/clinics/{world.Clinic.Id}/summary",
             $"/api/clinics/{world.Clinic.Id}/providers",
             $"/api/clinics/{world.Clinic.Id}/appointments",
-            $"/api/clinics/{world.Clinic.Id}/join-requests",
             "/api/providers",
             $"/api/providers/{world.Doctor.Id}/patients",
             $"/api/providers/{world.Doctor.Id}/appointments",
@@ -1575,14 +1512,6 @@ public sealed class ApiAuthorizationTests(ClinicApiFactory factory)
 
     private static async Task<JsonDocument> ReadJsonAsync(HttpResponseMessage response) =>
         JsonDocument.Parse(await response.Content.ReadAsStringAsync());
-
-    private async Task<int?> PendingJoinRequestCountAsync(Guid clinicId, string subject)
-    {
-        using var response = await SendAsync(HttpMethod.Get, $"/api/clinics/{clinicId}/summary", subject);
-        using var document = await ReadJsonAsync(response);
-        var value = document.RootElement.GetProperty("pendingJoinRequestCount");
-        return value.ValueKind == JsonValueKind.Null ? null : value.GetInt32();
-    }
 
     private static DateOnly BusyDay() => DateOnly.FromDateTime(DateTime.UtcNow.AddDays(10));
 
@@ -1748,65 +1677,5 @@ public sealed class ApiAuthorizationTests(ClinicApiFactory factory)
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal(world.Doctor.Id, document.RootElement.GetProperty("id").GetGuid());
         Assert.Equal("Riverside Clinic", document.RootElement.GetProperty("clinicName").GetString());
-    }
-    [Fact]
-    public async Task JoinRequestDecisions_AllowPlatformAdministrator()
-    {
-        var world = SeedWorld();
-        var subject = world.SubjectFor("admin");
-        var toApprove = AddPendingJoinRequest(world);
-        var toReject = AddPendingJoinRequest(world);
-
-        using var approve = await SendAsync(HttpMethod.Post, $"/api/clinic-join-requests/{toApprove.Id}/approve", subject);
-        using var reject = await SendAsync(HttpMethod.Post, $"/api/clinic-join-requests/{toReject.Id}/reject", subject);
-
-        Assert.Equal(HttpStatusCode.NoContent, approve.StatusCode);
-        Assert.Equal(HttpStatusCode.NoContent, reject.StatusCode);
-        Assert.Equal(ClinicJoinRequestStatus.APPROVED, toApprove.Status);
-        Assert.Equal(ClinicJoinRequestStatus.REJECTED, toReject.Status);
-    }
-
-    [Fact]
-    public async Task JoinRequestList_AllowsPlatformAdministratorAndClinicAdminOfThatClinic()
-    {
-        var world = SeedWorld();
-
-        using var admin = await SendAsync(HttpMethod.Get, $"/api/clinics/{world.Clinic.Id}/join-requests", world.SubjectFor("admin"));
-        using var clinicAdmin = await SendAsync(HttpMethod.Get, $"/api/clinics/{world.Clinic.Id}/join-requests", world.ClinicAdminSubject);
-        using var document = System.Text.Json.JsonDocument.Parse(await admin.Content.ReadAsStringAsync());
-        var ids = document.RootElement.EnumerateArray().Select(item => item.GetProperty("id").GetGuid()).ToList();
-
-        Assert.Equal(HttpStatusCode.OK, admin.StatusCode);
-        Assert.Equal(HttpStatusCode.OK, clinicAdmin.StatusCode);
-        Assert.Contains(world.JoinRequest.Id, ids);
-    }
-
-    [Fact]
-    public async Task JoinRequestList_ForbidsClinicAdminOfAnotherClinic()
-    {
-        var world = SeedWorld();
-
-        using var response = await SendAsync(HttpMethod.Get, $"/api/clinics/{world.Clinic.Id}/join-requests", world.OtherClinicAdminSubject);
-
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
-    }
-
-    [Theory]
-    [InlineData("patient")]
-    [InlineData("doctor")]
-    public async Task JoinRequestList_ForbidsPatientsAndDoctors(string role)
-    {
-        var world = SeedWorld();
-
-        using var response = await SendAsync(HttpMethod.Get, $"/api/clinics/{world.Clinic.Id}/join-requests", world.SubjectFor(role));
-
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
-    }
-
-    private ClinicJoinRequest AddPendingJoinRequest(World world)
-    {
-        var request = ClinicJoinRequest.Create(Guid.NewGuid(), Guid.NewGuid(), world.Clinic.Id);
-        Factory.Store.JoinRequests.Add(request);
-        return request;
     }
 }

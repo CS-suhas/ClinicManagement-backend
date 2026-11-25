@@ -8,7 +8,6 @@ import {
   createSeedData,
   genders,
   inactiveAppointmentStatuses,
-  joinRequestStatuses,
   providerVerificationStatuses,
   seedClinicId,
   seedClinicName,
@@ -26,7 +25,6 @@ const data = createSeedData({ patientCount: 600, now, seed });
 const columnLengths = {
   clinics: { Id: 36, Name: 200, Address: 500, PhoneNumber: 50 },
   providers: { Id: 36, FirstName: 100, LastName: 100, Specialty: 200, ClinicId: 36, VerificationStatus: 20, Gender: 10 },
-  clinicJoinRequests: { Id: 36, ProviderId: 36, ClinicId: 36, Status: 20 },
   allergyTypes: { Id: 36, Name: 200 },
   patients: { Id: 36, FirstName: 100, LastName: 100, Email: 320, PhoneNumber: 50 },
   patientAllergies: { Id: 36, PatientId: 36, AllergyId: 36, Notes: 1000, Severity: 20 },
@@ -35,7 +33,6 @@ const columnLengths = {
 const requiredColumns = {
   clinics: ["Id", "Name"],
   providers: ["Id", "FirstName", "LastName", "Specialty", "VerificationStatus"],
-  clinicJoinRequests: ["Id", "ProviderId", "ClinicId", "Status"],
   allergyTypes: ["Id", "Name"],
   patients: ["Id", "FirstName", "LastName", "DateOfBirth", "Email", "PhoneNumber"],
   patientAllergies: ["Id", "PatientId", "AllergyId", "Severity"],
@@ -56,7 +53,6 @@ test("creates the expected volumes", () => {
   assert.ok(data.appointments.length >= 3000, `appointments: ${data.appointments.length}`);
   assert.ok(data.allergyTypes.length >= 20);
   assert.ok(data.patientAllergies.length >= 150);
-  assert.ok(data.clinicJoinRequests.length >= 10);
 
   const clinicSizes = [...countBy(data.providers.filter((p) => p.ClinicId), "ClinicId").values()];
   assert.ok(Math.max(...clinicSizes) >= 3 * Math.min(...clinicSizes), "clinic sizes should vary");
@@ -99,7 +95,6 @@ test("foreign keys resolve and insert order is valid", () => {
   const allergyIds = new Set(data.allergyTypes.map((row) => row.Id));
 
   assert.ok(data.providers.every((row) => clinicIds.has(row.ClinicId)));
-  assert.ok(data.clinicJoinRequests.every((row) => providerIds.has(row.ProviderId) && clinicIds.has(row.ClinicId)));
   assert.ok(data.patientAllergies.every((row) => patientIds.has(row.PatientId) && allergyIds.has(row.AllergyId)));
   assert.ok(data.appointments.every((row) => patientIds.has(row.PatientId) && providerIds.has(row.ProviderId)));
 });
@@ -114,15 +109,11 @@ test("unique keys hold", () => {
 
   const allergyKeys = data.patientAllergies.map((row) => `${row.PatientId}|${row.AllergyId}`);
   assert.equal(new Set(allergyKeys).size, allergyKeys.length, "PK_PatientAllergies");
-
-  const pendingPerProvider = countBy(data.clinicJoinRequests.filter((row) => row.Status === "PENDING"), "ProviderId");
-  assert.ok([...pendingPerProvider.values()].every((count) => count === 1), "UX_ClinicJoinRequests_OnePending");
 });
 
 test("check constraints and enum values are valid, and every value is represented", () => {
   const expectations = [
     [data.providers, "VerificationStatus", providerVerificationStatuses],
-    [data.clinicJoinRequests, "Status", joinRequestStatuses],
     [data.appointments, "Status", appointmentStatuses],
     [data.patientAllergies, "Severity", allergySeverities],
     [data.providers.filter((row) => row.Gender !== null), "Gender", genders.filter((g) => g !== "OTHER")],
@@ -160,30 +151,9 @@ test("status proportions are plausible", () => {
   assert.ok(allergic / data.patients.length > 0.2 && allergic / data.patients.length < 0.6);
 });
 
-test("providers and join requests follow the domain rules", () => {
-  const providers = byId(data.providers);
+test("every provider belongs to a clinic", () => {
   for (const provider of data.providers) {
-    assert.ok(provider.ClinicId, "every provider belongs to a clinic");
-  }
-
-  const requestsByProvider = Map.groupBy(data.clinicJoinRequests, (row) => row.ProviderId);
-  for (const [providerId, requests] of requestsByProvider) {
-    const provider = providers.get(providerId);
-    assert.equal(provider.VerificationStatus, "VERIFIED", "only verified providers can request to join");
-    for (const request of requests) {
-      assert.ok(ms(request.CreatedAtUtc) >= ms(provider.CreatedAtUtc));
-      if (request.Status === "PENDING") {
-        assert.equal(request.DecidedAtUtc, null);
-        assert.notEqual(provider.ClinicId, request.ClinicId, "a pending request targets another clinic");
-      } else {
-        assert.ok(ms(request.DecidedAtUtc) >= ms(request.CreatedAtUtc));
-        assert.ok(ms(request.DecidedAtUtc) <= nowMs);
-      }
-      if (request.Status === "APPROVED") {
-        assert.equal(provider.ClinicId, request.ClinicId, "approval assigns the provider to the clinic");
-      }
-    }
-    assert.ok(requests.filter((request) => request.Status === "APPROVED").length <= 1);
+    assert.ok(provider.ClinicId, provider.Id);
   }
 });
 

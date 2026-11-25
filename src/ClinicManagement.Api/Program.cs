@@ -57,7 +57,6 @@ app.MapAppointmentEndpoints();
 app.MapAllergyTypeEndpoints();
 app.MapClinicEndpoints();
 app.MapProviderEndpoints();
-app.MapClinicJoinRequestEndpoints();
 app.MapReferenceDataEndpoints();
 app.MapStatusEndpoints();
 app.MapSearchEndpoints();

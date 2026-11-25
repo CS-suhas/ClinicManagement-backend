@@ -33,9 +33,6 @@ public class StatusServiceTests
             IReadOnlyCollection<Guid> clinicIds,
             DateTimeOffset todayStart,
             DateTimeOffset todayEnd) => throw new NotSupportedException();
-        public Task<int> CountPendingJoinRequestsAsync(IReadOnlyCollection<Guid> clinicIds) =>
-            throw new NotSupportedException();
-        public Task<int> CountAllPendingJoinRequestsAsync() => throw new NotSupportedException();
         public Task<DoctorDashboardSection> GetDoctorDashboardAsync(
             Guid providerId,
             DateTimeOffset now,

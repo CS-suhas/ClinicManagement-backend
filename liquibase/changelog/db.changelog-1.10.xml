@@ -20,4 +20,11 @@
             columnName="ClinicId"
             columnDataType="VARCHAR2(36)"/>
     </changeSet>
+
+    <!-- Clinic join requests are gone: a provider picks their clinic when registering, and only a platform
+         administrator moves them. The request history is discarded and cannot be rolled back. -->
+    <changeSet id="1.10-drop-clinic-join-requests" author="clinic-management">
+        <dropTable tableName="ClinicJoinRequests" cascadeConstraints="true"/>
+        <rollback/>
+    </changeSet>
 </databaseChangeLog>

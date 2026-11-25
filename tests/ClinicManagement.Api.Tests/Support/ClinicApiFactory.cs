@@ -2,7 +2,6 @@ using System.Text;
 using ClinicManagement.Application.Allergies.Interfaces;
 using ClinicManagement.Application.Appointments.Interfaces;
 using ClinicManagement.Application.Clinics.Interfaces;
-using ClinicManagement.Application.ClinicJoinRequests.Interfaces;
 using ClinicManagement.Application.Patients.Interfaces;
 using ClinicManagement.Application.Providers.Interfaces;
 using ClinicManagement.Application.Repositories;
@@ -73,7 +72,6 @@ public sealed class ClinicApiFactory : WebApplicationFactory<Program>
             services.RemoveAll<IProviderRepository>();
             services.RemoveAll<IClinicRepository>();
             services.RemoveAll<IAppointmentRepository>();
-            services.RemoveAll<IClinicJoinRequestRepository>();
             services.RemoveAll<IClinicAdminRepository>();
             services.RemoveAll<IUserRepository>();
             services.RemoveAll<IUserRoleRepository>();
@@ -85,7 +83,6 @@ public sealed class ClinicApiFactory : WebApplicationFactory<Program>
             services.AddSingleton<IProviderRepository>(new InMemoryProviderRepository(Store));
             services.AddSingleton<IClinicRepository>(new InMemoryClinicRepository(Store));
             services.AddSingleton<IAppointmentRepository>(new InMemoryAppointmentRepository(Store));
-            services.AddSingleton<IClinicJoinRequestRepository>(new InMemoryClinicJoinRequestRepository(Store));
             services.AddSingleton<IClinicAdminRepository>(new InMemoryClinicAdminRepository(Store));
             services.AddSingleton<IUserRepository>(new InMemoryUserRepository(Store));
             services.AddSingleton<IUserRoleRepository>(new InMemoryUserRoleRepository(Store));

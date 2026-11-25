@@ -16,9 +16,6 @@ public static class Permissions
     public const string ClinicsManage = "clinics:manage";
     public const string ClinicAdminsAssign = "clinic-admins:assign";
 
-    public const string JoinRequestsSubmit = "join-requests:submit";
-    public const string JoinRequestsReview = "join-requests:review";
-
     public const string PatientsReadAll = "patients:read-all";
     public const string PatientsManage = "patients:manage";
     public const string OwnPatientProfileEdit = "patients:edit-own";
@@ -37,7 +34,6 @@ public static class Permissions
         AllergyTypesManage,
         AppointmentsBook, AppointmentsRespond, AppointmentsReadAll, AppointmentsManage,
         ClinicsManage, ClinicAdminsAssign,
-        JoinRequestsSubmit, JoinRequestsReview,
         PatientsReadAll, PatientsManage, OwnPatientProfileEdit,
         ProvidersReadAll, ProvidersManage, ProvidersVerify, OwnCalendarRead,
         PlatformDashboardRead,

@@ -288,65 +288,6 @@ public class StatusRepositoryIntegrationTests
     }
 
     [Fact]
-    public async Task StatusRepository_CountsPendingJoinRequestsPerClinicInOracle()
-    {
-        var connectionString = Environment.GetEnvironmentVariable("TEST_DATABASE_CONNECTION_STRING");
-        Assert.False(
-            string.IsNullOrWhiteSpace(connectionString),
-            "Set TEST_DATABASE_CONNECTION_STRING to an Oracle test database.");
-
-        OracleDapperTypeHandlers.Register();
-
-        var connectionFactory = new OracleConnectionFactory(connectionString!);
-        var clinics = new ClinicRepository(connectionFactory);
-        var providers = new ProviderRepository(connectionFactory);
-        var joinRequests = new ClinicJoinRequestRepository(connectionFactory);
-        var repository = new StatusRepository(connectionFactory);
-        var clinicAId = Guid.NewGuid();
-        var clinicBId = Guid.NewGuid();
-        var providerOneId = Guid.NewGuid();
-        var providerTwoId = Guid.NewGuid();
-        var providerThreeId = Guid.NewGuid();
-        var pendingAId = Guid.NewGuid();
-        var pendingBId = Guid.NewGuid();
-        var rejectedAId = Guid.NewGuid();
-
-        var allBefore = await repository.CountAllPendingJoinRequestsAsync();
-        try
-        {
-            await clinics.AddClinicAsync(Clinic.Create(clinicAId, $"Clinic A {clinicAId:N}", "1 Test Street", "555-0101"));
-            await clinics.AddClinicAsync(Clinic.Create(clinicBId, $"Clinic B {clinicBId:N}", "2 Test Street", "555-0102"));
-            await providers.AddProviderAsync(Provider.Register(providerOneId, clinicBId, "Grace", "Hopper", "General Practice"), clinicBId);
-            await providers.AddProviderAsync(Provider.Register(providerTwoId, clinicAId, "Alan", "Turing", "Neurology"), clinicAId);
-            await providers.AddProviderAsync(Provider.Register(providerThreeId, clinicBId, "Ada", "Lovelace", "Cardiology"), clinicBId);
-
-            await joinRequests.AddAsync(ClinicJoinRequest.Create(pendingAId, providerOneId, clinicAId));
-            await joinRequests.AddAsync(ClinicJoinRequest.Create(pendingBId, providerTwoId, clinicBId));
-            var rejected = ClinicJoinRequest.Create(rejectedAId, providerThreeId, clinicAId);
-            await joinRequests.AddAsync(rejected);
-            rejected.Reject(DateTimeOffset.UtcNow);
-            Assert.True(await joinRequests.TryDecideAsync(rejected));
-
-            Assert.Equal(1, await repository.CountPendingJoinRequestsAsync(new[] { clinicAId }));
-            Assert.Equal(1, await repository.CountPendingJoinRequestsAsync(new[] { clinicBId }));
-            Assert.Equal(2, await repository.CountPendingJoinRequestsAsync(new[] { clinicAId, clinicBId, clinicAId }));
-            Assert.Equal(0, await repository.CountPendingJoinRequestsAsync(Array.Empty<Guid>()));
-
-            // Other classes write join requests concurrently, so the global count is a lower bound.
-            Assert.True(await repository.CountAllPendingJoinRequestsAsync() >= allBefore + 2);
-        }
-        finally
-        {
-            using var connection = connectionFactory.CreateConnection();
-            await DeleteWhereInAsync(connection, "DELETE FROM ClinicJoinRequests WHERE ProviderId IN :Ids",
-                [providerOneId, providerTwoId, providerThreeId]);
-            await DeleteWhereInAsync(connection, "DELETE FROM Providers WHERE Id IN :Ids",
-                [providerOneId, providerTwoId, providerThreeId]);
-            await DeleteWhereInAsync(connection, "DELETE FROM Clinics WHERE Id IN :Ids", [clinicAId, clinicBId]);
-        }
-    }
-
-    [Fact]
     public async Task StatusRepository_DoctorDashboardCountsOnlyTheProviderAppointmentsInOracle()
     {
         var connectionString = Environment.GetEnvironmentVariable("TEST_DATABASE_CONNECTION_STRING");
