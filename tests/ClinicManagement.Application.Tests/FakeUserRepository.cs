@@ -22,6 +22,12 @@ public sealed class FakeUserRepository : IUserRepository
         return Task.FromResult(user);
     }
 
+    public Task GrantPlatformAdminAsync(Guid userId)
+    {
+        Users.First(user => user.Id == userId).GrantPlatformAdmin();
+        return Task.CompletedTask;
+    }
+
     public Task<UserAccessContext> GetAccessContextAsync(Guid userId) =>
         Task.FromResult(UserAccessContext.Empty(userId));
 }

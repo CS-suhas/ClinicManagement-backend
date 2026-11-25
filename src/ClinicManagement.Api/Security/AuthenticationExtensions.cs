@@ -51,6 +51,7 @@ public static class AuthenticationExtensions
 
         services.AddScoped<IClaimsTransformation, RoleClaimsTransformation>();
 
+        services.AddOptions<AuthorizationSettings>().BindConfiguration(AuthorizationSettings.SectionName);
         services.AddOptions<PublicAccessSettings>().BindConfiguration(PublicAccessSettings.SectionName);
         services.AddSingleton<IAuthorizationHandler, PublicDoctorsAuthorizationHandler>();
 

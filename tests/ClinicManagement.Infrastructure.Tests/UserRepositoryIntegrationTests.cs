@@ -58,8 +58,8 @@ public class UserRepositoryIntegrationTests
             Assert.Equal(patientId, (await patients.GetByUserIdAsync(created.Id))?.Id);
             Assert.Equal(providerId, (await providers.GetByUserIdAsync(created.Id))?.Id);
 
-            using (var connection = connectionFactory.CreateConnection())
-                await connection.ExecuteAsync("UPDATE Users SET IsPlatformAdmin = 1 WHERE Id = :Id", new { Id = created.Id.ToString() });
+            await users.GrantPlatformAdminAsync(created.Id);
+            await users.GrantPlatformAdminAsync(created.Id);
 
             var context = await users.GetAccessContextAsync(created.Id);
             Assert.Equal(patientId, context.PatientId);

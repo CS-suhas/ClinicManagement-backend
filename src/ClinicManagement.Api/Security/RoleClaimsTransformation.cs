@@ -1,6 +1,8 @@
 using System.Security.Claims;
+using ClinicManagement.Application.Models;
 using ClinicManagement.Application.Repositories;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.Extensions.Options;
 
 namespace ClinicManagement.Api.Security;
 
@@ -10,12 +12,10 @@ namespace ClinicManagement.Api.Security;
 /// and shared through <see cref="UserAccessContextHolder"/>.
 /// </summary>
 public sealed class RoleClaimsTransformation(
-    IConfiguration configuration,
+    IOptions<AuthorizationSettings> settings,
     IUserRepository userRepository,
     UserAccessContextHolder holder) : IClaimsTransformation
 {
-    private const string AdminSubjectsKey = "Authorization:AdminSubjects";
-
     public async Task<ClaimsPrincipal> TransformAsync(ClaimsPrincipal principal)
     {
         if (principal.Identity is not ClaimsIdentity { IsAuthenticated: true } identity)
@@ -28,11 +28,7 @@ public sealed class RoleClaimsTransformation(
         var context = holder.Subject == subject ? holder.Context : null;
         if (context is null)
         {
-            var user = await userRepository.GetOrCreateAsync(
-                subject,
-                principal.FindFirst("email")?.Value,
-                principal.FindFirst("name")?.Value ?? principal.FindFirst("preferred_username")?.Value);
-            context = await userRepository.GetAccessContextAsync(user.Id);
+            context = await LoadAccessContextAsync(principal, subject);
             holder.Set(subject, context);
         }
 
@@ -43,13 +39,26 @@ public sealed class RoleClaimsTransformation(
             transformed.RemoveClaim(claim);
 
         transformed.AddClaim(new Claim(ClinicClaimTypes.UserId, context.UserId.ToString()));
-        foreach (var role in context.DeriveRoles(IsConfiguredAdmin(subject)))
+        foreach (var role in context.DeriveRoles())
             transformed.AddClaim(new Claim(ClaimTypes.Role, role));
 
         return new ClaimsPrincipal(transformed);
     }
 
-    private bool IsConfiguredAdmin(string subject) =>
-        (configuration.GetSection(AdminSubjectsKey).Get<string[]>() ?? [])
-            .Contains(subject, StringComparer.Ordinal);
+    private async Task<UserAccessContext> LoadAccessContextAsync(ClaimsPrincipal principal, string subject)
+    {
+        var user = await userRepository.GetOrCreateAsync(
+            subject,
+            principal.FindFirst("email")?.Value,
+            principal.FindFirst("name")?.Value ?? principal.FindFirst("preferred_username")?.Value);
+        var context = await userRepository.GetAccessContextAsync(user.Id);
+
+        if (!context.IsPlatformAdmin && settings.Value.AdminSubjects.Contains(subject, StringComparer.Ordinal))
+        {
+            await userRepository.GrantPlatformAdminAsync(user.Id);
+            context = context with { IsPlatformAdmin = true };
+        }
+
+        return context;
+    }
 }

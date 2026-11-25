@@ -61,6 +61,17 @@ public sealed class UserRepository(IDbConnectionFactory connectionFactory) : IUs
         }
     }
 
+    public async Task GrantPlatformAdminAsync(Guid userId)
+    {
+        using var connection = connectionFactory.CreateConnection();
+        const string sql = """
+            UPDATE Users
+            SET IsPlatformAdmin = 1, UpdatedAtUtc = SYSTIMESTAMP
+            WHERE Id = :Id AND IsPlatformAdmin = 0
+            """;
+        await connection.ExecuteAsync(sql, new { Id = userId.ToString() });
+    }
+
     public async Task<UserAccessContext> GetAccessContextAsync(Guid userId)
     {
         using var connection = connectionFactory.CreateConnection();

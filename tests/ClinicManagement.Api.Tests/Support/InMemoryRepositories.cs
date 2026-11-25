@@ -519,6 +519,12 @@ internal sealed class InMemoryUserRepository(InMemoryStore store) : IUserReposit
         return Task.FromResult(user);
     }
 
+    public Task GrantPlatformAdminAsync(Guid userId)
+    {
+        store.Users.First(user => user.Id == userId).GrantPlatformAdmin();
+        return Task.CompletedTask;
+    }
+
     public Task<UserAccessContext> GetAccessContextAsync(Guid userId)
     {
         var user = store.Users.FirstOrDefault(candidate => candidate.Id == userId);

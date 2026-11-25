@@ -20,11 +20,8 @@ public sealed record UserAccessContext(
 {
     public static UserAccessContext Empty(Guid userId) => new(userId, false, null, null, null, []);
 
-    /// <summary>
-    /// The roles this context grants. <paramref name="isConfiguredAdmin"/> adds <see cref="Roles.Admin"/> for a
-    /// subject listed in configuration.
-    /// </summary>
-    public IReadOnlyList<string> DeriveRoles(bool isConfiguredAdmin = false)
+    /// <summary>The roles this context grants.</summary>
+    public IReadOnlyList<string> DeriveRoles()
     {
         var roles = new List<string>(4);
         if (PatientId is not null)
@@ -33,7 +30,7 @@ public sealed record UserAccessContext(
             roles.Add(Roles.Doctor);
         if (AdministeredClinicIds.Count > 0)
             roles.Add(Roles.ClinicAdmin);
-        if (IsPlatformAdmin || isConfiguredAdmin)
+        if (IsPlatformAdmin)
             roles.Add(Roles.Admin);
         return roles;
     }
