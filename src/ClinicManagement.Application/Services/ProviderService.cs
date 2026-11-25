@@ -46,12 +46,14 @@ public class ProviderService(
         Guid? clinicId,
         ProviderVerificationStatus? verificationStatus = null)
     {
+        // Only administrators may see unverified providers; everyone else is limited to verified ones.
+        var effectiveStatus = currentUser.IsAdministrator() ? verificationStatus : ProviderVerificationStatus.VERIFIED;
         var offset = query.GetOffset();
         var (items, totalCount) = await providerRepository.SearchProvidersAsync(
             query,
             offset,
             clinicId,
-            verificationStatus);
+            effectiveStatus);
         return ToPage(items, totalCount, query);
     }
 

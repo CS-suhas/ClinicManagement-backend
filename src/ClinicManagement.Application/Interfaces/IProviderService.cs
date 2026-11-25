@@ -15,6 +15,10 @@ public interface IProviderService
     Task<Guid> AddProviderAsync(ProviderRequest request);
     Task<Guid> UpdateProviderAsync(ProviderRequest request);
     Task<Guid> DeleteProviderAsync(Guid providerId);
+    /// <summary>
+    /// Searches providers. <paramref name="verificationStatus"/> is honoured for administrators only; everyone else
+    /// receives verified providers.
+    /// </summary>
     Task<PagedResponse<ProviderResponse>> SearchProvidersAsync(
         PageQuery query,
         Guid? clinicId,

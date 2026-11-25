@@ -1,5 +1,3 @@
-using ClinicManagement.Application.Common;
-using System.Security.Claims;
 using ClinicManagement.Application.Providers.Interfaces;
 using ClinicManagement.Application.Providers.Models;
 using ClinicManagement.Application.Appointments.Interfaces;
@@ -24,15 +22,8 @@ public static class ProviderEndpoints
             [AsParameters] PageQuery query,
             Guid? clinicId,
             ProviderVerificationStatus? verificationStatus,
-            ClaimsPrincipal user,
             [FromServices] IProviderService service) =>
-        {
-            // Only administrators may see unverified providers; everyone else is limited to verified ones.
-            var effectiveStatus = user.IsInRole(Roles.Admin)
-                ? verificationStatus
-                : ProviderVerificationStatus.VERIFIED;
-            return Results.Ok(await service.SearchProvidersAsync(query, clinicId, effectiveStatus));
-        })
+            Results.Ok(await service.SearchProvidersAsync(query, clinicId, verificationStatus)))
             .WithName("SearchProviders")
             .WithSummary("Search providers")
             .WithDescription("Public. Searches providers by name, specialty, and clinic. Anonymous and non-administrator callers only receive verified providers; administrators may also filter by verification status to see unverified ones.")
