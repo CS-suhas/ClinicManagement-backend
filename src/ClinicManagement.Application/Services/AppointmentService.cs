@@ -99,7 +99,7 @@ public class AppointmentService(
         RequestValidator.EnsureGuid(providerId, nameof(providerId), "Provider ID");
         var day = ParseBookingDate(date);
 
-        // Unverified providers and providers without a clinic are not bookable, so they must not be discoverable.
+        // Unverified providers are not bookable, so they must not be discoverable.
         var provider = await providerRepository.GetProviderByIdAsync(providerId);
         if (provider is null || !provider.IsAcceptingAppointments)
             throw new ResourceNotFoundException("Provider", providerId);
@@ -188,9 +188,7 @@ public class AppointmentService(
     public async Task<ClinicResponse> GetClinicByAppointmentIdAsync(Guid appointmentId)
     {
         var appointment = await GetViewableAppointmentAsync(appointmentId);
-        if (appointment.Provider.ClinicId is not { } clinicId)
-            throw new ResourceNotFoundException(
-                $"Provider '{appointment.ProviderId}' does not belong to a clinic.");
+        var clinicId = appointment.Provider.ClinicId;
         var clinic = await clinicRepository.GetClinicByIdAsync(clinicId)
             ?? throw new ResourceNotFoundException("Clinic", clinicId);
         return clinic.ToResponse();
@@ -317,7 +315,7 @@ public class AppointmentService(
         currentUser.RequireAuthenticated();
         if (currentUser.IsAdministrator() || await IsParticipantAsync(appointment))
             return;
-        if (appointment.Provider.ClinicId is { } clinicId && await currentUser.IsClinicAdminOfAsync(clinicId))
+        if (await currentUser.IsClinicAdminOfAsync(appointment.Provider.ClinicId))
             return;
 
         throw new ForbiddenException($"Appointment '{appointment.Id}' is not visible to the signed-in user.");

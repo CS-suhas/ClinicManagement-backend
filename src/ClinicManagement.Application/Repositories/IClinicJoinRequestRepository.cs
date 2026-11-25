@@ -16,9 +16,9 @@ public interface IClinicJoinRequestRepository
     /// The provider already has a pending request.</exception>
     Task<Guid> AddAsync(ClinicJoinRequest request);
     /// <summary>
-    /// Persists an approval (the request was already moved to APPROVED in memory) and assigns the provider
+    /// Persists an approval (the request was already moved to APPROVED in memory) and moves the provider
     /// to the clinic, in one transaction. Returns false, changing nothing, when the stored request is no
-    /// longer pending or the provider is no longer verified and unassigned.
+    /// longer pending, the provider is no longer verified, or the provider is already at that clinic.
     /// </summary>
     Task<bool> TryApproveAsync(ClinicJoinRequest approvedRequest);
     /// <summary>

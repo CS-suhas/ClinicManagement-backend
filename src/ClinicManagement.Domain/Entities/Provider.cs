@@ -10,7 +10,7 @@ public class Provider : BaseEntity
     public string LastName { get; private set; } = string.Empty;
     public string Specialty { get; private set; } = string.Empty;
     public Clinic? Clinic { get; private set; }
-    public Guid? ClinicId { get; private set; }
+    public Guid ClinicId { get; private set; }
     public ProviderVerificationStatus VerificationStatus { get; private set; }
     public Guid? UserId { get; private set; }
     public decimal? Fee { get; private set; }
@@ -19,7 +19,7 @@ public class Provider : BaseEntity
 
     private Provider() { }
 
-    public static Provider Create(Guid id, string firstName, string lastName, string specialty, Clinic clinic = null!)
+    public static Provider Create(Guid id, string firstName, string lastName, string specialty, Clinic clinic)
     {
         ArgumentNullException.ThrowIfNull(clinic);
 
@@ -52,30 +52,16 @@ public class Provider : BaseEntity
         };
     }
 
-    /// <summary>Self-registration: no clinic yet, and hidden until an admin verifies the provider.</summary>
-    public static Provider Register(Guid id, string firstName, string lastName, string specialty)
+    /// <summary>Self-registration at a chosen clinic: hidden until an admin verifies the provider.</summary>
+    public static Provider Register(Guid id, Guid clinicId, string firstName, string lastName, string specialty)
     {
-        if (!DataValidator.IsValidGuid(id))
-            throw new DomainValidationException("Provider ID must be a non-empty GUID.", nameof(id));
-        if (string.IsNullOrWhiteSpace(firstName))
-            throw new DomainValidationException("First name cannot be empty.", nameof(firstName));
-        if (string.IsNullOrWhiteSpace(lastName))
-            throw new DomainValidationException("Last name cannot be empty.", nameof(lastName));
-        if (string.IsNullOrWhiteSpace(specialty))
-            throw new DomainValidationException("Specialty cannot be empty.", nameof(specialty));
-
-        return new Provider
-        {
-            Id = id,
-            FirstName = firstName.Trim(),
-            LastName = lastName.Trim(),
-            Specialty = specialty.Trim(),
-            VerificationStatus = ProviderVerificationStatus.PENDING
-        };
+        var provider = Create(id, clinicId, firstName, lastName, specialty);
+        provider.VerificationStatus = ProviderVerificationStatus.PENDING;
+        return provider;
     }
 
     public bool IsAcceptingAppointments =>
-        VerificationStatus == ProviderVerificationStatus.VERIFIED && ClinicId is not null;
+        VerificationStatus == ProviderVerificationStatus.VERIFIED;
 
     /// <summary>Admin decision. Allowed for pending providers, and for previously rejected ones.</summary>
     public void Verify() => ChangeVerification(ProviderVerificationStatus.VERIFIED);

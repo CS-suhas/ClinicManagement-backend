@@ -23,6 +23,8 @@ public class UserRepositoryIntegrationTests
         var userRoles = new UserRoleRepository(connectionFactory);
         var patients = new PatientRepository(connectionFactory);
         var providers = new ProviderRepository(connectionFactory);
+        var clinics = new ClinicRepository(connectionFactory);
+        var clinicId = Guid.NewGuid();
         var subject = $"it-{Guid.NewGuid():N}";
         Guid? userId = null;
         var patientId = Guid.NewGuid();
@@ -51,9 +53,10 @@ public class UserRepositoryIntegrationTests
             patient.AssignUser(created.Id);
             await patients.AddPatientAsync(patient);
 
-            var provider = Provider.Register(providerId, "Ada", "Lovelace", "Computing");
+            await clinics.AddClinicAsync(Clinic.Create(clinicId, $"Clinic {clinicId:N}", "1 Test Street", "555-0101"));
+            var provider = Provider.Register(providerId, clinicId, "Ada", "Lovelace", "Computing");
             provider.AssignUser(created.Id);
-            await providers.AddRegistrationAsync(provider);
+            await providers.AddProviderAsync(provider, clinicId);
 
             Assert.Equal(patientId, (await patients.GetByUserIdAsync(created.Id))?.Id);
             Assert.Equal(providerId, (await providers.GetByUserIdAsync(created.Id))?.Id);
@@ -84,6 +87,7 @@ public class UserRepositoryIntegrationTests
             using var connection = connectionFactory.CreateConnection();
             await connection.ExecuteAsync("DELETE FROM Patients WHERE Id = :Id", new { Id = patientId.ToString() });
             await connection.ExecuteAsync("DELETE FROM Providers WHERE Id = :Id", new { Id = providerId.ToString() });
+            await connection.ExecuteAsync("DELETE FROM Clinics WHERE Id = :Id", new { Id = clinicId.ToString() });
             await connection.ExecuteAsync("DELETE FROM Users WHERE IdentitySubject = :Subject", new { Subject = subject });
         }
     }

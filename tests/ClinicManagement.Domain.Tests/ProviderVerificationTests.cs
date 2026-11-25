@@ -7,13 +7,23 @@ namespace ClinicManagement.Domain.Tests;
 public class ProviderVerificationTests
 {
     [Fact]
-    public void Register_CreatesPendingProviderWithoutClinic()
+    public void Register_CreatesPendingProviderAtTheChosenClinic()
     {
-        var provider = Provider.Register(Guid.NewGuid(), "Grace", "Hopper", "Computing");
+        var clinicId = Guid.NewGuid();
+        var provider = Provider.Register(Guid.NewGuid(), clinicId, "Grace", "Hopper", "Computing");
 
         Assert.Equal(ProviderVerificationStatus.PENDING, provider.VerificationStatus);
-        Assert.Null(provider.ClinicId);
+        Assert.Equal(clinicId, provider.ClinicId);
         Assert.False(provider.IsAcceptingAppointments);
+    }
+
+    [Fact]
+    public void Register_RejectsEmptyClinicId()
+    {
+        var exception = Assert.Throws<DomainValidationException>(
+            () => Provider.Register(Guid.NewGuid(), Guid.Empty, "Grace", "Hopper", "Computing"));
+
+        Assert.Equal("clinicId", exception.PropertyName);
     }
 
     [Fact]
@@ -29,26 +39,26 @@ public class ProviderVerificationTests
     public void Register_RejectsBlankSpecialty()
     {
         var exception = Assert.Throws<DomainValidationException>(
-            () => Provider.Register(Guid.NewGuid(), "Grace", "Hopper", " "));
+            () => Provider.Register(Guid.NewGuid(), Guid.NewGuid(), "Grace", "Hopper", " "));
 
         Assert.Equal("specialty", exception.PropertyName);
     }
 
     [Fact]
-    public void Verify_MovesPendingProviderToVerified_ButStillNeedsAClinic()
+    public void Verify_MovesPendingProviderToVerified_AndAcceptingAppointments()
     {
-        var provider = Provider.Register(Guid.NewGuid(), "Grace", "Hopper", "Computing");
+        var provider = Provider.Register(Guid.NewGuid(), Guid.NewGuid(), "Grace", "Hopper", "Computing");
 
         provider.Verify();
 
         Assert.Equal(ProviderVerificationStatus.VERIFIED, provider.VerificationStatus);
-        Assert.False(provider.IsAcceptingAppointments);
+        Assert.True(provider.IsAcceptingAppointments);
     }
 
     [Fact]
     public void Verify_AllowsReconsideringARejectedProvider()
     {
-        var provider = Provider.Register(Guid.NewGuid(), "Grace", "Hopper", "Computing");
+        var provider = Provider.Register(Guid.NewGuid(), Guid.NewGuid(), "Grace", "Hopper", "Computing");
         provider.Reject();
 
         provider.Verify();
@@ -68,7 +78,7 @@ public class ProviderVerificationTests
     public void Reject_ThrowsUnlessPending()
     {
         var verified = Provider.Create(Guid.NewGuid(), Guid.NewGuid(), "Grace", "Hopper", "Computing");
-        var rejected = Provider.Register(Guid.NewGuid(), "Alan", "Turing", "Computing");
+        var rejected = Provider.Register(Guid.NewGuid(), Guid.NewGuid(), "Alan", "Turing", "Computing");
         rejected.Reject();
 
         Assert.Throws<InvalidStatusTransitionException>(() => verified.Reject());
@@ -78,7 +88,7 @@ public class ProviderVerificationTests
     [Fact]
     public void FeeAndGender_AreOptionalAndUnsetByDefault()
     {
-        var provider = Provider.Register(Guid.NewGuid(), "Grace", "Hopper", "Computing");
+        var provider = Provider.Register(Guid.NewGuid(), Guid.NewGuid(), "Grace", "Hopper", "Computing");
 
         Assert.Null(provider.Fee);
         Assert.Null(provider.Gender);
@@ -87,7 +97,7 @@ public class ProviderVerificationTests
     [Fact]
     public void SetFeeAndGender_StoresValues_AndCanClearThem()
     {
-        var provider = Provider.Register(Guid.NewGuid(), "Grace", "Hopper", "Computing");
+        var provider = Provider.Register(Guid.NewGuid(), Guid.NewGuid(), "Grace", "Hopper", "Computing");
 
         provider.SetFee(2500.50m);
         provider.SetGender(Gender.FEMALE);
@@ -106,7 +116,7 @@ public class ProviderVerificationTests
     [InlineData("100000000")]
     public void SetFee_RejectsNegativeOverlongOrTooPreciseValues(string fee)
     {
-        var provider = Provider.Register(Guid.NewGuid(), "Grace", "Hopper", "Computing");
+        var provider = Provider.Register(Guid.NewGuid(), Guid.NewGuid(), "Grace", "Hopper", "Computing");
 
         var exception = Assert.Throws<DomainValidationException>(
             () => provider.SetFee(decimal.Parse(fee, System.Globalization.CultureInfo.InvariantCulture)));
@@ -117,7 +127,7 @@ public class ProviderVerificationTests
     [Fact]
     public void SetFee_AllowsZero()
     {
-        var provider = Provider.Register(Guid.NewGuid(), "Grace", "Hopper", "Computing");
+        var provider = Provider.Register(Guid.NewGuid(), Guid.NewGuid(), "Grace", "Hopper", "Computing");
 
         provider.SetFee(0m);
 
@@ -127,7 +137,7 @@ public class ProviderVerificationTests
     [Fact]
     public void SetGender_RejectsUndefinedValue()
     {
-        var provider = Provider.Register(Guid.NewGuid(), "Grace", "Hopper", "Computing");
+        var provider = Provider.Register(Guid.NewGuid(), Guid.NewGuid(), "Grace", "Hopper", "Computing");
 
         Assert.Throws<DomainValidationException>(() => provider.SetGender((Gender)42));
     }

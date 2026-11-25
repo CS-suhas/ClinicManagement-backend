@@ -15,18 +15,20 @@ namespace ClinicManagement.Application.Tests;
 public class ProviderServiceTests
 {
     [Fact]
-    public async Task RegisterProviderAsync_StoresAPendingProviderWithoutAClinic()
+    public async Task RegisterProviderAsync_StoresAPendingProviderAtTheChosenClinic()
     {
         var providerRepository = new FakeProviderRepository();
-        var service = new ProviderService(providerRepository, new FakeClinicRepository(), new FakeAppointmentRepository(), new TestCurrentUser());
+        var service = new ProviderService(providerRepository, new FakeClinicRepository { Exists = true }, new FakeAppointmentRepository(), new TestCurrentUser());
         var id = Guid.NewGuid();
+        var clinicId = Guid.NewGuid();
 
-        var result = await service.RegisterProviderAsync(new ProviderRegistrationRequest(id, " Grace ", "Hopper", "Computing"));
+        var result = await service.RegisterProviderAsync(new ProviderRegistrationRequest(id, clinicId, " Grace ", "Hopper", "Computing"));
 
         Assert.Equal(id, result);
         var registered = Assert.IsType<Provider>(providerRepository.Registered);
         Assert.Equal(ProviderVerificationStatus.PENDING, registered.VerificationStatus);
-        Assert.Null(registered.ClinicId);
+        Assert.Equal(clinicId, registered.ClinicId);
+        Assert.Equal(clinicId, providerRepository.AddedClinicId);
         Assert.Equal("Grace", registered.FirstName);
     }
 
@@ -37,16 +39,28 @@ public class ProviderServiceTests
         var service = new ProviderService(providerRepository, new FakeClinicRepository(), new FakeAppointmentRepository(), new TestCurrentUser());
 
         var exception = await Assert.ThrowsAsync<DomainValidationException>(
-            () => service.RegisterProviderAsync(new ProviderRegistrationRequest(Guid.NewGuid(), "Grace", "Hopper", " ")));
+            () => service.RegisterProviderAsync(new ProviderRegistrationRequest(Guid.NewGuid(), Guid.NewGuid(), "Grace", "Hopper", " ")));
 
         Assert.Equal("specialty", exception.PropertyName);
         Assert.Null(providerRepository.Registered);
     }
 
     [Fact]
+    public async Task RegisterProviderAsync_ThrowsWhenClinicDoesNotExist()
+    {
+        var providerRepository = new FakeProviderRepository();
+        var service = new ProviderService(providerRepository, new FakeClinicRepository { Exists = false }, new FakeAppointmentRepository(), new TestCurrentUser());
+
+        await Assert.ThrowsAsync<ResourceNotFoundException>(
+            () => service.RegisterProviderAsync(new ProviderRegistrationRequest(Guid.NewGuid(), Guid.NewGuid(), "Grace", "Hopper", "Computing")));
+
+        Assert.Null(providerRepository.Registered);
+    }
+
+    [Fact]
     public async Task VerifyProviderAsync_MovesPendingProviderToVerified()
     {
-        var pending = Provider.Register(Guid.NewGuid(), "Grace", "Hopper", "Computing");
+        var pending = Provider.Register(Guid.NewGuid(), Guid.NewGuid(), "Grace", "Hopper", "Computing");
         pending.AssignUser(Guid.NewGuid());
         var providerRepository = new FakeProviderRepository { ExistingProvider = pending };
         var service = new ProviderService(providerRepository, new FakeClinicRepository(), new FakeAppointmentRepository(), new TestCurrentUser());
@@ -73,7 +87,7 @@ public class ProviderServiceTests
     [Fact]
     public async Task VerifyProviderAsync_ThrowsConflictWhenStatusChangedConcurrently()
     {
-        var pending = Provider.Register(Guid.NewGuid(), "Grace", "Hopper", "Computing");
+        var pending = Provider.Register(Guid.NewGuid(), Guid.NewGuid(), "Grace", "Hopper", "Computing");
         pending.AssignUser(Guid.NewGuid());
         var providerRepository = new FakeProviderRepository
         {
@@ -158,7 +172,7 @@ public class ProviderServiceTests
     [Fact]
     public async Task GetProviderByIdAsync_LeavesClinicNameNullWithoutAClinic()
     {
-        var provider = Provider.Register(Guid.NewGuid(), "Edsger", "Dijkstra", "Algorithms");
+        var provider = Provider.Register(Guid.NewGuid(), Guid.NewGuid(), "Edsger", "Dijkstra", "Algorithms");
         var service = new ProviderService(
             new FakeProviderRepository { ExistingProvider = provider },
             new FakeClinicRepository(),
@@ -244,10 +258,10 @@ public class ProviderServiceTests
     public async Task RegisterProviderAsync_StoresFeeAndGender()
     {
         var providerRepository = new FakeProviderRepository();
-        var service = new ProviderService(providerRepository, new FakeClinicRepository(), new FakeAppointmentRepository(), new TestCurrentUser());
+        var service = new ProviderService(providerRepository, new FakeClinicRepository { Exists = true }, new FakeAppointmentRepository(), new TestCurrentUser());
 
         await service.RegisterProviderAsync(
-            new ProviderRegistrationRequest(Guid.NewGuid(), "Grace", "Hopper", "Computing", 900m, "OTHER"));
+            new ProviderRegistrationRequest(Guid.NewGuid(), Guid.NewGuid(), "Grace", "Hopper", "Computing", 900m, "OTHER"));
 
         var registered = Assert.IsType<Provider>(providerRepository.Registered);
         Assert.Equal(900m, registered.Fee);
@@ -368,11 +382,11 @@ public class ProviderServiceTests
         var providerRepository = new FakeProviderRepository();
         var service = new ProviderService(
             providerRepository,
-            new FakeClinicRepository(),
+            new FakeClinicRepository { Exists = true },
             new FakeAppointmentRepository(),
             new TestCurrentUser { Subject = "kc-user-1", UserId = RegisteringUserId });
 
-        await service.RegisterProviderAsync(new ProviderRegistrationRequest(Guid.NewGuid(), "Grace", "Hopper", "Computing"));
+        await service.RegisterProviderAsync(new ProviderRegistrationRequest(Guid.NewGuid(), Guid.NewGuid(), "Grace", "Hopper", "Computing"));
 
         Assert.Equal(RegisteringUserId, providerRepository.Registered?.UserId);
     }
@@ -380,7 +394,7 @@ public class ProviderServiceTests
     [Fact]
     public async Task RegisterProviderAsync_RejectsSubjectThatAlreadyHasAProvider()
     {
-        var existing = Provider.Register(Guid.NewGuid(), "Grace", "Hopper", "Computing");
+        var existing = Provider.Register(Guid.NewGuid(), Guid.NewGuid(), "Grace", "Hopper", "Computing");
         existing.AssignUser(RegisteringUserId);
         var providerRepository = new FakeProviderRepository { ExistingByUserId = existing };
         var service = new ProviderService(
@@ -390,7 +404,7 @@ public class ProviderServiceTests
             new TestCurrentUser { Subject = "kc-user-1", UserId = RegisteringUserId });
 
         await Assert.ThrowsAsync<IdentityAlreadyLinkedException>(
-            () => service.RegisterProviderAsync(new ProviderRegistrationRequest(Guid.NewGuid(), "Grace", "Hopper", "Computing")));
+            () => service.RegisterProviderAsync(new ProviderRegistrationRequest(Guid.NewGuid(), Guid.NewGuid(), "Grace", "Hopper", "Computing")));
 
         Assert.Null(providerRepository.Registered);
     }
@@ -398,7 +412,7 @@ public class ProviderServiceTests
     [Fact]
     public async Task GetProviderCalendarAsync_ForbidsUnverifiedProvider()
     {
-        var pending = Provider.Register(Guid.NewGuid(), "Grace", "Hopper", "Computing");
+        var pending = Provider.Register(Guid.NewGuid(), Guid.NewGuid(), "Grace", "Hopper", "Computing");
         var service = new ProviderService(
             new FakeProviderRepository { ExistingProvider = pending },
             new FakeClinicRepository(),
@@ -564,18 +578,13 @@ public class ProviderServiceTests
             ClinicManagement.Application.Models.PageQuery query,
             int offset,
             Guid? clinicId) => throw new NotSupportedException();
-        public Provider? Registered { get; private set; }
+        public Provider? Registered => AddedProvider;
         public bool VerificationChangeSucceeds { get; init; } = true;
         public (ProviderVerificationStatus Expected, ProviderVerificationStatus Next)? VerificationChange
         {
             get; private set;
         }
 
-        public Task<Guid> AddRegistrationAsync(Provider provider)
-        {
-            Registered = provider;
-            return Task.FromResult(provider.Id);
-        }
         public Task<bool> TryUpdateVerificationStatusAsync(
             Guid providerId,
             ProviderVerificationStatus expected,

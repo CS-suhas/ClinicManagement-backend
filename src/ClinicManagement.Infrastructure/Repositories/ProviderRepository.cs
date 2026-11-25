@@ -9,8 +9,6 @@ namespace ClinicManagement.Infrastructure.Repositories;
 
 public class ProviderRepository(IDbConnectionFactory connectionFactory) : IProviderRepository
 {
-    // Providers without a clinic (self-registered, not yet approved anywhere) must still be returned,
-    // so the clinic is a LEFT JOIN and may map to null.
     private const string SelectProviderWithClinic = """
         SELECT pr.Id, pr.FirstName, pr.LastName, pr.Specialty, pr.ClinicId, pr.VerificationStatus, pr.UserId, pr.Fee, pr.Gender,
                c.Id, c.Name, c.Address, c.PhoneNumber
@@ -32,27 +30,6 @@ public class ProviderRepository(IDbConnectionFactory connectionFactory) : IProvi
             provider.LastName,
             provider.Specialty,
             ClinicId = clinicId.ToString(),
-            VerificationStatus = provider.VerificationStatus.ToString(),
-            UserId = provider.UserId?.ToString(),
-            provider.Fee,
-            Gender = provider.Gender?.ToString()
-        });
-        return provider.Id;
-    }
-
-    public async Task<Guid> AddRegistrationAsync(Provider provider)
-    {
-        using var connection = connectionFactory.CreateConnection();
-        const string sql = """
-            INSERT INTO Providers (Id, FirstName, LastName, Specialty, ClinicId, VerificationStatus, UserId, Fee, Gender)
-            VALUES (:Id, :FirstName, :LastName, :Specialty, NULL, :VerificationStatus, :UserId, :Fee, :Gender)
-            """;
-        await connection.ExecuteAsync(sql, new
-        {
-            Id = provider.Id.ToString(),
-            provider.FirstName,
-            provider.LastName,
-            provider.Specialty,
             VerificationStatus = provider.VerificationStatus.ToString(),
             UserId = provider.UserId?.ToString(),
             provider.Fee,
@@ -122,7 +99,7 @@ public class ProviderRepository(IDbConnectionFactory connectionFactory) : IProvi
         const string sql = """
             SELECT ClinicId, COUNT(1) AS ProviderCount
             FROM Providers
-            WHERE VerificationStatus = 'VERIFIED' AND ClinicId IS NOT NULL
+            WHERE VerificationStatus = 'VERIFIED'
             GROUP BY ClinicId
             """;
         var rows = await connection.QueryAsync<ClinicProviderCountRow>(sql);
@@ -178,7 +155,7 @@ public class ProviderRepository(IDbConnectionFactory connectionFactory) : IProvi
     {
         using var connection = connectionFactory.CreateConnection();
         var visibility = publicOnly
-            ? "AND pr.VerificationStatus = 'VERIFIED' AND pr.ClinicId IS NOT NULL"
+            ? "AND pr.VerificationStatus = 'VERIFIED'"
             : string.Empty;
         var where = $"""
             WHERE (:ClinicId IS NULL OR pr.ClinicId = :ClinicId)

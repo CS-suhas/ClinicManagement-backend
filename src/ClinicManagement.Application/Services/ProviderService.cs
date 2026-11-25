@@ -67,6 +67,7 @@ public class ProviderService(
     public async Task<Guid> RegisterProviderAsync(ProviderRegistrationRequest request)
     {
         RequestValidator.EnsureGuid(request.Id, "id", "Provider ID");
+        RequestValidator.EnsureGuid(request.ClinicId, "clinicId", "Clinic ID");
         RequestValidator.EnsureText(request.FirstName, "firstName", "First name");
         RequestValidator.EnsureText(request.LastName, "lastName", "Last name");
         RequestValidator.EnsureText(request.Specialty, "specialty", "Specialty");
@@ -76,9 +77,12 @@ public class ProviderService(
         if (await providerRepository.GetByUserIdAsync(userId) is not null)
             throw new IdentityAlreadyLinkedException("provider", subject);
 
+        if (!await clinicRepository.ClinicExistsAsync(request.ClinicId))
+            throw new ResourceNotFoundException("Clinic", request.ClinicId);
+
         var provider = request.ToEntity();
         provider.AssignUser(userId);
-        return await providerRepository.AddRegistrationAsync(provider);
+        return await providerRepository.AddProviderAsync(provider, provider.ClinicId);
     }
 
     public Task VerifyProviderAsync(Guid providerId) =>
@@ -242,7 +246,7 @@ public class ProviderService(
             return;
         if (await currentUser.GetProviderAsync() is { } self && self.Id == provider.Id)
             return;
-        if (provider.ClinicId is { } clinicId && await currentUser.IsClinicAdminOfAsync(clinicId))
+        if (await currentUser.IsClinicAdminOfAsync(provider.ClinicId))
             return;
 
         throw new ForbiddenException($"Provider '{provider.Id}' appointments are not visible to the signed-in user.");

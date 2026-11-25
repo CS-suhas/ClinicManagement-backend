@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!-- A provider always belongs to a clinic: self-registration now names one. Providers that registered
+         without a clinic are removed. Their join requests go with them (FK cascades); appointments do not
+         cascade, so they are deleted first. The deletion cannot be rolled back. -->
+    <changeSet id="1.10-delete-providers-without-clinic" author="clinic-management">
+        <sql>DELETE FROM Appointments WHERE ProviderId IN (SELECT Id FROM Providers WHERE ClinicId IS NULL)</sql>
+        <sql>DELETE FROM Providers WHERE ClinicId IS NULL</sql>
+        <rollback/>
+    </changeSet>
+
+    <changeSet id="1.10-providers-clinic-required" author="clinic-management">
+        <addNotNullConstraint
+            tableName="Providers"
+            columnName="ClinicId"
+            columnDataType="VARCHAR2(36)"/>
+    </changeSet>
+</databaseChangeLog>

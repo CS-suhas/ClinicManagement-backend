@@ -9,7 +9,7 @@ public sealed record SearchResponse(
 /// <summary>A patient match. Name is "First Last" and Subtitle is the email address.</summary>
 public sealed record SearchPatientResult(Guid Id, string Name, string Subtitle);
 
-/// <summary>A provider match. ClinicName is null when the provider has no clinic.</summary>
+/// <summary>A provider match.</summary>
 public sealed record SearchProviderResult(Guid Id, string Name, string Specialty, string? ClinicName);
 
 public sealed record SearchClinicResult(Guid Id, string Name, string? Address);

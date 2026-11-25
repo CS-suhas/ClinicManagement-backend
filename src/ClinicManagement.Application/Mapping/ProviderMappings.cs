@@ -24,6 +24,7 @@ public static class ProviderMappings
     {
         var provider = Provider.Register(
             request.Id,
+            request.ClinicId,
             request.FirstName,
             request.LastName,
             request.Specialty);

@@ -15,9 +15,9 @@ public class ClinicJoinRequestServiceTests
 {
     private static readonly DateTimeOffset Now = new(2030, 1, 1, 9, 0, 0, TimeSpan.Zero);
 
-    private static Provider VerifiedUnassignedProvider()
+    private static Provider VerifiedProvider()
     {
-        var provider = Provider.Register(Guid.NewGuid(), "Grace", "Hopper", "Computing");
+        var provider = Provider.Register(Guid.NewGuid(), Guid.NewGuid(), "Grace", "Hopper", "Computing");
         provider.Verify();
         return provider;
     }
@@ -46,7 +46,7 @@ public class ClinicJoinRequestServiceTests
     [Fact]
     public async Task GetByProviderIdAsync_ForbidsProviderOtherThanTheCaller()
     {
-        var caller = VerifiedUnassignedProvider();
+        var caller = VerifiedProvider();
         var (service, _) = CreateService(currentUser: new TestCurrentUser { Provider = caller });
 
         await Assert.ThrowsAsync<ForbiddenException>(() => service.GetByProviderIdAsync(Guid.NewGuid()));
@@ -72,9 +72,9 @@ public class ClinicJoinRequestServiceTests
     }
 
     [Fact]
-    public async Task RequestToJoinAsync_CreatesPendingRequestForVerifiedUnassignedProvider()
+    public async Task RequestToJoinAsync_CreatesPendingRequestToMoveVerifiedProvider()
     {
-        var provider = VerifiedUnassignedProvider();
+        var provider = VerifiedProvider();
         var clinicId = Guid.NewGuid();
         var (service, requests) = CreateService(provider);
 
@@ -90,7 +90,7 @@ public class ClinicJoinRequestServiceTests
     [Fact]
     public async Task RequestToJoinAsync_ForbidsUnverifiedProvider()
     {
-        var provider = Provider.Register(Guid.NewGuid(), "Grace", "Hopper", "Computing");
+        var provider = Provider.Register(Guid.NewGuid(), Guid.NewGuid(), "Grace", "Hopper", "Computing");
         var (service, requests) = CreateService(provider);
 
         await Assert.ThrowsAsync<ForbiddenException>(
@@ -100,13 +100,13 @@ public class ClinicJoinRequestServiceTests
     }
 
     [Fact]
-    public async Task RequestToJoinAsync_RejectsProviderThatAlreadyHasAClinic()
+    public async Task RequestToJoinAsync_RejectsTheProvidersCurrentClinic()
     {
         var provider = Provider.Create(Guid.NewGuid(), Guid.NewGuid(), "Grace", "Hopper", "Computing");
         var (service, requests) = CreateService(provider);
 
         await Assert.ThrowsAsync<ProviderAlreadyInClinicException>(
-            () => service.RequestToJoinAsync(provider.Id, Guid.NewGuid()));
+            () => service.RequestToJoinAsync(provider.Id, provider.ClinicId));
 
         Assert.Null(requests.Added);
     }
@@ -114,7 +114,7 @@ public class ClinicJoinRequestServiceTests
     [Fact]
     public async Task RequestToJoinAsync_RejectsSecondPendingRequest()
     {
-        var provider = VerifiedUnassignedProvider();
+        var provider = VerifiedProvider();
         var (service, requests) = CreateService(provider, requests: new FakeRequestRepository { HasPending = true });
 
         await Assert.ThrowsAsync<ClinicJoinRequestAlreadyPendingException>(
@@ -126,7 +126,7 @@ public class ClinicJoinRequestServiceTests
     [Fact]
     public async Task RequestToJoinAsync_ForbidsRequestForAnotherProvider()
     {
-        var provider = VerifiedUnassignedProvider();
+        var provider = VerifiedProvider();
         var (service, requests) = CreateService(provider);
 
         await Assert.ThrowsAsync<ForbiddenException>(
@@ -138,7 +138,7 @@ public class ClinicJoinRequestServiceTests
     [Fact]
     public async Task RequestToJoinAsync_ThrowsNotFoundForUnknownClinic()
     {
-        var provider = VerifiedUnassignedProvider();
+        var provider = VerifiedProvider();
         var (service, _) = CreateService(provider, clinicExists: false);
 
         await Assert.ThrowsAsync<ResourceNotFoundException>(
@@ -352,7 +352,6 @@ public class ClinicJoinRequestServiceTests
             PageQuery query,
             int offset,
             Guid? clinicId) => throw new NotSupportedException();
-        public Task<Guid> AddRegistrationAsync(Provider registered) => throw new NotSupportedException();
         public Task<bool> TryUpdateVerificationStatusAsync(
             Guid providerId,
             ProviderVerificationStatus expected,

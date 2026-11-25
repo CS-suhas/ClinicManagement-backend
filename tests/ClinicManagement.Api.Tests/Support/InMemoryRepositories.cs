@@ -74,7 +74,7 @@ internal static class InMemoryAppointmentListItems
             appointment.ProviderId,
             $"{appointment.Provider.FirstName} {appointment.Provider.LastName}",
             appointment.Provider.Specialty,
-            appointment.Provider.ClinicId ?? Guid.Empty,
+            appointment.Provider.ClinicId,
             store.Clinics.FirstOrDefault(clinic => clinic.Id == appointment.Provider.ClinicId)?.Name ?? string.Empty,
             appointment.AppointmentDateTime,
             appointment.ReasonForVisit,
@@ -220,9 +220,8 @@ internal sealed class InMemoryProviderRepository(InMemoryStore store) : IProvide
 
     public Task<IReadOnlyDictionary<Guid, int>> GetVerifiedProviderCountsByClinicAsync() =>
         Task.FromResult<IReadOnlyDictionary<Guid, int>>(store.Providers
-            .Where(provider => provider.VerificationStatus == ProviderVerificationStatus.VERIFIED
-                && provider.ClinicId is not null)
-            .GroupBy(provider => provider.ClinicId!.Value)
+            .Where(provider => provider.VerificationStatus == ProviderVerificationStatus.VERIFIED)
+            .GroupBy(provider => provider.ClinicId)
             .ToDictionary(group => group.Key, group => group.Count()));
 
     public Task<Provider?> GetProviderByIdAsync(Guid providerId) =>
@@ -243,12 +242,6 @@ internal sealed class InMemoryProviderRepository(InMemoryStore store) : IProvide
     public Task<bool> HasAppointmentsAsync(Guid providerId) =>
         Task.FromResult(store.Appointments.Any(appointment => appointment.ProviderId == providerId));
 
-    public Task<Guid> AddRegistrationAsync(Provider provider)
-    {
-        store.Providers.Add(provider);
-        return Task.FromResult(provider.Id);
-    }
-
     public Task<bool> TryUpdateVerificationStatusAsync(
         Guid providerId,
         ProviderVerificationStatus expected,
@@ -265,14 +258,17 @@ internal sealed class InMemoryProviderRepository(InMemoryStore store) : IProvide
     {
         var items = store.Providers
             .Where(provider => provider.VerificationStatus == ProviderVerificationStatus.VERIFIED
-                && provider.ClinicId is not null
                 && (clinicId is null || provider.ClinicId == clinicId))
             .ToList();
         items = items.Select(Attach).ToList();
         return Task.FromResult<(IReadOnlyList<Provider>, int)>((items, items.Count));
     }
 
-    public Task<Guid> AddProviderAsync(Provider request, Guid clinicId) => throw new NotSupportedException();
+    public Task<Guid> AddProviderAsync(Provider provider, Guid clinicId)
+    {
+        store.Providers.Add(provider);
+        return Task.FromResult(provider.Id);
+    }
 
     public Task<Guid> UpdateProviderAsync(Provider request, Guid clinicId) => throw new NotSupportedException();
 

@@ -120,8 +120,7 @@ public class PatientService(
 
         var administeredClinicIds = (await currentUser.GetAdministeredClinicIdsAsync()).ToHashSet();
         if (administeredClinicIds.Count > 0
-            && appointments.Any(appointment => appointment.Provider.ClinicId is { } clinicId
-                && administeredClinicIds.Contains(clinicId)))
+            && appointments.Any(appointment => administeredClinicIds.Contains(appointment.Provider.ClinicId)))
         {
             return PatientSummaryScope.ForClinics(administeredClinicIds);
         }
@@ -152,7 +151,7 @@ public class PatientService(
         private PatientSummaryScope(Func<Appointment, bool> includes) => _includes = includes;
 
         public static PatientSummaryScope ForClinics(IReadOnlySet<Guid> clinicIds) =>
-            new(appointment => appointment.Provider.ClinicId is { } clinicId && clinicIds.Contains(clinicId));
+            new(appointment => clinicIds.Contains(appointment.Provider.ClinicId));
 
         public static PatientSummaryScope ForProvider(Guid providerId) =>
             new(appointment => appointment.ProviderId == providerId);

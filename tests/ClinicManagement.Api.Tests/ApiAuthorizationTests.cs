@@ -1260,19 +1260,14 @@ public sealed class ApiAuthorizationTests(ClinicApiFactory factory)
     }
 
     [Fact]
-    public async Task BusySlots_UnverifiedAndUnassignedProvidersAreNotFound()
+    public async Task BusySlots_UnverifiedProvidersAreNotFound()
     {
         var world = SeedWorld();
-        var unassigned = Provider.Register(Guid.NewGuid(), "Unassigned", "Doctor", "General");
-        unassigned.Verify();
-        Factory.Store.Providers.Add(unassigned);
         var day = BusyDay().ToString("yyyy-MM-dd");
 
         using var pending = await SendAsync(HttpMethod.Get, $"/api/providers/{world.PendingProvider.Id}/busy-slots?date={day}", subject: null);
-        using var noClinic = await SendAsync(HttpMethod.Get, $"/api/providers/{unassigned.Id}/busy-slots?date={day}", subject: null);
 
         Assert.Equal(HttpStatusCode.NotFound, pending.StatusCode);
-        Assert.Equal(HttpStatusCode.NotFound, noClinic.StatusCode);
     }
 
     [Theory]
@@ -1300,8 +1295,7 @@ public sealed class ApiAuthorizationTests(ClinicApiFactory factory)
         var clinic = AddClinic($"Count {Guid.NewGuid():N}");
         AddVerifiedProvider(clinic, "Ada", "Cole", "Cardiology");
         AddVerifiedProvider(clinic, "Ben", "Dunn", "Neurology");
-        var unassigned = Provider.Register(Guid.NewGuid(), "Pending", "Person", "Cardiology");
-        Factory.Store.Providers.Add(unassigned);
+        Factory.Store.Providers.Add(Provider.Register(Guid.NewGuid(), clinic.Id, "Pending", "Person", "Cardiology"));
 
         using var response = await SendAsync(HttpMethod.Get, "/api/clinics", world.PatientSubject);
         using var document = await ReadJsonAsync(response);
@@ -1360,7 +1354,7 @@ public sealed class ApiAuthorizationTests(ClinicApiFactory factory)
         var ada = AddVerifiedProvider(clinic, "Ada", "Cole", "Cardiology");
         var ben = AddVerifiedProvider(clinic, "Ben", "Cole", "Cardiology");
         AddVerifiedProvider(clinic, "Cy", "Dunn", "Neurology");
-        Factory.Store.Providers.Add(Provider.Register(Guid.NewGuid(), "Pending", "Person", "Cardiology"));
+        Factory.Store.Providers.Add(Provider.Register(Guid.NewGuid(), clinic.Id, "Pending", "Person", "Cardiology"));
         var todayStart = new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero);
         AddAppointment(world.Patient, ada, todayStart.AddHours(9), AppointmentStatus.REQUESTED);
         AddAppointment(world.Patient, ada, todayStart.AddHours(10), AppointmentStatus.DECLINED);
@@ -1447,14 +1441,11 @@ public sealed class ApiAuthorizationTests(ClinicApiFactory factory)
     }
 
     [Fact]
-    public async Task ProviderSummary_UnknownUnverifiedAndUnassignedProvidersAreNotFound()
+    public async Task ProviderSummary_UnknownAndUnverifiedProvidersAreNotFound()
     {
         var world = SeedWorld();
-        var unassigned = Provider.Register(Guid.NewGuid(), "Unassigned", "Doctor", "General");
-        unassigned.Verify();
-        Factory.Store.Providers.Add(unassigned);
 
-        foreach (var id in new[] { Guid.NewGuid(), world.PendingProvider.Id, unassigned.Id })
+        foreach (var id in new[] { Guid.NewGuid(), world.PendingProvider.Id })
         {
             using var response = await SendAsync(HttpMethod.Get, $"/api/providers/{id}/summary", subject: null);
             Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
@@ -1659,7 +1650,7 @@ public sealed class ApiAuthorizationTests(ClinicApiFactory factory)
     }
 
     [Fact]
-    public async Task ProviderLookup_ClinicNameIsNullForProviderWithoutClinic()
+    public async Task ProviderLookup_PendingProviderCarriesTheirClinicName()
     {
         var world = SeedWorld();
 
@@ -1667,7 +1658,7 @@ public sealed class ApiAuthorizationTests(ClinicApiFactory factory)
         using var document = System.Text.Json.JsonDocument.Parse(await response.Content.ReadAsStringAsync());
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal(System.Text.Json.JsonValueKind.Null, document.RootElement.GetProperty("clinicName").ValueKind);
+        Assert.Equal(world.OtherClinic.Name, document.RootElement.GetProperty("clinicName").GetString());
     }
 
     [Fact]

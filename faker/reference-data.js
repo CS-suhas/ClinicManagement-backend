@@ -225,8 +225,9 @@ export const clinicProfiles = [
   },
 ];
 
-// Providers outside any clinic, by verification state. Only verified providers may file join requests.
-export const unassignedProviderPlan = { PENDING: 4, REJECTED: 2, VERIFIED: 6 };
+// Self-registered providers outside the scheduled roster, by verification state. Each registers at a clinic;
+// only verified ones may file join requests to move to another.
+export const selfRegisteredProviderPlan = { PENDING: 4, REJECTED: 2, VERIFIED: 6 };
 
 // prevalence: relative chance a given allergic patient has it. severityWeights: [MILD, MODERATE, SEVERE].
 export const allergyCatalog = [

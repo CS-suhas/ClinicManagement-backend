@@ -36,7 +36,7 @@ public static class ProviderEndpoints
             Results.Ok(await service.SearchProviderDirectoryAsync(query, clinicId)))
             .WithName("SearchProviderDirectory")
             .WithSummary("Search the public provider directory")
-            .WithDescription("Only verified providers that belong to a clinic are listed.")
+            .WithDescription("Only verified providers are listed.")
             .Produces<PagedResponse<ProviderResponse>>(StatusCodes.Status200OK);
 
         app.MapPost("/api/providers/register", async (
@@ -49,7 +49,7 @@ public static class ProviderEndpoints
             .WithName("RegisterProvider")
             .RequireAuthorization(AuthorizationPolicies.Authenticated)
             .WithSummary("Self-register as a provider")
-            .WithDescription("Creates a provider with no clinic and PENDING verification, linked to the signed-in identity. They stay out of the directory until an admin verifies them. Returns 409 when the identity already has a provider.")
+            .WithDescription("Creates a provider at the given clinic with PENDING verification, linked to the signed-in identity. They stay out of the directory until an admin verifies them. Returns 404 when the clinic does not exist and 409 when the identity already has a provider.")
             .Produces(StatusCodes.Status201Created)
             .Produces(StatusCodes.Status409Conflict);
 
@@ -99,7 +99,7 @@ public static class ProviderEndpoints
             Results.Ok(await service.GetProviderBusySlotsAsync(id, date)))
             .WithName("GetProviderBusySlots")
             .WithSummary("Get a provider's booked start times for a day")
-            .WithDescription("Public, with no patient data. date is a UTC calendar date in YYYY-MM-DD form. Returns the start times of the provider's REQUESTED and CONFIRMED appointments on that date, plus the appointment duration. A booking at time T conflicts when an active appointment starts strictly after T minus the duration and strictly before T plus the duration. Returns 404 for an unknown provider, or one that is not verified or has no clinic.")
+            .WithDescription("Public, with no patient data. date is a UTC calendar date in YYYY-MM-DD form. Returns the start times of the provider's REQUESTED and CONFIRMED appointments on that date, plus the appointment duration. A booking at time T conflicts when an active appointment starts strictly after T minus the duration and strictly before T plus the duration. Returns 404 for an unknown provider, or one that is not verified.")
             .Produces<ProviderBusySlotsResponse>(StatusCodes.Status200OK)
             .Produces(StatusCodes.Status400BadRequest)
             .Produces(StatusCodes.Status404NotFound);
@@ -110,7 +110,7 @@ public static class ProviderEndpoints
             Results.Ok(await service.GetProviderSummaryAsync(id)))
             .WithName("GetProviderSummary")
             .WithSummary("Get a bookable provider's summary and next free slot")
-            .WithDescription("Public, with no patient data. Returns the provider, its clinic, nextAvailableStart and todayAppointmentCount. nextAvailableStart is the earliest slot at or after now within the next 14 UTC days, or null if none is free. Slots start at clinic opening plus multiples of the appointment duration and must end by closing (both inclusive). A slot conflicts with a REQUESTED or CONFIRMED appointment that starts strictly within one duration of it. todayAppointmentCount covers the UTC calendar day and excludes declined and cancelled appointments. Returns 404 for an unknown provider, or one that is not verified or has no clinic.")
+            .WithDescription("Public, with no patient data. Returns the provider, its clinic, nextAvailableStart and todayAppointmentCount. nextAvailableStart is the earliest slot at or after now within the next 14 UTC days, or null if none is free. Slots start at clinic opening plus multiples of the appointment duration and must end by closing (both inclusive). A slot conflicts with a REQUESTED or CONFIRMED appointment that starts strictly within one duration of it. todayAppointmentCount covers the UTC calendar day and excludes declined and cancelled appointments. Returns 404 for an unknown provider, or one that is not verified.")
             .Produces<ProviderSummaryResponse>(StatusCodes.Status200OK)
             .Produces(StatusCodes.Status404NotFound);
 

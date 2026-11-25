@@ -121,12 +121,12 @@ public class ClinicJoinRequestRepository(IDbConnectionFactory connectionFactory)
             return false;
         }
 
-        // The provider must still be verified and not yet assigned to a clinic.
+        // The provider must still be verified and not already at the target clinic.
         const string assignSql = """
             UPDATE Providers
             SET ClinicId = :ClinicId, UpdatedAtUtc = SYSTIMESTAMP
             WHERE Id = :ProviderId
-              AND ClinicId IS NULL
+              AND ClinicId <> :ClinicId
               AND VerificationStatus = 'VERIFIED'
             """;
         var providerRows = await connection.ExecuteAsync(

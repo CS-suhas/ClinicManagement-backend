@@ -131,7 +131,7 @@ public sealed class GlobalSearchTests(ClinicApiFactory factory)
         var world = SeedWorld();
         var token = NewToken();
         var verified = Provider.Create(Guid.NewGuid(), world.Clinic.Id, token, "Verified", "Cardiology");
-        var pending = Provider.Register(Guid.NewGuid(), token, "Pending", "Cardiology");
+        var pending = Provider.Register(Guid.NewGuid(), world.Clinic.Id, token, "Pending", "Cardiology");
         Factory.Store.Providers.Add(verified);
         Factory.Store.Providers.Add(pending);
 
@@ -142,22 +142,6 @@ public sealed class GlobalSearchTests(ClinicApiFactory factory)
         Assert.Equal(2, admin.GetProperty("providers").GetArrayLength());
         Assert.Equal(new[] { verified.Id }, ProviderIds(doctor));
         Assert.Equal(new[] { verified.Id }, ProviderIds(patient));
-    }
-
-    [Fact]
-    public async Task Search_ProviderHasNameSpecialtyAndNullClinicNameWhenUnassigned()
-    {
-        var world = SeedWorld();
-        var token = NewToken();
-        var pending = Provider.Register(Guid.NewGuid(), token, "Unassigned", "Oncology");
-        Factory.Store.Providers.Add(pending);
-
-        var json = await GetJsonAsync(SearchUrl(token), world.SubjectFor("admin"));
-
-        var provider = Assert.Single(json.GetProperty("providers").EnumerateArray());
-        Assert.Equal($"{token} Unassigned", provider.GetProperty("name").GetString());
-        Assert.Equal("Oncology", provider.GetProperty("specialty").GetString());
-        Assert.Equal(JsonValueKind.Null, provider.GetProperty("clinicName").ValueKind);
     }
 
     [Fact]

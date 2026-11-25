@@ -64,7 +64,7 @@ public class CurrentUserGuardTests
     [Fact]
     public async Task RequireVerifiedProviderAsync_ForbidsUnverifiedProvider()
     {
-        var pending = Provider.Register(Guid.NewGuid(), "Grace", "Hopper", "Computing");
+        var pending = Provider.Register(Guid.NewGuid(), Guid.NewGuid(), "Grace", "Hopper", "Computing");
 
         await Assert.ThrowsAsync<ForbiddenException>(
             () => CurrentUserGuard.RequireVerifiedProviderAsync(new TestCurrentUser { Provider = pending }, pending.Id));
@@ -73,7 +73,7 @@ public class CurrentUserGuardTests
     [Fact]
     public async Task RequireVerifiedProviderAsync_AllowsVerifiedSelf()
     {
-        var verified = Provider.Register(Guid.NewGuid(), "Grace", "Hopper", "Computing");
+        var verified = Provider.Register(Guid.NewGuid(), Guid.NewGuid(), "Grace", "Hopper", "Computing");
         verified.Verify();
 
         var result = await CurrentUserGuard.RequireVerifiedProviderAsync(

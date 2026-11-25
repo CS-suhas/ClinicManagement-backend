@@ -88,7 +88,7 @@ public sealed class DashboardAndMeFieldTests(ClinicApiFactory factory)
     }
 
     [Fact]
-    public async Task Me_ReportsNullClinicIdForUnassignedProvider()
+    public async Task Me_ReportsClinicIdOfPendingProvider()
     {
         var world = SeedWorld();
 
@@ -96,7 +96,7 @@ public sealed class DashboardAndMeFieldTests(ClinicApiFactory factory)
         using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         var provider = document.RootElement.GetProperty("provider");
 
-        Assert.Equal(JsonValueKind.Null, provider.GetProperty("clinicId").ValueKind);
+        Assert.Equal(world.OtherClinic.Id, provider.GetProperty("clinicId").GetGuid());
     }
 
     private async Task<JsonElement> GetDashboardSectionAsync(string subject, string section)

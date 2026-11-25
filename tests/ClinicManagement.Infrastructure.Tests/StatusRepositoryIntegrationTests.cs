@@ -159,10 +159,8 @@ public class StatusRepositoryIntegrationTests
             await clinics.AddClinicAsync(clinic);
             await providers.AddProviderAsync(Provider.Create(verifiedProviderId, clinicId, "Grace", "Hopper", "General Practice"), clinicId);
 
-            // A pending provider with a clinic: self-registered, then assigned a clinic while still unverified.
-            var pending = Provider.Register(pendingProviderId, "Alan", "Turing", "Dermatology");
-            pending.SetClinic(clinic);
-            await providers.AddProviderAsync(pending, clinicId);
+            // A pending provider: self-registered at the clinic, not yet verified.
+            await providers.AddProviderAsync(Provider.Register(pendingProviderId, clinicId, "Alan", "Turing", "Dermatology"), clinicId);
 
             await patients.AddPatientAsync(Patient.Create(patientId, "Ada", "Lovelace", new DateOnly(1985, 12, 10), $"ada.{patientId:N}@example.com", "555-0100"));
             await appointments.AddAppointmentAsync(
@@ -234,9 +232,7 @@ public class StatusRepositoryIntegrationTests
             await clinics.AddClinicAsync(clinicC);
 
             await providers.AddProviderAsync(Provider.Create(providerA1Id, clinicAId, "Grace", "Hopper", "General Practice"), clinicAId);
-            var pendingA = Provider.Register(providerA2PendingId, "Alan", "Turing", "Dermatology");
-            pendingA.SetClinic(clinicA);
-            await providers.AddProviderAsync(pendingA, clinicAId);
+            await providers.AddProviderAsync(Provider.Register(providerA2PendingId, clinicAId, "Alan", "Turing", "Dermatology"), clinicAId);
             await providers.AddProviderAsync(Provider.Create(providerBId, clinicBId, "Ada", "Lovelace", "Neurology"), clinicBId);
             await providers.AddProviderAsync(Provider.Create(providerCId, clinicCId, "Edsger", "Dijkstra", "Cardiology"), clinicCId);
 
@@ -248,7 +244,7 @@ public class StatusRepositoryIntegrationTests
             var seeds = new (Guid Patient, Guid Provider, DateTimeOffset When, AppointmentStatus Status)[]
             {
                 (patient1Id, providerA1Id, todayStart.AddHours(9), AppointmentStatus.REQUESTED),
-                (patient2Id, pendingA.Id, todayStart.AddHours(10), AppointmentStatus.CONFIRMED),
+                (patient2Id, providerA2PendingId, todayStart.AddHours(10), AppointmentStatus.CONFIRMED),
                 (patient2Id, providerBId, todayStart.AddHours(11), AppointmentStatus.REQUESTED),
                 (patient1Id, providerA1Id, todayStart.AddHours(12), AppointmentStatus.DECLINED),
                 (patient1Id, providerA1Id, todayEnd.AddHours(9), AppointmentStatus.REQUESTED),
@@ -320,9 +316,9 @@ public class StatusRepositoryIntegrationTests
         {
             await clinics.AddClinicAsync(Clinic.Create(clinicAId, $"Clinic A {clinicAId:N}", "1 Test Street", "555-0101"));
             await clinics.AddClinicAsync(Clinic.Create(clinicBId, $"Clinic B {clinicBId:N}", "2 Test Street", "555-0102"));
-            await providers.AddRegistrationAsync(Provider.Register(providerOneId, "Grace", "Hopper", "General Practice"));
-            await providers.AddRegistrationAsync(Provider.Register(providerTwoId, "Alan", "Turing", "Neurology"));
-            await providers.AddRegistrationAsync(Provider.Register(providerThreeId, "Ada", "Lovelace", "Cardiology"));
+            await providers.AddProviderAsync(Provider.Register(providerOneId, clinicBId, "Grace", "Hopper", "General Practice"), clinicBId);
+            await providers.AddProviderAsync(Provider.Register(providerTwoId, clinicAId, "Alan", "Turing", "Neurology"), clinicAId);
+            await providers.AddProviderAsync(Provider.Register(providerThreeId, clinicBId, "Ada", "Lovelace", "Cardiology"), clinicBId);
 
             await joinRequests.AddAsync(ClinicJoinRequest.Create(pendingAId, providerOneId, clinicAId));
             await joinRequests.AddAsync(ClinicJoinRequest.Create(pendingBId, providerTwoId, clinicBId));

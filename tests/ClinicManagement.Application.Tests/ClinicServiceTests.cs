@@ -464,9 +464,8 @@ public class ClinicServiceTests
     {
         public Task<IReadOnlyDictionary<Guid, int>> GetVerifiedProviderCountsByClinicAsync() =>
             Task.FromResult<IReadOnlyDictionary<Guid, int>>(Providers
-                .Where(provider => provider.VerificationStatus == ClinicManagement.Domain.Enums.ProviderVerificationStatus.VERIFIED
-                    && provider.ClinicId is not null)
-                .GroupBy(provider => provider.ClinicId!.Value)
+                .Where(provider => provider.VerificationStatus == ClinicManagement.Domain.Enums.ProviderVerificationStatus.VERIFIED)
+                .GroupBy(provider => provider.ClinicId)
                 .ToDictionary(group => group.Key, group => group.Count()));
         public Task<(IReadOnlyList<ClinicManagement.Application.Models.ProviderPatientRosterItem> Items, int TotalCount)>
             SearchPatientRosterAsync(
@@ -479,7 +478,6 @@ public class ClinicServiceTests
             ClinicManagement.Application.Models.PageQuery query,
             int offset,
             Guid? clinicId) => throw new NotSupportedException();
-        public Task<Guid> AddRegistrationAsync(Provider provider) => throw new NotSupportedException();
         public Task<bool> TryUpdateVerificationStatusAsync(
             Guid providerId,
             ClinicManagement.Domain.Enums.ProviderVerificationStatus expected,

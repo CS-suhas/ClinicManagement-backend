@@ -47,7 +47,7 @@ numbers and fees (LKR) follow the app's Sri Lankan context; emails use the reser
 | Table | Rows (empty database) | Notes |
 | --- | --- | --- |
 | Clinics | 8 | Uneven sizes (2 to 12 providers); one has no phone number. The first is the marker clinic. |
-| Providers | 58 | 46 verified providers in clinics, specialties weighted per clinic; 6 verified providers without a clinic, 4 pending and 2 rejected self-registrations. Gender and fee are filled for most. |
+| Providers | 58 | 46 verified providers in clinics, specialties weighted per clinic; 6 verified providers outside the scheduled roster (some asking to move clinic), 4 pending and 2 rejected self-registrations, each registered at a clinic. Gender and fee are filled for most. |
 | ClinicJoinRequests | ~20 | Approved requests for providers who joined by self-registration, earlier rejected or cancelled requests, and pending requests (at most one per provider) spread over several clinics. Only verified providers have requests. |
 | AllergyTypes | 22 | Common drug, food, contact, environmental and insect allergies. Existing types with the same name (case-insensitive) are reused. |
 | Patients | top-up to 600 | Ages from infants to 90s (about 20% children); 10% registered in the last two months. |
@@ -64,7 +64,7 @@ Appointment rules:
 - Statuses follow the domain transitions. Past appointments are mostly `COMPLETED`, with some `CANCELLED`
   and `DECLINED` and a few recent ones not yet closed out. Future ones are mostly `CONFIRMED` or `REQUESTED`.
   `CreatedAtUtc`, `StatusChangedAtUtc` and `UpdatedAtUtc` are consistent with that history.
-- Appointments are only booked with verified providers who belong to a clinic, after the patient registered
+- Appointments are only booked with verified providers on the scheduled roster, after the patient registered
   and the provider joined.
 
 `Users` and `ClinicAdmins` are not seeded. A user row needs a real Keycloak subject to be any use, and

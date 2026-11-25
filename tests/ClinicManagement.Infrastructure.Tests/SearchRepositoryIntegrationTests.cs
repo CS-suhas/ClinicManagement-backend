@@ -128,7 +128,7 @@ public class SearchRepositoryIntegrationTests
             await clinics.AddClinicAsync(Clinic.Create(clinicId, clinicName, "1 Test Street", "555-0101"));
             await providers.AddProviderAsync(Provider.Create(verifiedByNameId, clinicId, "Grace", token, "General Practice"), clinicId);
             await providers.AddProviderAsync(Provider.Create(verifiedBySpecialtyId, clinicId, "Alan", "Turing", $"Cardiology {token}"), clinicId);
-            await providers.AddRegistrationAsync(Provider.Register(pendingId, "Pending", token, "Dermatology"));
+            await providers.AddProviderAsync(Provider.Register(pendingId, clinicId, "Pending", token, "Dermatology"), clinicId);
 
             var everyone = await repository.SearchProvidersAsync(token, 50, verifiedOnly: false);
             Assert.Equal(3, everyone.Count);
@@ -142,7 +142,7 @@ public class SearchRepositoryIntegrationTests
             Assert.Equal($"Cardiology {token}", bySpecialty.Specialty);
 
             var pending = Assert.Single(everyone, result => result.Id == pendingId);
-            Assert.Null(pending.ClinicName);
+            Assert.Equal(clinicName, pending.ClinicName);
 
             var verifiedOnly = await repository.SearchProvidersAsync(token, 50, verifiedOnly: true);
             Assert.Equal(

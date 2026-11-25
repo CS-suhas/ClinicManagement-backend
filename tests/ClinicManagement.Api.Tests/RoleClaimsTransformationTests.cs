@@ -47,7 +47,7 @@ public class RoleClaimsTransformationTests
     [Fact]
     public async Task RejectedProvider_DoesNotDeriveDoctorRole()
     {
-        var provider = Provider.Register(Guid.NewGuid(), "Grace", "Hopper", "Computing");
+        var provider = Provider.Register(Guid.NewGuid(), Guid.NewGuid(), "Grace", "Hopper", "Computing");
         provider.AssignUser(store.UserFor(Subject).Id);
         provider.Reject();
         store.Providers.Add(provider);
@@ -245,7 +245,7 @@ public class RoleClaimsTransformationTests
 
     private void AddProvider(string subject, bool verified)
     {
-        var provider = Provider.Register(Guid.NewGuid(), "Grace", "Hopper", "Computing");
+        var provider = Provider.Register(Guid.NewGuid(), Guid.NewGuid(), "Grace", "Hopper", "Computing");
         provider.AssignUser(store.UserFor(subject).Id);
         if (verified)
             provider.Verify();

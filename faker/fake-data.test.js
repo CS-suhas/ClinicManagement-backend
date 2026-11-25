@@ -98,7 +98,7 @@ test("foreign keys resolve and insert order is valid", () => {
   const patientIds = new Set(data.patients.map((row) => row.Id));
   const allergyIds = new Set(data.allergyTypes.map((row) => row.Id));
 
-  assert.ok(data.providers.every((row) => row.ClinicId === null || clinicIds.has(row.ClinicId)));
+  assert.ok(data.providers.every((row) => clinicIds.has(row.ClinicId)));
   assert.ok(data.clinicJoinRequests.every((row) => providerIds.has(row.ProviderId) && clinicIds.has(row.ClinicId)));
   assert.ok(data.patientAllergies.every((row) => patientIds.has(row.PatientId) && allergyIds.has(row.AllergyId)));
   assert.ok(data.appointments.every((row) => patientIds.has(row.PatientId) && providerIds.has(row.ProviderId)));
@@ -163,9 +163,7 @@ test("status proportions are plausible", () => {
 test("providers and join requests follow the domain rules", () => {
   const providers = byId(data.providers);
   for (const provider of data.providers) {
-    if (provider.VerificationStatus !== "VERIFIED") {
-      assert.equal(provider.ClinicId, null, "unverified providers have no clinic");
-    }
+    assert.ok(provider.ClinicId, "every provider belongs to a clinic");
   }
 
   const requestsByProvider = Map.groupBy(data.clinicJoinRequests, (row) => row.ProviderId);
@@ -176,7 +174,7 @@ test("providers and join requests follow the domain rules", () => {
       assert.ok(ms(request.CreatedAtUtc) >= ms(provider.CreatedAtUtc));
       if (request.Status === "PENDING") {
         assert.equal(request.DecidedAtUtc, null);
-        assert.equal(provider.ClinicId, null, "a provider with a pending request is not in a clinic");
+        assert.notEqual(provider.ClinicId, request.ClinicId, "a pending request targets another clinic");
       } else {
         assert.ok(ms(request.DecidedAtUtc) >= ms(request.CreatedAtUtc));
         assert.ok(ms(request.DecidedAtUtc) <= nowMs);

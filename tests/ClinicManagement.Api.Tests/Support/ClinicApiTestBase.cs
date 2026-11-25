@@ -43,7 +43,7 @@ public abstract class ClinicApiTestBase(ClinicApiFactory factory)
         store.Providers.Add(otherDoctor);
 
         var pendingSubject = Subject("pending");
-        var pending = Provider.Register(Guid.NewGuid(), "Edsger", "Dijkstra", "Algorithms");
+        var pending = Provider.Register(Guid.NewGuid(), otherClinic.Id, "Edsger", "Dijkstra", "Algorithms");
         pending.AssignUser(store.UserFor(pendingSubject).Id);
         store.Providers.Add(pending);
 

@@ -28,7 +28,7 @@ public class MeServiceTests
     public async Task GetCurrentUserAsync_ReturnsLinkedPatientAndProviderVerificationStatus()
     {
         var patient = Patient.Create(Guid.NewGuid(), "Ada", "Lovelace", new DateOnly(1985, 12, 10), "ada@example.com", "555-0100");
-        var provider = Provider.Register(Guid.NewGuid(), "Grace", "Hopper", "Computing");
+        var provider = Provider.Register(Guid.NewGuid(), Guid.NewGuid(), "Grace", "Hopper", "Computing");
         var service = new MeService(
             new FakePatientRepository(),
             new TestCurrentUser { Subject = "kc-2", Patient = patient, Provider = provider });

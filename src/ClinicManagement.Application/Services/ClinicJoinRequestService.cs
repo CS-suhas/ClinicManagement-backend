@@ -27,8 +27,8 @@ public class ClinicJoinRequestService(
         if (!await clinicRepository.ClinicExistsAsync(clinicId))
             throw new ResourceNotFoundException("Clinic", clinicId);
 
-        if (provider.ClinicId is not null)
-            throw new ProviderAlreadyInClinicException(providerId);
+        if (provider.ClinicId == clinicId)
+            throw new ProviderAlreadyInClinicException(providerId, clinicId);
         if (await requestRepository.HasPendingAsync(providerId))
             throw new ClinicJoinRequestAlreadyPendingException(providerId);
 

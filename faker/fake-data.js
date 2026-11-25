@@ -8,7 +8,7 @@ import {
   genericReasons,
   mobilePrefixes,
   specialties,
-  unassignedProviderPlan,
+  selfRegisteredProviderPlan,
 } from "./reference-data.js";
 
 // Bump the version (name and Id) when the generated data set changes shape, so existing databases get the new
@@ -276,11 +276,18 @@ export function createSeedData({
 
   const allSpecialtyNames = Object.keys(specialties);
   let pendingRequestClinic = 0;
-  for (const [status, count] of Object.entries(unassignedProviderPlan)) {
+  let registeredClinic = 0;
+  // A join request moves a provider to another clinic, so it never targets the one they are in.
+  const otherClinic = (preferred, homeClinicId) =>
+    clinics[preferred % clinics.length].Id !== homeClinicId
+      ? clinics[preferred % clinics.length].Id
+      : clinics[(preferred + 1) % clinics.length].Id;
+  for (const [status, count] of Object.entries(selfRegisteredProviderPlan)) {
     for (let index = 0; index < count; index++) {
       const person = uniqueProviderPerson();
       const specialty = faker.helpers.arrayElement(allSpecialtyNames);
       const id = faker.string.uuid();
+      const homeClinicId = clinics[registeredClinic++ % clinics.length].Id;
       let createdMs;
       let updatedMs = null;
 
@@ -291,7 +298,7 @@ export function createSeedData({
         createdMs = nowMs - between(30 * day, 120 * day);
         updatedMs = createdMs + between(1 * day, 7 * day);
       } else {
-        // Verified but not yet in a clinic. Join requests need a verified provider and allow one pending each.
+        // Verified, some asking to move clinic. Join requests need a verified provider and allow one pending each.
         createdMs = nowMs - between(20 * day, 150 * day);
         const verifiedMs = createdMs + between(1 * day, 7 * day);
         updatedMs = verifiedMs;
@@ -301,11 +308,11 @@ export function createSeedData({
           const earlierStatus = index === 5 ? "CANCELLED" : "REJECTED";
           const earlierCreatedMs = between(cursorMs + hour, cursorMs + 5 * day);
           const earlierDecidedMs = between(earlierCreatedMs + hour, earlierCreatedMs + 6 * day);
-          addJoinRequest(id, clinics[(index + 3) % clinics.length].Id, earlierStatus, earlierCreatedMs, earlierDecidedMs);
+          addJoinRequest(id, otherClinic(index + 3, homeClinicId), earlierStatus, earlierCreatedMs, earlierDecidedMs);
           cursorMs = earlierDecidedMs;
         }
         if (hasPending) {
-          const clinicId = clinics[pendingRequestClinic++ % clinics.length].Id;
+          const clinicId = otherClinic(pendingRequestClinic++, homeClinicId);
           addJoinRequest(id, clinicId, "PENDING", between(cursorMs + hour, nowMs - hour), null);
         }
       }
@@ -315,7 +322,7 @@ export function createSeedData({
         FirstName: person.firstName,
         LastName: person.lastName,
         Specialty: specialty,
-        ClinicId: null,
+        ClinicId: homeClinicId,
         VerificationStatus: status,
         Fee: providerFee(specialty),
         Gender: providerGender(person.sex),

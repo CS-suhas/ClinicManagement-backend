@@ -35,8 +35,6 @@ public interface IProviderRepository
         PageQuery query,
         int offset,
         DateTimeOffset now);
-    /// <summary>Inserts a self-registered provider that has no clinic yet.</summary>
-    Task<Guid> AddRegistrationAsync(Provider provider);
     /// <summary>Returns false when the stored status is no longer <paramref name="expected"/>.</summary>
     Task<bool> TryUpdateVerificationStatusAsync(
         Guid providerId,

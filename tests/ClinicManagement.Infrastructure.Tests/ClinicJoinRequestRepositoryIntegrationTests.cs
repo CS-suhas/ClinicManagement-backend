@@ -22,23 +22,26 @@ public class ClinicJoinRequestRepositoryIntegrationTests
         var rejectedProviderId = Guid.NewGuid();
         var marker = Guid.NewGuid().ToString("N");
         var now = DateTimeOffset.UtcNow;
+        var homeClinicId = Guid.NewGuid();
         var clinic = Clinic.Create(clinicId, $"Clinic {marker}", "1 Test Street", "555-0101");
-        var provider = Provider.Register(providerId, "Grace", marker, "Cardiology");
-        var rejectedProvider = Provider.Register(rejectedProviderId, "Alan", marker, "Cardiology");
+        var homeClinic = Clinic.Create(homeClinicId, $"Home {marker}", "2 Test Street", "555-0102");
+        var provider = Provider.Register(providerId, homeClinicId, "Grace", marker, "Cardiology");
+        var rejectedProvider = Provider.Register(rejectedProviderId, homeClinicId, "Alan", marker, "Cardiology");
         var everyone = new PageQuery(Search: marker, PageSize: 50);
 
         try
         {
             await clinicRepository.AddClinicAsync(clinic);
-            await providerRepository.AddRegistrationAsync(provider);
-            await providerRepository.AddRegistrationAsync(rejectedProvider);
+            await clinicRepository.AddClinicAsync(homeClinic);
+            await providerRepository.AddProviderAsync(provider, homeClinicId);
+            await providerRepository.AddProviderAsync(rejectedProvider, homeClinicId);
 
-            // A self-registered provider has no clinic and is pending.
+            // A self-registered provider is pending at the clinic they registered with.
             var stored = await providerRepository.GetProviderByIdAsync(providerId);
             Assert.NotNull(stored);
             Assert.Equal(ProviderVerificationStatus.PENDING, stored.VerificationStatus);
-            Assert.Null(stored.ClinicId);
-            Assert.Null(stored.Clinic);
+            Assert.Equal(homeClinicId, stored.ClinicId);
+            Assert.Equal(homeClinic.Name, stored.Clinic!.Name);
 
             // Management search sees them (and can filter on status); the public directory does not.
             var (pending, _) = await providerRepository.SearchProvidersAsync(
@@ -54,7 +57,7 @@ public class ClinicJoinRequestRepositoryIntegrationTests
                 providerId, ProviderVerificationStatus.PENDING, ProviderVerificationStatus.VERIFIED));
             Assert.False(await providerRepository.TryUpdateVerificationStatusAsync(
                 providerId, ProviderVerificationStatus.PENDING, ProviderVerificationStatus.REJECTED));
-            Assert.Empty((await providerRepository.SearchPublicProvidersAsync(everyone, 0, null)).Items);
+            Assert.Equal(providerId, Assert.Single((await providerRepository.SearchPublicProvidersAsync(everyone, 0, null)).Items).Id);
 
             // One pending join request per provider, enforced by the unique index too.
             var request = ClinicJoinRequest.Create(Guid.NewGuid(), providerId, clinicId);
@@ -73,7 +76,7 @@ public class ClinicJoinRequestRepositoryIntegrationTests
             Assert.Empty(await requestRepository.GetByClinicIdAsync(clinicId, ClinicJoinRequestStatus.APPROVED));
             Assert.Single(await requestRepository.GetByProviderIdAsync(providerId));
 
-            // Approval flips the request and assigns the clinic in one go...
+            // Approval flips the request and moves the provider to the clinic in one go...
             var toApprove = await requestRepository.GetByIdAsync(request.Id);
             Assert.NotNull(toApprove);
             toApprove.Approve(now);
@@ -92,10 +95,8 @@ public class ClinicJoinRequestRepositoryIntegrationTests
             Assert.False(await requestRepository.TryApproveAsync(toApprove));
             Assert.False(await requestRepository.TryDecideAsync(toApprove));
 
-            // The provider is now assigned, so approving another request for them rolls back entirely.
-            var secondClinicId = Guid.NewGuid();
-            await clinicRepository.AddClinicAsync(Clinic.Create(secondClinicId, $"Second {marker}", null, null));
-            var second = ClinicJoinRequest.Create(Guid.NewGuid(), providerId, secondClinicId);
+            // The provider is already at that clinic, so approving another request for it rolls back entirely.
+            var second = ClinicJoinRequest.Create(Guid.NewGuid(), providerId, clinicId);
             await requestRepository.AddAsync(second);
             second.Approve(now);
             Assert.False(await requestRepository.TryApproveAsync(second));
@@ -111,7 +112,7 @@ public class ClinicJoinRequestRepositoryIntegrationTests
             await requestRepository.AddAsync(toReject);
             toReject.Reject(now);
             Assert.True(await requestRepository.TryDecideAsync(toReject));
-            Assert.Null((await providerRepository.GetProviderByIdAsync(rejectedProviderId))!.ClinicId);
+            Assert.Equal(homeClinicId, (await providerRepository.GetProviderByIdAsync(rejectedProviderId))!.ClinicId);
             Assert.False(await requestRepository.HasPendingAsync(rejectedProviderId));
 
             // Join requests disappear with the provider and the clinic they belong to.
@@ -124,8 +125,8 @@ public class ClinicJoinRequestRepositoryIntegrationTests
             await connection.ExecuteAsync(
                 "DELETE FROM Providers WHERE LastName = :Marker", new { Marker = marker });
             await connection.ExecuteAsync(
-                "DELETE FROM Clinics WHERE Name IN (:First, :Second)",
-                new { First = $"Clinic {marker}", Second = $"Second {marker}" });
+                "DELETE FROM Clinics WHERE Name IN (:First, :Home)",
+                new { First = $"Clinic {marker}", Home = $"Home {marker}" });
         }
     }
 

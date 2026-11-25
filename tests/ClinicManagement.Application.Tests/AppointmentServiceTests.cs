@@ -32,7 +32,7 @@ public class AppointmentServiceTests
     public async Task AddAppointmentAsync_RejectsProviderThatIsNotVerified()
     {
         var repository = new FakeAppointmentRepository();
-        var pending = Provider.Register(Guid.NewGuid(), "New", "Doctor", "General");
+        var pending = Provider.Register(Guid.NewGuid(), Guid.NewGuid(), "New", "Doctor", "General");
         var service = CreateService(
             repository,
             new FakePatientRepository { Exists = true },
@@ -41,24 +41,6 @@ public class AppointmentServiceTests
         await Assert.ThrowsAsync<ProviderNotAcceptingAppointmentsException>(
             () => service.AddAppointmentAsync(
                 CreateRequest(CurrentTime.AddMinutes(20)) with { ProviderId = pending.Id }));
-
-        Assert.Null(repository.AddedAppointment);
-    }
-
-    [Fact]
-    public async Task AddAppointmentAsync_RejectsVerifiedProviderWithoutAClinic()
-    {
-        var repository = new FakeAppointmentRepository();
-        var unassigned = Provider.Register(Guid.NewGuid(), "New", "Doctor", "General");
-        unassigned.Verify();
-        var service = CreateService(
-            repository,
-            new FakePatientRepository { Exists = true },
-            providerRepository: new FakeProviderRepository { ConfiguredProvider = unassigned });
-
-        await Assert.ThrowsAsync<ProviderNotAcceptingAppointmentsException>(
-            () => service.AddAppointmentAsync(
-                CreateRequest(CurrentTime.AddMinutes(20)) with { ProviderId = unassigned.Id }));
 
         Assert.Null(repository.AddedAppointment);
     }
@@ -176,7 +158,7 @@ public class AppointmentServiceTests
             AppointmentById = CreateExistingAppointment(
                 request.ProviderId, request.PatientId, CurrentTime.AddHours(2), request.Id)
         };
-        var pending = Provider.Register(request.ProviderId, "Grace", "Hopper", "Computing");
+        var pending = Provider.Register(request.ProviderId, Guid.NewGuid(), "Grace", "Hopper", "Computing");
         var service = CreateService(repository, new FakePatientRepository(), currentUser: new TestCurrentUser { Provider = pending });
 
         await Assert.ThrowsAsync<ForbiddenException>(() => service.DeclineAppointmentAsync(request.Id));
@@ -525,7 +507,7 @@ public class AppointmentServiceTests
     [Fact]
     public async Task GetProviderBusySlotsAsync_ThrowsNotFoundForUnverifiedProvider()
     {
-        var pending = Provider.Register(Guid.NewGuid(), "New", "Doctor", "General");
+        var pending = Provider.Register(Guid.NewGuid(), Guid.NewGuid(), "New", "Doctor", "General");
         var service = CreateService(
             new FakeAppointmentRepository(),
             new FakePatientRepository(),
@@ -533,20 +515,6 @@ public class AppointmentServiceTests
 
         await Assert.ThrowsAsync<ResourceNotFoundException>(
             () => service.GetProviderBusySlotsAsync(pending.Id, "2030-01-02"));
-    }
-
-    [Fact]
-    public async Task GetProviderBusySlotsAsync_ThrowsNotFoundForVerifiedProviderWithoutClinic()
-    {
-        var unassigned = Provider.Register(Guid.NewGuid(), "New", "Doctor", "General");
-        unassigned.Verify();
-        var service = CreateService(
-            new FakeAppointmentRepository(),
-            new FakePatientRepository(),
-            providerRepository: new FakeProviderRepository { ConfiguredProvider = unassigned });
-
-        await Assert.ThrowsAsync<ResourceNotFoundException>(
-            () => service.GetProviderBusySlotsAsync(unassigned.Id, "2030-01-02"));
     }
 
     [Theory]
@@ -616,26 +584,13 @@ public class AppointmentServiceTests
     [Fact]
     public async Task GetProviderSummaryAsync_ThrowsNotFoundForUnverifiedProvider()
     {
-        var pending = Provider.Register(Guid.NewGuid(), "New", "Doctor", "General");
+        var pending = Provider.Register(Guid.NewGuid(), Guid.NewGuid(), "New", "Doctor", "General");
         var service = CreateService(
             new FakeAppointmentRepository(),
             new FakePatientRepository(),
             providerRepository: new FakeProviderRepository { ConfiguredProvider = pending });
 
         await Assert.ThrowsAsync<ResourceNotFoundException>(() => service.GetProviderSummaryAsync(pending.Id));
-    }
-
-    [Fact]
-    public async Task GetProviderSummaryAsync_ThrowsNotFoundForVerifiedProviderWithoutClinic()
-    {
-        var unassigned = Provider.Register(Guid.NewGuid(), "New", "Doctor", "General");
-        unassigned.Verify();
-        var service = CreateService(
-            new FakeAppointmentRepository(),
-            new FakePatientRepository(),
-            providerRepository: new FakeProviderRepository { ConfiguredProvider = unassigned });
-
-        await Assert.ThrowsAsync<ResourceNotFoundException>(() => service.GetProviderSummaryAsync(unassigned.Id));
     }
 
     [Fact]
@@ -848,7 +803,7 @@ public class AppointmentServiceTests
         var request = CreateRequest(CurrentTime.AddHours(2));
         var appointment = CreateExistingAppointment(request.ProviderId, request.PatientId, CurrentTime.AddHours(2), request.Id);
         var repository = new FakeAppointmentRepository { AppointmentById = appointment };
-        var currentUser = new TestCurrentUser { AdministeredClinicIds = [appointment.Provider.ClinicId!.Value] };
+        var currentUser = new TestCurrentUser { AdministeredClinicIds = [appointment.Provider.ClinicId] };
         var service = CreateService(repository, new FakePatientRepository(), currentUser: currentUser);
 
         var result = await service.GetAppointmentByIdAsync(request.Id);
@@ -1176,7 +1131,6 @@ public class AppointmentServiceTests
             ClinicManagement.Application.Models.PageQuery query,
             int offset,
             Guid? clinicId) => throw new NotSupportedException();
-        public Task<Guid> AddRegistrationAsync(Provider provider) => throw new NotSupportedException();
         public Task<bool> TryUpdateVerificationStatusAsync(
             Guid providerId,
             ClinicManagement.Domain.Enums.ProviderVerificationStatus expected,
