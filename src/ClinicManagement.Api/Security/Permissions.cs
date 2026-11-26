@@ -22,7 +22,6 @@ public static class Permissions
 
     public const string ProvidersReadAll = "providers:read-all";
     public const string ProvidersManage = "providers:manage";
-    public const string ProvidersVerify = "providers:verify";
     public const string OwnCalendarRead = "providers:read-own-calendar";
 
     public const string PlatformDashboardRead = "platform:dashboard";
@@ -35,7 +34,7 @@ public static class Permissions
         AppointmentsBook, AppointmentsRespond, AppointmentsReadAll, AppointmentsManage,
         ClinicsManage, ClinicAdminsAssign,
         PatientsReadAll, PatientsManage, OwnPatientProfileEdit,
-        ProvidersReadAll, ProvidersManage, ProvidersVerify, OwnCalendarRead,
+        ProvidersReadAll, ProvidersManage, OwnCalendarRead,
         PlatformDashboardRead,
         UserRolesManage
     ];

@@ -161,7 +161,7 @@ public sealed class ApiAuthorizationTests(ClinicApiFactory factory)
     [InlineData("patient")]
     [InlineData("doctor")]
     [InlineData("clinicadmin")]
-    public async Task ProviderVerification_IsAdministratorOnly(string role)
+    public async Task ProviderVerification_IsForbiddenOutsideTheProvidersClinic(string role)
     {
         var world = SeedWorld();
         var subject = world.SubjectFor(role);
@@ -172,6 +172,34 @@ public sealed class ApiAuthorizationTests(ClinicApiFactory factory)
         Assert.Equal(HttpStatusCode.Forbidden, verify.StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, reject.StatusCode);
         Assert.Equal(ProviderVerificationStatus.PENDING, world.PendingProvider.VerificationStatus);
+    }
+
+    [Fact]
+    public async Task ProviderVerification_ClinicAdminCanVerifyPendingProviderAtTheirClinic()
+    {
+        var world = SeedWorld();
+
+        using var response = await SendAsync(
+            HttpMethod.Post,
+            $"/api/providers/{world.PendingProvider.Id}/verify",
+            world.OtherClinicAdminSubject);
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        Assert.Equal(ProviderVerificationStatus.VERIFIED, world.PendingProvider.VerificationStatus);
+    }
+
+    [Fact]
+    public async Task ProviderVerification_ClinicAdminCanRejectPendingProviderAtTheirClinic()
+    {
+        var world = SeedWorld();
+
+        using var response = await SendAsync(
+            HttpMethod.Post,
+            $"/api/providers/{world.PendingProvider.Id}/reject",
+            world.OtherClinicAdminSubject);
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        Assert.Equal(ProviderVerificationStatus.REJECTED, world.PendingProvider.VerificationStatus);
     }
 
     [Fact]

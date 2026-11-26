@@ -12,6 +12,8 @@ namespace ClinicManagement.Application.Tests;
 
 public class ProviderServiceTests
 {
+    private static readonly TestCurrentUser Admin = new() { Roles = ["admin"] };
+
     [Fact]
     public async Task RegisterProviderAsync_StoresAPendingProviderAtTheChosenClinic()
     {
@@ -61,7 +63,7 @@ public class ProviderServiceTests
         var pending = Provider.Register(Guid.NewGuid(), Guid.NewGuid(), "Grace", "Hopper", "Computing");
         pending.AssignUser(Guid.NewGuid());
         var providerRepository = new FakeProviderRepository { ExistingProvider = pending };
-        var service = new ProviderService(providerRepository, new FakeClinicRepository(), new FakeAppointmentRepository(), new TestCurrentUser());
+        var service = new ProviderService(providerRepository, new FakeClinicRepository(), new FakeAppointmentRepository(), Admin);
 
         await service.VerifyProviderAsync(pending.Id);
 
@@ -75,7 +77,7 @@ public class ProviderServiceTests
     {
         var verified = Provider.Create(Guid.NewGuid(), Guid.NewGuid(), "Grace", "Hopper", "Computing");
         var providerRepository = new FakeProviderRepository { ExistingProvider = verified };
-        var service = new ProviderService(providerRepository, new FakeClinicRepository(), new FakeAppointmentRepository(), new TestCurrentUser());
+        var service = new ProviderService(providerRepository, new FakeClinicRepository(), new FakeAppointmentRepository(), Admin);
 
         await Assert.ThrowsAsync<InvalidStatusTransitionException>(() => service.RejectProviderAsync(verified.Id));
 
@@ -92,9 +94,38 @@ public class ProviderServiceTests
             ExistingProvider = pending,
             VerificationChangeSucceeds = false
         };
-        var service = new ProviderService(providerRepository, new FakeClinicRepository(), new FakeAppointmentRepository(), new TestCurrentUser());
+        var service = new ProviderService(providerRepository, new FakeClinicRepository(), new FakeAppointmentRepository(), Admin);
 
         await Assert.ThrowsAsync<ConcurrentModificationException>(() => service.VerifyProviderAsync(pending.Id));
+    }
+
+    [Fact]
+    public async Task VerifyProviderAsync_AllowsAnAdministratorOfTheProvidersClinic()
+    {
+        var clinicId = Guid.NewGuid();
+        var pending = Provider.Register(Guid.NewGuid(), clinicId, "Grace", "Hopper", "Computing");
+        var providerRepository = new FakeProviderRepository { ExistingProvider = pending };
+        var clinicAdmin = new TestCurrentUser { Roles = ["clinicadmin"], AdministeredClinicIds = [clinicId] };
+        var service = new ProviderService(providerRepository, new FakeClinicRepository(), new FakeAppointmentRepository(), clinicAdmin);
+
+        await service.VerifyProviderAsync(pending.Id);
+
+        Assert.Equal(
+            (ProviderVerificationStatus.PENDING, ProviderVerificationStatus.VERIFIED),
+            providerRepository.VerificationChange);
+    }
+
+    [Fact]
+    public async Task RejectProviderAsync_ForbidsAnAdministratorOfAnotherClinic()
+    {
+        var pending = Provider.Register(Guid.NewGuid(), Guid.NewGuid(), "Grace", "Hopper", "Computing");
+        var providerRepository = new FakeProviderRepository { ExistingProvider = pending };
+        var otherClinicAdmin = new TestCurrentUser { Roles = ["clinicadmin"], AdministeredClinicIds = [Guid.NewGuid()] };
+        var service = new ProviderService(providerRepository, new FakeClinicRepository(), new FakeAppointmentRepository(), otherClinicAdmin);
+
+        await Assert.ThrowsAsync<ForbiddenException>(() => service.RejectProviderAsync(pending.Id));
+
+        Assert.Null(providerRepository.VerificationChange);
     }
 
     [Fact]

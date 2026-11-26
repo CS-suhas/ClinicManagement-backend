@@ -34,7 +34,6 @@ public static class RolePermissions
                 Permissions.PatientsManage,
                 Permissions.ProvidersReadAll,
                 Permissions.ProvidersManage,
-                Permissions.ProvidersVerify,
                 Permissions.PlatformDashboardRead,
                 Permissions.UserRolesManage
             ]

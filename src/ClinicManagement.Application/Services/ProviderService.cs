@@ -208,6 +208,8 @@ public class ProviderService(
 
         var provider = await providerRepository.GetProviderByIdAsync(providerId)
             ?? throw new ResourceNotFoundException("Provider", providerId);
+        // Platform administrators decide for any clinic; clinic administrators only for doctors at their clinic.
+        await currentUser.RequireClinicAdminOrAdministratorAsync(provider.ClinicId);
 
         var expected = provider.VerificationStatus;
         change(provider);
