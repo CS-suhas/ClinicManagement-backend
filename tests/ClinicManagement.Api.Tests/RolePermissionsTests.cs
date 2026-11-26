@@ -23,6 +23,12 @@ public class RolePermissionsTests
     }
 
     [Fact]
+    public void ClinicAdmin_HoldsOnlyProviderVerification()
+    {
+        Assert.Equal([Permissions.ProvidersVerify], RolePermissions.For(["clinicadmin"]));
+    }
+
+    [Fact]
     public void UnknownRole_HoldsNothing()
     {
         Assert.Empty(RolePermissions.For(["receptionist"]));

@@ -60,7 +60,7 @@ public static class ClinicEndpoints
             Results.Ok(await service.GetProvidersByClinicIdAsync(id)))
             .WithName("GetClinicProviders")
             .WithSummary("List a clinic's providers")
-            .WithDescription("Signed-in users. Returns every provider at the clinic, whatever their verification status.")
+            .WithDescription("Signed-in users. Administrators and administrators of this clinic get every provider at the clinic, whatever their verification status; everyone else gets verified providers only.")
             .Produces<List<ProviderResponse>>(StatusCodes.Status200OK)
             .Produces(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status404NotFound);

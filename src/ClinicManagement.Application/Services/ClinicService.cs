@@ -96,7 +96,12 @@ public class ClinicService(
             ?? throw new ResourceNotFoundException("Clinic", clinicId);
 
         var providers = await providerRepository.GetProvidersByClinicIdAsync(clinicId);
-        return providers.Select(provider => provider.ToResponse()).ToList();
+        // Pending and rejected applicants are visible only to those who decide on them.
+        var seesApplicants = currentUser.IsAdministrator() || await currentUser.IsClinicAdminOfAsync(clinicId);
+        return providers
+            .Where(provider => seesApplicants || provider.VerificationStatus == ProviderVerificationStatus.VERIFIED)
+            .Select(provider => provider.ToResponse())
+            .ToList();
     }
 
     public async Task<List<AppointmentResponse>> GetAppointmentsByClinicIdAsync(Guid clinicId)

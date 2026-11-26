@@ -265,10 +265,12 @@ public class AppointmentService(
         currentUser.RequireAuthenticated();
         if (currentUser.IsAdministrator())
             return query;
-        if (await currentUser.GetPatientAsync() is { } patient)
-            return query with { PatientId = ScopeTo(query.PatientId, patient.Id) };
+        // Broadest role first, as for the patient summary: a clinic administrator who is also a patient can
+        // still search their clinic.
         if (query.ClinicId is { } clinicId && await currentUser.IsClinicAdminOfAsync(clinicId))
             return query;
+        if (await currentUser.GetPatientAsync() is { } patient)
+            return query with { PatientId = ScopeTo(query.PatientId, patient.Id) };
         if (await currentUser.GetProviderAsync() is { } provider)
             return query with
             {

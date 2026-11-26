@@ -1631,6 +1631,47 @@ public sealed class ApiAuthorizationTests(ClinicApiFactory factory)
         Assert.Equal("Riverside Clinic", doctor.GetProperty("clinicName").GetString());
     }
 
+    [Fact]
+    public async Task ClinicProviders_ShowApplicantsOnlyToThoseWhoDecide()
+    {
+        var world = SeedWorld();
+        var url = $"/api/clinics/{world.OtherClinic.Id}/providers";
+
+        async Task<List<Guid>> IdsFor(string subject)
+        {
+            using var response = await SendAsync(HttpMethod.Get, url, subject);
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            using var document = System.Text.Json.JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+            return document.RootElement.EnumerateArray().Select(item => item.GetProperty("id").GetGuid()).ToList();
+        }
+
+        Assert.DoesNotContain(world.PendingProvider.Id, await IdsFor(world.DoctorSubject));
+        Assert.DoesNotContain(world.PendingProvider.Id, await IdsFor(world.ClinicAdminSubject));
+        Assert.Contains(world.PendingProvider.Id, await IdsFor(world.OtherClinicAdminSubject));
+        Assert.Contains(world.PendingProvider.Id, await IdsFor(world.SubjectFor("admin")));
+        Assert.Contains(world.OtherDoctor.Id, await IdsFor(world.DoctorSubject));
+    }
+
+    [Fact]
+    public async Task AppointmentSearch_ClinicAdminWhoIsAlsoAPatientCanSearchTheirClinic()
+    {
+        var world = SeedWorld();
+        var ownProfile = Patient.Create(Guid.NewGuid(), "Casey", "Clinic", new DateOnly(1990, 1, 1), "casey@example.com", "555-0199");
+        ownProfile.AssignUser(Factory.Store.UserFor(world.ClinicAdminSubject).Id);
+        Factory.Store.Patients.Add(ownProfile);
+
+        using var response = await SendAsync(
+            HttpMethod.Get,
+            $"/api/appointments/search?pageSize=100&clinicId={world.Clinic.Id}",
+            world.ClinicAdminSubject);
+        using var document = System.Text.Json.JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains(
+            document.RootElement.GetProperty("items").EnumerateArray(),
+            element => element.GetProperty("id").GetGuid() == world.Appointment.Id);
+    }
+
     [Theory]
     [InlineData("patient")]
     [InlineData("doctor")]

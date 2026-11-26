@@ -22,7 +22,10 @@ public static class RolePermissions
                 Permissions.AppointmentsRespond,
                 Permissions.OwnCalendarRead
             ],
-            [Roles.ClinicAdmin] = [],
+            [Roles.ClinicAdmin] =
+            [
+                Permissions.ProvidersVerify
+            ],
             [Roles.Admin] =
             [
                 Permissions.AllergyTypesManage,
@@ -34,6 +37,7 @@ public static class RolePermissions
                 Permissions.PatientsManage,
                 Permissions.ProvidersReadAll,
                 Permissions.ProvidersManage,
+                Permissions.ProvidersVerify,
                 Permissions.PlatformDashboardRead,
                 Permissions.UserRolesManage
             ]

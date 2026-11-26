@@ -22,6 +22,8 @@ public static class Permissions
 
     public const string ProvidersReadAll = "providers:read-all";
     public const string ProvidersManage = "providers:manage";
+    /// <summary>Verify or reject doctors. Clinic administrators are further limited to their own clinic by the service.</summary>
+    public const string ProvidersVerify = "providers:verify";
     public const string OwnCalendarRead = "providers:read-own-calendar";
 
     public const string PlatformDashboardRead = "platform:dashboard";
@@ -34,7 +36,7 @@ public static class Permissions
         AppointmentsBook, AppointmentsRespond, AppointmentsReadAll, AppointmentsManage,
         ClinicsManage, ClinicAdminsAssign,
         PatientsReadAll, PatientsManage, OwnPatientProfileEdit,
-        ProvidersReadAll, ProvidersManage, OwnCalendarRead,
+        ProvidersReadAll, ProvidersManage, ProvidersVerify, OwnCalendarRead,
         PlatformDashboardRead,
         UserRolesManage
     ];
