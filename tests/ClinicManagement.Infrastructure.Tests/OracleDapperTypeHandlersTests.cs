@@ -1,6 +1,6 @@
 using System.Data;
 using Dapper;
-using Infrastructure.Data;
+using ClinicManagement.Infrastructure.Data;
 using Oracle.ManagedDataAccess.Client;
 
 namespace ClinicManagement.Infrastructure.Tests;

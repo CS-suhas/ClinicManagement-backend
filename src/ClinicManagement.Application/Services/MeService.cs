@@ -1,9 +1,8 @@
 using ClinicManagement.Application.Common;
 using ClinicManagement.Application.Interfaces;
 using ClinicManagement.Application.Models;
-using ClinicManagement.Application.Patients.Interfaces;
-using ClinicManagement.Application.Patients.Mapping;
-using ClinicManagement.Application.Patients.Models;
+using ClinicManagement.Application.Repositories;
+using ClinicManagement.Application.Mapping;
 using ClinicManagement.Domain.Exceptions;
 
 namespace ClinicManagement.Application.Services;

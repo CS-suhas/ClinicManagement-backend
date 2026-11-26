@@ -1,4 +1,4 @@
-namespace ClinicManagement.Application.Patients.Models;
+namespace ClinicManagement.Application.Models;
 
 /// <summary>Represents an allergy recorded for a patient.</summary>
 public record PatientAllergyResponse(

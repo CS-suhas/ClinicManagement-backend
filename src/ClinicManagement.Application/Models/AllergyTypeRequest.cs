@@ -1,4 +1,4 @@
-namespace ClinicManagement.Application.AllergyTypes.Models;
+namespace ClinicManagement.Application.Models;
 
 public record AllergyTypeRequest(
     Guid Id,

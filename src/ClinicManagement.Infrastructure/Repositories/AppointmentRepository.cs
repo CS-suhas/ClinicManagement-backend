@@ -1,8 +1,8 @@
-using ClinicManagement.Application.Appointments.Interfaces;
+using ClinicManagement.Application.Repositories;
 using ClinicManagement.Domain.Entities;
 using ClinicManagement.Domain.Enums;
 using Dapper;
-using Infrastructure.Data;
+using ClinicManagement.Infrastructure.Data;
 using ClinicManagement.Application.Models;
 
 namespace ClinicManagement.Infrastructure.Repositories;

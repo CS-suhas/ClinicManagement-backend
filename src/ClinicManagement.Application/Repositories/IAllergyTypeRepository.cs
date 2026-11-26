@@ -1,7 +1,7 @@
 using ClinicManagement.Domain.Entities;
 using ClinicManagement.Application.Models;
 
-namespace ClinicManagement.Application.Allergies.Interfaces;
+namespace ClinicManagement.Application.Repositories;
 
 public interface IAllergyTypeRepository
 {

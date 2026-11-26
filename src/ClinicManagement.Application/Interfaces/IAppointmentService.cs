@@ -1,10 +1,6 @@
-using ClinicManagement.Application.Appointments.Models;
-using ClinicManagement.Application.Clinics.Models;
-using ClinicManagement.Application.Patients.Models;
-using ClinicManagement.Application.Providers.Models;
 using ClinicManagement.Application.Models;
 
-namespace ClinicManagement.Application.Appointments.Interfaces;
+namespace ClinicManagement.Application.Interfaces;
 
 public interface IAppointmentService
 {

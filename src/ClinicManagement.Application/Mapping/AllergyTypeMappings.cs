@@ -1,7 +1,7 @@
-using ClinicManagement.Application.AllergyTypes.Models;
+using ClinicManagement.Application.Models;
 using ClinicManagement.Domain.Entities;
 
-namespace ClinicManagement.Application.AllergyTypes.Mapping;
+namespace ClinicManagement.Application.Mapping;
 
 public static class AllergyTypeMappings
 {

@@ -1,9 +1,9 @@
-using ClinicManagement.Application.Providers.Models;
+using ClinicManagement.Application.Models;
 using ClinicManagement.Domain.Entities;
 using ClinicManagement.Domain.Enums;
 using ClinicManagement.Domain.Exceptions;
 
-namespace ClinicManagement.Application.Providers.Mapping;
+namespace ClinicManagement.Application.Mapping;
 
 public static class ProviderMappings
 {

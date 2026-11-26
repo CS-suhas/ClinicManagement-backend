@@ -1,4 +1,4 @@
-namespace ClinicManagement.Application.Appointments.Models;
+namespace ClinicManagement.Application.Models;
 
 public record AppointmentResponse(
     Guid Id,

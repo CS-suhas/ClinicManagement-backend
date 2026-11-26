@@ -1,4 +1,4 @@
-namespace ClinicManagement.Application.Patients.Models;
+namespace ClinicManagement.Application.Models;
 
 /// <summary>
 /// A patient with their allergies and the visits the caller may see. Visit lists are scoped by the caller's role;

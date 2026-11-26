@@ -1,7 +1,7 @@
-using ClinicManagement.Application.Allergies.Interfaces;
+using ClinicManagement.Application.Repositories;
 using ClinicManagement.Application.Common.Exceptions;
-using ClinicManagement.Application.AllergyTypes.Models;
-using ClinicManagement.Application.AllergyTypes.Services;
+using ClinicManagement.Application.Models;
+using ClinicManagement.Application.Services;
 using ClinicManagement.Domain.Entities;
 using ClinicManagement.Domain.Exceptions;
 

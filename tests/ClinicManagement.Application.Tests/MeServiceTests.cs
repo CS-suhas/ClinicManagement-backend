@@ -1,7 +1,6 @@
 using ClinicManagement.Application.Common.Exceptions;
 using ClinicManagement.Application.Models;
-using ClinicManagement.Application.Patients.Interfaces;
-using ClinicManagement.Application.Patients.Models;
+using ClinicManagement.Application.Repositories;
 using ClinicManagement.Application.Services;
 using ClinicManagement.Domain.Entities;
 using ClinicManagement.Domain.Enums;

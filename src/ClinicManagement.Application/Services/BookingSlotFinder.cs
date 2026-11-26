@@ -1,4 +1,4 @@
-namespace ClinicManagement.Application.Appointments.Services;
+namespace ClinicManagement.Application.Services;
 
 /// <summary>
 /// Finds the earliest bookable start time. Slots are opening time plus k times the duration. A slot must fit fully

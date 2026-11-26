@@ -1,7 +1,7 @@
 using ClinicManagement.Domain.Entities;
-using Infrastructure.Data;
+using ClinicManagement.Infrastructure.Data;
 using Dapper;
-using ClinicManagement.Application.Allergies.Interfaces;
+using ClinicManagement.Application.Repositories;
 using ClinicManagement.Application.Models;
 
 namespace ClinicManagement.Infrastructure.Repositories;

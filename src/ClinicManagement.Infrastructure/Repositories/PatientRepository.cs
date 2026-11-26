@@ -1,7 +1,7 @@
-using ClinicManagement.Application.Patients.Interfaces;
+using ClinicManagement.Application.Repositories;
 using ClinicManagement.Domain.Entities;
 using Dapper;
-using Infrastructure.Data;
+using ClinicManagement.Infrastructure.Data;
 using ClinicManagement.Application.Models;
 using ClinicManagement.Domain.Enums;
 

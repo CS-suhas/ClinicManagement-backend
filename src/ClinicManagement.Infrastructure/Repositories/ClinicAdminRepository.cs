@@ -1,7 +1,7 @@
 using ClinicManagement.Application.Repositories;
 using ClinicManagement.Domain.Entities;
 using Dapper;
-using Infrastructure.Data;
+using ClinicManagement.Infrastructure.Data;
 
 namespace ClinicManagement.Infrastructure.Repositories;
 

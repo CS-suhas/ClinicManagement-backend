@@ -1,6 +1,6 @@
 using System.Data;
 
-namespace Infrastructure.Data;
+namespace ClinicManagement.Infrastructure.Data;
 
 public interface IDbConnectionFactory
 {

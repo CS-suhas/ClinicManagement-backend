@@ -2,7 +2,7 @@ using ClinicManagement.Domain.Entities;
 using ClinicManagement.Domain.Enums;
 using ClinicManagement.Application.Models;
 
-namespace ClinicManagement.Application.Appointments.Interfaces;
+namespace ClinicManagement.Application.Repositories;
 
 public interface IAppointmentRepository
 {

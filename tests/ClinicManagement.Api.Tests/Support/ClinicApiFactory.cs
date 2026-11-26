@@ -1,9 +1,4 @@
 using System.Text;
-using ClinicManagement.Application.Allergies.Interfaces;
-using ClinicManagement.Application.Appointments.Interfaces;
-using ClinicManagement.Application.Clinics.Interfaces;
-using ClinicManagement.Application.Patients.Interfaces;
-using ClinicManagement.Application.Providers.Interfaces;
 using ClinicManagement.Application.Repositories;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Hosting;

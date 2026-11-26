@@ -2,7 +2,7 @@ using ClinicManagement.Domain.Entities;
 using ClinicManagement.Domain.Enums;
 using ClinicManagement.Application.Models;
 
-namespace ClinicManagement.Application.Patients.Interfaces;
+namespace ClinicManagement.Application.Repositories;
 
 public interface IPatientRepository
 {

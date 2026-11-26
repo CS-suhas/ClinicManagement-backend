@@ -1,9 +1,6 @@
-using ClinicManagement.Application.Patients.Models;
-using ClinicManagement.Application.Appointments.Models;
-using ClinicManagement.Application.AllergyTypes.Models;
 using ClinicManagement.Application.Models;
 
-namespace ClinicManagement.Application.Patients.Interfaces;
+namespace ClinicManagement.Application.Interfaces;
 
 public interface IPatientService
 {

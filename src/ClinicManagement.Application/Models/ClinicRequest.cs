@@ -1,4 +1,4 @@
-namespace ClinicManagement.Application.Clinics.Models;
+namespace ClinicManagement.Application.Models;
 
 public record ClinicRequest(
     Guid Id,

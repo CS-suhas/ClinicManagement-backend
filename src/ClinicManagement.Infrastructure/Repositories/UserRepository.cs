@@ -3,7 +3,7 @@ using ClinicManagement.Application.Repositories;
 using ClinicManagement.Domain.Entities;
 using ClinicManagement.Domain.Enums;
 using Dapper;
-using Infrastructure.Data;
+using ClinicManagement.Infrastructure.Data;
 using Oracle.ManagedDataAccess.Client;
 
 namespace ClinicManagement.Infrastructure.Repositories;

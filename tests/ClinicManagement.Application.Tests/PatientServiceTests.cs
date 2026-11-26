@@ -1,14 +1,10 @@
-using ClinicManagement.Application.Patients.Interfaces;
-using ClinicManagement.Application.Patients.Models;
-using ClinicManagement.Application.Patients.Services;
-using ClinicManagement.Application.Appointments.Interfaces;
+using ClinicManagement.Application.Repositories;
+using ClinicManagement.Application.Models;
+using ClinicManagement.Application.Services;
 using ClinicManagement.Application.Common.Exceptions;
 using ClinicManagement.Domain.Entities;
 using ClinicManagement.Domain.Enums;
 using ClinicManagement.Domain.Exceptions;
-using ClinicManagement.Application.Allergies.Interfaces;
-using ClinicManagement.Application.AllergyTypes.Models;
-using ClinicManagement.Application.Models;
 
 namespace ClinicManagement.Application.Tests;
 

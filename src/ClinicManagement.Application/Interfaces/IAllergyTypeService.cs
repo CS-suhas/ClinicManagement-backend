@@ -1,8 +1,6 @@
-using ClinicManagement.Application.AllergyTypes.Models;
 using ClinicManagement.Application.Models;
-using ClinicManagement.Application.Patients.Models;
 
-namespace ClinicManagement.Application.AllergyTypes.Interfaces;
+namespace ClinicManagement.Application.Interfaces;
 
 public interface IAllergyTypeService
 {

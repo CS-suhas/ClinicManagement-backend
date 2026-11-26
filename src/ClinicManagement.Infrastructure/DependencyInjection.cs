@@ -1,11 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration;
-using Infrastructure.Data;
-using ClinicManagement.Application.Patients.Interfaces;
-using ClinicManagement.Application.Clinics.Interfaces;
-using ClinicManagement.Application.Providers.Interfaces;
-using ClinicManagement.Application.Appointments.Interfaces;
-using ClinicManagement.Application.Allergies.Interfaces;
+using ClinicManagement.Infrastructure.Data;
 using ClinicManagement.Application.Repositories;
 using ClinicManagement.Infrastructure.Repositories;
 

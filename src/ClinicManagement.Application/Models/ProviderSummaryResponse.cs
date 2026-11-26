@@ -1,6 +1,5 @@
-using ClinicManagement.Application.Clinics.Models;
 
-namespace ClinicManagement.Application.Providers.Models;
+namespace ClinicManagement.Application.Models;
 
 /// <summary>
 /// Public overview of a bookable provider. NextAvailableStart is the earliest free slot starting at or after now

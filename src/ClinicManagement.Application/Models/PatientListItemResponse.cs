@@ -1,4 +1,4 @@
-namespace ClinicManagement.Application.Patients.Models;
+namespace ClinicManagement.Application.Models;
 
 /// <summary>A patient in a list, with the size and worst severity of their recorded allergies.</summary>
 public record PatientListItemResponse(

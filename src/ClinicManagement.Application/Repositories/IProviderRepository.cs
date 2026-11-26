@@ -1,9 +1,8 @@
-using ClinicManagement.Application.Providers.Models;
+using ClinicManagement.Application.Models;
 using ClinicManagement.Domain.Entities;
 using ClinicManagement.Domain.Enums;
-using ClinicManagement.Application.Models;
 
-namespace ClinicManagement.Application.Providers.Interfaces;
+namespace ClinicManagement.Application.Repositories;
 
 public interface IProviderRepository
 {

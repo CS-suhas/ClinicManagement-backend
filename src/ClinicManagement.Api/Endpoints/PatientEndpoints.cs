@@ -1,9 +1,6 @@
 using ClinicManagement.Api.Security;
-using ClinicManagement.Application.AllergyTypes.Models;
-using ClinicManagement.Application.Appointments.Models;
 using ClinicManagement.Application.Models;
-using ClinicManagement.Application.Patients.Interfaces;
-using ClinicManagement.Application.Patients.Models;
+using ClinicManagement.Application.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ClinicManagement.Api.Endpoints;

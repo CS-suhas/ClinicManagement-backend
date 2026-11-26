@@ -1,10 +1,5 @@
-using ClinicManagement.Application.Allergies.Interfaces;
-using ClinicManagement.Application.Appointments.Interfaces;
-using ClinicManagement.Application.Clinics.Interfaces;
-using ClinicManagement.Application.Models;
-using ClinicManagement.Application.Patients.Interfaces;
-using ClinicManagement.Application.Providers.Interfaces;
 using ClinicManagement.Application.Repositories;
+using ClinicManagement.Application.Models;
 using ClinicManagement.Domain.Entities;
 using ClinicManagement.Domain.Enums;
 

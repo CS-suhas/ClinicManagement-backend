@@ -1,7 +1,7 @@
 using System.Data;
 using Dapper;
 
-namespace Infrastructure.Data;
+namespace ClinicManagement.Infrastructure.Data;
 
 public sealed class OracleGuidTypeHandler : SqlMapper.TypeHandler<Guid>
 {

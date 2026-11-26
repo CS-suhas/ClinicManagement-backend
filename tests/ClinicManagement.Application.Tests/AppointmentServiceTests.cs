@@ -1,11 +1,8 @@
-using ClinicManagement.Application.Appointments.Models;
-using ClinicManagement.Application.Appointments.Services;
+using ClinicManagement.Application.Models;
+using ClinicManagement.Application.Services;
 using ClinicManagement.Application.Common.Exceptions;
 using ClinicManagement.Application.Common.Settings;
-using ClinicManagement.Application.Appointments.Interfaces;
-using ClinicManagement.Application.Patients.Interfaces;
-using ClinicManagement.Application.Clinics.Interfaces;
-using ClinicManagement.Application.Providers.Interfaces;
+using ClinicManagement.Application.Repositories;
 using ClinicManagement.Domain.Entities;
 using ClinicManagement.Domain.Enums;
 using ClinicManagement.Domain.Exceptions;

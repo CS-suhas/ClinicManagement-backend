@@ -1,7 +1,7 @@
-using ClinicManagement.Application.Appointments.Models;
+using ClinicManagement.Application.Models;
 using ClinicManagement.Domain.Entities;
 
-namespace ClinicManagement.Application.Appointments.Mapping;
+namespace ClinicManagement.Application.Mapping;
 
 public static class AppointmentMappings
 {

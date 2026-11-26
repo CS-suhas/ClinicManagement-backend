@@ -1,6 +1,5 @@
-using ClinicManagement.Application.Providers.Models;
 
-namespace ClinicManagement.Application.Clinics.Models;
+namespace ClinicManagement.Application.Models;
 
 /// <summary>Overview of one clinic. Counts use the UTC calendar day for "today".</summary>
 public record ClinicSummaryResponse(

@@ -1,6 +1,6 @@
 using Dapper;
 
-namespace Infrastructure.Data;
+namespace ClinicManagement.Infrastructure.Data;
 
 public static class OracleDapperTypeHandlers
 {

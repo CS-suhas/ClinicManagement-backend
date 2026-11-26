@@ -1,22 +1,14 @@
-using ClinicManagement.Application.Clinics.Interfaces;
+using ClinicManagement.Application.Interfaces;
+using ClinicManagement.Application.Repositories;
 using ClinicManagement.Application.Common;
 using ClinicManagement.Application.Common.Exceptions;
-using ClinicManagement.Application.Clinics.Mapping;
-using ClinicManagement.Application.Clinics.Models;
-using ClinicManagement.Application.Appointments.Interfaces;
-using ClinicManagement.Application.Appointments.Mapping;
-using ClinicManagement.Application.Appointments.Models;
-using ClinicManagement.Application.Providers.Interfaces;
-using ClinicManagement.Application.Providers.Mapping;
-using ClinicManagement.Application.Providers.Models;
-using ClinicManagement.Application.Interfaces;
+using ClinicManagement.Application.Mapping;
 using ClinicManagement.Application.Models;
-using ClinicManagement.Application.Repositories;
 using ClinicManagement.Domain.Entities;
 using ClinicManagement.Domain.Enums;
 using ClinicManagement.Domain.Exceptions;
 
-namespace ClinicManagement.Application.Clinics.Services;
+namespace ClinicManagement.Application.Services;
 
 public class ClinicService(
     IClinicRepository clinicRepository,

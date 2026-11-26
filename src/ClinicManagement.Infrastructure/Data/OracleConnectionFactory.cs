@@ -1,7 +1,7 @@
 using System.Data;
 using Oracle.ManagedDataAccess.Client;
 
-namespace Infrastructure.Data;
+namespace ClinicManagement.Infrastructure.Data;
 
 public class OracleConnectionFactory(string connectionString) : IDbConnectionFactory
 {

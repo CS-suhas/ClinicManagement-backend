@@ -1,7 +1,6 @@
 using ClinicManagement.Api.Security;
 using ClinicManagement.Application.Interfaces;
 using ClinicManagement.Application.Models;
-using ClinicManagement.Application.Patients.Models;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ClinicManagement.Api.Endpoints;

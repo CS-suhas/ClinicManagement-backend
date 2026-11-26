@@ -1,8 +1,6 @@
 using System.Security.Claims;
 using ClinicManagement.Application.Interfaces;
 using ClinicManagement.Application.Models;
-using ClinicManagement.Application.Patients.Interfaces;
-using ClinicManagement.Application.Providers.Interfaces;
 using ClinicManagement.Application.Repositories;
 using ClinicManagement.Domain.Entities;
 

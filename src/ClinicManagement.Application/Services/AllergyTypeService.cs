@@ -1,15 +1,12 @@
-using ClinicManagement.Application.Allergies.Interfaces;
+using ClinicManagement.Application.Interfaces;
+using ClinicManagement.Application.Repositories;
 using ClinicManagement.Application.Common;
 using ClinicManagement.Application.Common.Exceptions;
-using ClinicManagement.Application.AllergyTypes.Interfaces;
-using ClinicManagement.Application.AllergyTypes.Mapping;
-using ClinicManagement.Application.AllergyTypes.Models;
-using ClinicManagement.Application.Patients.Mapping;
-using ClinicManagement.Application.Patients.Models;
-using ClinicManagement.Domain.Exceptions;
+using ClinicManagement.Application.Mapping;
 using ClinicManagement.Application.Models;
+using ClinicManagement.Domain.Exceptions;
 
-namespace ClinicManagement.Application.AllergyTypes.Services;
+namespace ClinicManagement.Application.Services;
 
 public class AllergyTypeService(IAllergyTypeRepository allergyTypeRepository) : IAllergyTypeService
 {

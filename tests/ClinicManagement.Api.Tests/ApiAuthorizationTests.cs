@@ -4,10 +4,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using ClinicManagement.Api.Security;
 using ClinicManagement.Api.Tests.Support;
-using ClinicManagement.Application.AllergyTypes.Models;
-using ClinicManagement.Application.Appointments.Models;
-using ClinicManagement.Application.Clinics.Models;
-using ClinicManagement.Application.Patients.Models;
+using ClinicManagement.Application.Models;
 using ClinicManagement.Domain.Entities;
 using ClinicManagement.Domain.Enums;
 

@@ -1,10 +1,7 @@
-using ClinicManagement.Application.Providers.Models;
-using ClinicManagement.Application.Appointments.Models;
 using ClinicManagement.Application.Models;
-using ClinicManagement.Application.Clinics.Models;
 using ClinicManagement.Domain.Enums;
 
-namespace ClinicManagement.Application.Providers.Interfaces;
+namespace ClinicManagement.Application.Interfaces;
 
 public interface IProviderService
 {

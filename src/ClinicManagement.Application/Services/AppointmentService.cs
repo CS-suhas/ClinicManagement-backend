@@ -1,25 +1,15 @@
 using System.Globalization;
-using ClinicManagement.Application.Appointments.Interfaces;
+using ClinicManagement.Application.Interfaces;
+using ClinicManagement.Application.Repositories;
 using ClinicManagement.Application.Common;
 using ClinicManagement.Application.Common.Exceptions;
 using ClinicManagement.Application.Common.Settings;
-using ClinicManagement.Application.Interfaces;
 using ClinicManagement.Domain.Entities;
 using ClinicManagement.Domain.Exceptions;
-using ClinicManagement.Application.Appointments.Models;
-using ClinicManagement.Application.Patients.Interfaces;
-using ClinicManagement.Application.Appointments.Mapping;
-using ClinicManagement.Application.Clinics.Interfaces;
-using ClinicManagement.Application.Clinics.Mapping;
-using ClinicManagement.Application.Clinics.Models;
-using ClinicManagement.Application.Patients.Mapping;
-using ClinicManagement.Application.Patients.Models;
-using ClinicManagement.Application.Providers.Interfaces;
-using ClinicManagement.Application.Providers.Mapping;
-using ClinicManagement.Application.Providers.Models;
 using ClinicManagement.Application.Models;
+using ClinicManagement.Application.Mapping;
 
-namespace ClinicManagement.Application.Appointments.Services;
+namespace ClinicManagement.Application.Services;
 
 public class AppointmentService(
     IAppointmentRepository appointmentRepository,

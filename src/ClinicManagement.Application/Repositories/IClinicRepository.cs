@@ -1,8 +1,7 @@
-using ClinicManagement.Application.Clinics.Models;
-using ClinicManagement.Domain.Entities;
 using ClinicManagement.Application.Models;
+using ClinicManagement.Domain.Entities;
 
-namespace ClinicManagement.Application.Clinics.Interfaces;
+namespace ClinicManagement.Application.Repositories;
 
 public interface IClinicRepository
 {

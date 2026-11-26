@@ -2,7 +2,7 @@ using System.Data;
 using Dapper;
 using Oracle.ManagedDataAccess.Client;
 
-namespace Infrastructure.Data;
+namespace ClinicManagement.Infrastructure.Data;
 
 public sealed class OracleDateTimeOffsetTypeHandler : SqlMapper.TypeHandler<DateTimeOffset>
 {
