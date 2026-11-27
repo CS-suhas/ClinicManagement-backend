@@ -16,7 +16,7 @@ public static class ProviderMappings
             request.LastName,
             request.Specialty);
         provider.SetFee(request.Fee);
-        provider.SetGender(ParseGender(request.Gender));
+        provider.SetGender(EnsureGender(request.Gender));
         return provider;
     }
 
@@ -29,7 +29,7 @@ public static class ProviderMappings
             request.LastName,
             request.Specialty);
         provider.SetFee(request.Fee);
-        provider.SetGender(ParseGender(request.Gender));
+        provider.SetGender(EnsureGender(request.Gender));
         return provider;
     }
 
@@ -40,9 +40,9 @@ public static class ProviderMappings
             provider.FirstName,
             provider.LastName,
             provider.Specialty,
-            provider.VerificationStatus.ToString(),
+            provider.VerificationStatus,
             provider.Fee,
-            provider.Gender?.ToString(),
+            provider.Gender,
             provider.Clinic?.Name);
 
     public static void ApplyTo(this ProviderRequest request, Provider provider)
@@ -51,16 +51,13 @@ public static class ProviderMappings
         provider.SetLastName(request.LastName);
         provider.SetSpecialty(request.Specialty);
         provider.SetFee(request.Fee);
-        provider.SetGender(ParseGender(request.Gender));
+        provider.SetGender(EnsureGender(request.Gender));
     }
 
-    /// <summary>Blank means "not specified". Anything else must name a <see cref="Gender"/> value.</summary>
-    public static Gender? ParseGender(string? gender)
+    public static Gender? EnsureGender(Gender? gender)
     {
-        if (string.IsNullOrWhiteSpace(gender))
-            return null;
-        if (Enum.TryParse<Gender>(gender.Trim(), true, out var parsed) && Enum.IsDefined(parsed))
-            return parsed;
+        if (gender is null || Enum.IsDefined(gender.Value))
+            return gender;
         throw new DomainValidationException("Gender must be one of MALE, FEMALE or OTHER.", "gender");
     }
 }

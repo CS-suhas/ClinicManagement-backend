@@ -6,7 +6,6 @@ using ClinicManagement.Domain.Enums;
 
 namespace ClinicManagement.Api.Tests;
 
-/// <summary>GET /api/patients/{id}/summary: who may read it, and what each caller sees.</summary>
 public sealed class PatientSummaryTests(ClinicApiFactory factory)
     : ClinicApiTestBase(factory), IClassFixture<ClinicApiFactory>
 {
@@ -289,7 +288,6 @@ public sealed class PatientSummaryTests(ClinicApiFactory factory)
 
     private Appointment AddAppointment(Patient patient, Provider provider, DateTimeOffset when, AppointmentStatus status)
     {
-        // Appointment.Create requires a future time, so the creation clock is set one day before the appointment.
         var appointment = Appointment.Create(Guid.NewGuid(), when, "Visit", patient, provider, when.AddDays(-1));
         switch (status)
         {

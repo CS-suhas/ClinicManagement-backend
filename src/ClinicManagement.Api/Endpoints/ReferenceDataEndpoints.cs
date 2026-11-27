@@ -10,11 +10,11 @@ public static class ReferenceDataEndpoints
         var referenceData = app.MapGroup("/api").WithTags(ApiTags.ReferenceData);
 
         referenceData.MapGet("/allergy-severities", () =>
-                TypedResults.Ok(Enum.GetNames<AllergySeverity>()))
+                TypedResults.Ok(Enum.GetValues<AllergySeverity>()))
             .WithName("GetAllergySeverities")
             .WithSummary("List allergy severities")
             .WithDescription("Public. Returns the severity values that can be recorded for a patient's allergy, mildest first.")
-            .Produces<string[]>(StatusCodes.Status200OK);
+            .Produces<AllergySeverity[]>(StatusCodes.Status200OK);
 
         referenceData.MapGet("/appointment-settings", (ClinicManagementSettings settings) =>
                 TypedResults.Ok(new AppointmentSettingsResponse(
@@ -30,7 +30,6 @@ public static class ReferenceDataEndpoints
     }
 }
 
-/// <summary>Appointment duration and opening hours used by the clinic.</summary>
 public sealed record AppointmentSettingsResponse(
     int AppointmentDurationMinutes,
     TimeOnly ClinicOpeningTime,

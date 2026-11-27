@@ -1,12 +1,9 @@
 using Microsoft.AspNetCore.OpenApi;
 using Microsoft.OpenApi;
+using System.Text.Json.Nodes;
 
 namespace ClinicManagement.Api.Endpoints;
 
-/// <summary>
-/// The OpenAPI tags that group the endpoints, in the order they appear in the document. Each endpoint group applies
-/// one of these with <c>WithTags</c>; <see cref="AddClinicManagementOpenApi"/> publishes their descriptions.
-/// </summary>
 public static class ApiTags
 {
     public const string Me = "Me";
@@ -34,9 +31,20 @@ public static class ApiTags
         (UserRoles, "Explicitly granted roles. Roles derived from data (patient, doctor, clinicadmin) are not managed here.")
     ];
 
-    /// <summary>Registers the OpenAPI document with the API's title, description and tag descriptions.</summary>
     public static IServiceCollection AddClinicManagementOpenApi(this IServiceCollection services) =>
-        services.AddOpenApi(options => options.AddDocumentTransformer((document, _, _) =>
+        services.AddOpenApi(options => options
+            .AddSchemaTransformer((schema, context, _) =>
+            {
+                var type = context.JsonTypeInfo.Type;
+                var enumType = Nullable.GetUnderlyingType(type) ?? type;
+                if (enumType.IsEnum && schema.Enum is not null)
+                {
+                    schema.Type = JsonSchemaType.String;
+                    schema.Enum = Enum.GetNames(enumType).Select(name => (JsonNode)JsonValue.Create(name)).ToList();
+                }
+                return Task.CompletedTask;
+            })
+            .AddDocumentTransformer((document, _, _) =>
         {
             document.Info.Title = "Clinic Management API";
             document.Info.Description =

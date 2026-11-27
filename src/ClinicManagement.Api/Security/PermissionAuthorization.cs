@@ -3,7 +3,6 @@ using Microsoft.AspNetCore.Authorization;
 
 namespace ClinicManagement.Api.Security;
 
-/// <summary>Met when one of the signed-in user's roles holds <see cref="Permission"/>.</summary>
 public sealed record PermissionRequirement(string Permission) : IAuthorizationRequirement;
 
 public sealed class PermissionAuthorizationHandler : AuthorizationHandler<PermissionRequirement>
@@ -21,7 +20,6 @@ public sealed class PermissionAuthorizationHandler : AuthorizationHandler<Permis
 
 public static class PermissionEndpointExtensions
 {
-    /// <summary>Requires a signed-in user whose roles hold <paramref name="permission"/>.</summary>
     public static TBuilder RequirePermission<TBuilder>(this TBuilder builder, string permission)
         where TBuilder : IEndpointConventionBuilder =>
         builder.RequireAuthorization(permission);

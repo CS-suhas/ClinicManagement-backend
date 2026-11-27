@@ -1,3 +1,5 @@
+using ClinicManagement.Domain.Enums;
+
 namespace ClinicManagement.Application.Models;
 
 public record AppointmentResponse(
@@ -9,6 +11,6 @@ public record AppointmentResponse(
     string ProviderSpecialty,
     DateTimeOffset AppointmentDateTime,
     string? ReasonForVisit,
-    string Status
+    AppointmentStatus Status
 );
 

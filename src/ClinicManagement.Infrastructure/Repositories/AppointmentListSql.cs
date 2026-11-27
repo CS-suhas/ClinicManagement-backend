@@ -1,10 +1,5 @@
 namespace ClinicManagement.Infrastructure.Repositories;
 
-/// <summary>
-/// Column list and joins shared by every query that returns <c>AppointmentListResponse</c>, so the allergy summary
-/// and status timestamps are computed the same way everywhere. The allergy summary is one grouped derived table
-/// joined on patient, so no per-row lookups are made.
-/// </summary>
 internal static class AppointmentListSql
 {
     public const string Columns = """

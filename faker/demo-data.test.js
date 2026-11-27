@@ -38,7 +38,7 @@ test("gives the demo doctor history, today and a request queue", () => {
   const today = now.toISOString().slice(0, 10);
   assert.ok(doctorRows.filter((a) => ms(a.AppointmentDateTime) < nowMs).length >= 80);
   const todayCount = doctorRows.filter((a) => a.AppointmentDateTime.startsWith(today)).length;
-  assert.ok(now.getUTCDay() === 0 ? todayCount === 0 : todayCount >= 5, `today: ${todayCount}`); // closed Sundays
+  assert.ok(now.getUTCDay() === 0 ? todayCount === 0 : todayCount >= 5, `today: ${todayCount}`);
   assert.ok(doctorRows.filter((a) => a.Status === "REQUESTED").length >= 5);
   assert.ok(new Set(doctorRows.map((a) => a.PatientId)).size >= 20);
 });

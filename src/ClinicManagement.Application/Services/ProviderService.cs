@@ -39,7 +39,6 @@ public class ProviderService(
         Guid? clinicId,
         ProviderVerificationStatus? verificationStatus = null)
     {
-        // Only administrators may see unverified providers; everyone else is limited to verified ones.
         var effectiveStatus = currentUser.IsAdministrator() ? verificationStatus : ProviderVerificationStatus.VERIFIED;
         var offset = query.GetOffset();
         var (items, totalCount) = await providerRepository.SearchProvidersAsync(
@@ -208,7 +207,6 @@ public class ProviderService(
 
         var provider = await providerRepository.GetProviderByIdAsync(providerId)
             ?? throw new ResourceNotFoundException("Provider", providerId);
-        // Platform administrators decide for any clinic; clinic administrators only for doctors at their clinic.
         await currentUser.RequireClinicAdminOrAdministratorAsync(provider.ClinicId);
 
         var expected = provider.VerificationStatus;

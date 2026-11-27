@@ -1,6 +1,7 @@
+using ClinicManagement.Domain.Enums;
+
 namespace ClinicManagement.Application.Models;
 
-/// <summary>A patient in a list, with the size and worst severity of their recorded allergies.</summary>
 public record PatientListItemResponse(
     Guid Id,
     string FirstName,
@@ -9,5 +10,5 @@ public record PatientListItemResponse(
     string PhoneNumber,
     string Email,
     int AllergyCount,
-    string? HighestSeverity
+    AllergySeverity? HighestSeverity
 );

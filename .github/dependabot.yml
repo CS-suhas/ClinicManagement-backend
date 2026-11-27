@@ -1,5 +1,3 @@
-# Keeps the pinned base image digests and action SHAs current. Security fixes for
-# NuGet/npm packages come from Dependabot security updates (enabled in repo settings).
 version: 2
 updates:
   - package-ecosystem: docker
@@ -9,11 +7,8 @@ updates:
       - /liquibase
     schedule:
       interval: weekly
-    # Skip releases younger than a week: hijacked versions are usually pulled by then.
     cooldown:
       default-days: 7
-    # Major base image upgrades (Node 22 -> 26, .NET 10 -> 11) need code and CI
-    # changes, so they are done deliberately; patch and digest updates still come.
     ignore:
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
@@ -21,6 +16,5 @@ updates:
     directory: /
     schedule:
       interval: weekly
-    # Skip releases younger than a week: hijacked versions are usually pulled by then.
     cooldown:
       default-days: 7

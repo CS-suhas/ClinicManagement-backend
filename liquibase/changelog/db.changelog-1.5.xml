@@ -5,8 +5,6 @@
     xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
         https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
 
-    <!-- IdentitySubject links a provider or patient to the subject claim of their identity
-         provider account. Nullable, because existing rows have no linked account yet. -->
     <changeSet id="1.5-providers-identity-subject" author="clinic-management">
         <addColumn tableName="Providers">
             <column name="IdentitySubject" type="VARCHAR2(64)"/>
@@ -21,7 +19,6 @@
         <addUniqueConstraint tableName="Patients" columnNames="IdentitySubject" constraintName="UK_Patients_IdentitySubject"/>
     </changeSet>
 
-    <!-- Clinic administrators are identity subjects allowed to manage a given clinic. -->
     <changeSet id="1.5-create-clinic-admins" author="clinic-management">
         <createTable tableName="ClinicAdmins">
             <column name="Id" type="VARCHAR2(36)">

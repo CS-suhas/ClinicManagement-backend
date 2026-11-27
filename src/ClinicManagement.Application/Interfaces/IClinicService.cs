@@ -6,7 +6,6 @@ public interface IClinicService
 {
     Task<ClinicResponse> GetClinicByIdAsync(Guid clinicId);
     Task<IEnumerable<ClinicListItemResponse>> GetAllClinicsAsync();
-    /// <summary>Clinic with provider count, today's appointment count, pending join requests (admins of the clinic only), top specialties and up to five providers.</summary>
     Task<ClinicSummaryResponse> GetClinicSummaryAsync(Guid clinicId);
     Task<List<ProviderResponse>> GetProvidersByClinicIdAsync(Guid clinicId);
     Task<List<AppointmentResponse>> GetAppointmentsByClinicIdAsync(Guid clinicId);

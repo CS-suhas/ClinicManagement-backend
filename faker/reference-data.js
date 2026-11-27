@@ -1,6 +1,3 @@
-// Static catalogues used by the generator. Kept separate from the generation logic so the rules in
-// fake-data.js stay readable. Names, places and fees follow the app's Sri Lankan context (fees are in LKR).
-
 export const communities = [
   {
     weight: 74,
@@ -56,8 +53,6 @@ export const emailDomains = [
 
 export const mobilePrefixes = ["70", "71", "72", "74", "75", "76", "77", "78"];
 
-// minAge/maxAge bound the patients a specialty sees; sex "F" restricts to female patients.
-// ageWeight biases patient choice towards the age groups a specialty typically sees.
 export const specialties = {
   "General Practice": {
     primaryCare: true, minAge: 0, maxAge: 120, fee: [1500, 2500],
@@ -158,11 +153,9 @@ export const specialties = {
 
 export const genericReasons = ["Follow-up visit", "Review of test results", "Prescription renewal", "Second opinion"];
 
-// Fixed clinic roster. Sizes are deliberately uneven so lists, dashboards and summaries look different per
-// clinic. The first entry is the seed marker clinic; its Id and Name are checked by generate.js.
 export const clinicProfiles = [
   {
-    name: null, // replaced by seedClinicName
+    name: null,
     address: "No. 12, Ward Place, Colombo 07",
     phone: "+94 11 269 4410",
     providerCount: 3,
@@ -205,7 +198,7 @@ export const clinicProfiles = [
   {
     name: "Jaffna Community Medical Centre",
     address: "No. 33, Hospital Road, Jaffna",
-    phone: null, // exercises the optional clinic phone number
+    phone: null,
     providerCount: 4,
     specialtyWeights: { "General Practice": 2, "Family Medicine": 1, "Internal Medicine": 1 },
   },
@@ -225,10 +218,8 @@ export const clinicProfiles = [
   },
 ];
 
-// Self-registered providers outside the scheduled roster, by verification state. Each registers at a clinic.
 export const selfRegisteredProviderPlan = { PENDING: 4, REJECTED: 2, VERIFIED: 6 };
 
-// prevalence: relative chance a given allergic patient has it. severityWeights: [MILD, MODERATE, SEVERE].
 export const allergyCatalog = [
   { name: "Penicillin", category: "drug", prevalence: 12, severityWeights: [40, 40, 20] },
   { name: "Sulfonamides", category: "drug", prevalence: 5, severityWeights: [50, 35, 15] },

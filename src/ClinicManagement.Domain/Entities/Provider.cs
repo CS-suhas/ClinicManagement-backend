@@ -52,7 +52,6 @@ public class Provider : BaseEntity
         };
     }
 
-    /// <summary>Self-registration at a chosen clinic: hidden until an admin verifies the provider.</summary>
     public static Provider Register(Guid id, Guid clinicId, string firstName, string lastName, string specialty)
     {
         var provider = Create(id, clinicId, firstName, lastName, specialty);
@@ -63,10 +62,8 @@ public class Provider : BaseEntity
     public bool IsAcceptingAppointments =>
         VerificationStatus == ProviderVerificationStatus.VERIFIED;
 
-    /// <summary>Admin decision. Allowed for pending providers, and for previously rejected ones.</summary>
     public void Verify() => ChangeVerification(ProviderVerificationStatus.VERIFIED);
 
-    /// <summary>Admin decision. Only pending providers can be rejected.</summary>
     public void Reject() => ChangeVerification(ProviderVerificationStatus.REJECTED);
 
     private void ChangeVerification(ProviderVerificationStatus next)
@@ -108,7 +105,6 @@ public class Provider : BaseEntity
         UpdatedAtUtc = DateTime.UtcNow;
     }
 
-    /// <summary>Consultation fee in LKR (Sri Lankan rupees). Optional; when set it must be non-negative with at most two decimal places.</summary>
     public void SetFee(decimal? fee)
     {
         if (fee is { } value && (value < 0 || value >= 100_000_000m || decimal.Round(value, 2) != value))

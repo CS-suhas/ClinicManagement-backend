@@ -25,7 +25,8 @@ internal sealed class ApiExceptionHandler(ILogger<ApiExceptionHandler> logger) :
                 Instance = httpContext.Request.Path
             },
             DomainValidationException validationException => CreateValidationProblem(
-                validationException,
+                validationException.PropertyName,
+                validationException.Message,
                 httpContext.Request.Path),
             DomainConflictException => new ProblemDetails
             {
@@ -39,6 +40,15 @@ internal sealed class ApiExceptionHandler(ILogger<ApiExceptionHandler> logger) :
                 Status = StatusCodes.Status403Forbidden,
                 Title = "Forbidden",
                 Detail = exception.Message,
+                Instance = httpContext.Request.Path
+            },
+            BadHttpRequestException { InnerException: JsonException { Path: { Length: > 2 } path } } =>
+                CreateValidationProblem(path[2..], "The value is not valid.", httpContext.Request.Path),
+            BadHttpRequestException badRequest => new ProblemDetails
+            {
+                Status = badRequest.StatusCode,
+                Title = "Invalid request",
+                Detail = badRequest.Message,
                 Instance = httpContext.Request.Path
             },
             UnauthorizedAccessException => new ProblemDetails
@@ -63,12 +73,13 @@ internal sealed class ApiExceptionHandler(ILogger<ApiExceptionHandler> logger) :
     }
 
     private static ValidationProblemDetails CreateValidationProblem(
-        DomainValidationException exception,
+        string? propertyName,
+        string message,
         string? instance)
     {
         var errors = new Dictionary<string, string[]>
         {
-            [exception.PropertyName ?? string.Empty] = [exception.Message]
+            [propertyName ?? string.Empty] = [message]
         };
 
         return new ValidationProblemDetails(errors)

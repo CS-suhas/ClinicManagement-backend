@@ -10,6 +10,6 @@ public static class PatientAllergyMappings
             allergy.Id,
             allergy.AllergyId,
             allergy.AllergyType.Name,
-            allergy.Severity.ToString(),
+            allergy.Severity,
             allergy.Notes);
 }

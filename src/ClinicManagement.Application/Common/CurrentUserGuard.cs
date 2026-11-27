@@ -5,11 +5,6 @@ using ClinicManagement.Domain.Enums;
 
 namespace ClinicManagement.Application.Common;
 
-/// <summary>
-/// Authorization checks on the signed-in user. Each <c>Require...</c> method throws
-/// <see cref="UnauthorizedAccessException"/> when nobody is signed in and <see cref="ForbiddenException"/> when the
-/// signed-in user may not act.
-/// </summary>
 public static class CurrentUserGuard
 {
     public static void RequireAuthenticated(this ICurrentUser currentUser)

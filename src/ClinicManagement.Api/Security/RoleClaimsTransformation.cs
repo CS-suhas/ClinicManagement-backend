@@ -7,12 +7,6 @@ using Microsoft.AspNetCore.Authentication;
 
 namespace ClinicManagement.Api.Security;
 
-/// <summary>
-/// Resolves the signed-in identity to a <c>Users</c> row (creating it on first sign-in) and replaces any
-/// inbound role claims with the roles the backend grants: those derived from the user's data plus those assigned
-/// in <c>UserRoles</c>. The access data is loaded once per request and shared through
-/// <see cref="UserAccessContextHolder"/>.
-/// </summary>
 public sealed class RoleClaimsTransformation(
     AuthorizationSettings settings,
     IUserRepository userRepository,
@@ -35,8 +29,6 @@ public sealed class RoleClaimsTransformation(
             holder.Set(subject, context);
         }
 
-        // Work on a copy: the transformation may run more than once per request, and the incoming principal
-        // must not be mutated.
         var transformed = identity.Clone();
         foreach (var claim in transformed.FindAll(ClaimTypes.Role).Concat(transformed.FindAll(ClinicClaimTypes.UserId)).ToList())
             transformed.RemoveClaim(claim);

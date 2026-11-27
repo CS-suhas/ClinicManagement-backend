@@ -6,11 +6,6 @@ using ClinicManagement.Domain.Entities;
 
 namespace ClinicManagement.Api.Security;
 
-/// <summary>
-/// The signed-in user for the current request. Role and ownership answers come from the
-/// <see cref="UserAccessContext"/> loaded once during authentication; the linked patient and provider entities
-/// are fetched at most once, and only when the context says they exist.
-/// </summary>
 public sealed class CurrentUser(
     IHttpContextAccessor httpContextAccessor,
     UserAccessContextHolder holder,
@@ -68,10 +63,6 @@ public sealed class CurrentUser(
             ? await providerRepository.GetByUserIdAsync(context.UserId)
             : null;
 
-    /// <summary>
-    /// The context set during authentication, or loaded here should authentication not have filled it.
-    /// Null when nobody is signed in.
-    /// </summary>
     private async Task<UserAccessContext?> GetContextAsync()
     {
         if (UserId is not { } userId || Subject is not { } subject)

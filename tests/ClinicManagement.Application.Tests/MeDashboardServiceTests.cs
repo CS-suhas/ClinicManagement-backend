@@ -1,3 +1,4 @@
+using ClinicManagement.Domain.Enums;
 using ClinicManagement.Application.Models;
 using ClinicManagement.Application.Repositories;
 using ClinicManagement.Application.Services;
@@ -7,7 +8,6 @@ namespace ClinicManagement.Application.Tests;
 
 public class MeDashboardServiceTests
 {
-    // 23:30 at UTC+2 on 2030-03-10 is 21:30 UTC on the same day.
     private static readonly DateTimeOffset LateEveningAtPlusTwo = new(2030, 3, 10, 23, 30, 0, TimeSpan.FromHours(2));
     private static readonly DateTimeOffset UtcTodayStart = new(2030, 3, 10, 0, 0, 0, TimeSpan.Zero);
 
@@ -22,7 +22,7 @@ public class MeDashboardServiceTests
         "Riverside Clinic",
         new DateTimeOffset(2030, 3, 11, 9, 0, 0, TimeSpan.Zero),
         "Checkup",
-        "CONFIRMED",
+        AppointmentStatus.CONFIRMED,
         0,
         null,
         new DateTimeOffset(2030, 3, 1, 9, 0, 0, TimeSpan.Zero),
@@ -175,7 +175,6 @@ public class MeDashboardServiceTests
     public async Task GetDashboardAsync_UsesTheUtcCalendarDayNotTheCallersLocalDay()
     {
         var repository = new FakeStatusRepository();
-        // 01:00 at UTC+2 is 23:00 UTC on the previous day.
         var atLocalOneAm = new DateTimeOffset(2030, 3, 10, 1, 0, 0, TimeSpan.FromHours(2));
         var service = CreateService(repository, new TestCurrentUser { Roles = ["admin"] }, atLocalOneAm);
 

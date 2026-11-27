@@ -6,7 +6,6 @@ using ClinicManagement.Domain.Enums;
 
 namespace ClinicManagement.Api.Tests;
 
-/// <summary>Fields added to appointment list items: allergy summary and status timestamps.</summary>
 public sealed class AppointmentListFieldTests(ClinicApiFactory factory)
     : ClinicApiTestBase(factory), IClassFixture<ClinicApiFactory>
 {

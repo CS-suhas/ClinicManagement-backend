@@ -1,8 +1,5 @@
 FROM liquibase/liquibase:5.0.4@sha256:060f96efff4811ccf03957ff3160f21ea04139b89940640f8ad54a065cdc6906
 
-# Patch the Ubuntu packages the base image ships with, and remove lpm (the
-# Liquibase package manager, a Go binary with its own CVEs): the Oracle driver
-# is added below directly, so it is never used.
 USER root
 RUN apt-get update \
  && apt-get upgrade -y --no-install-recommends \

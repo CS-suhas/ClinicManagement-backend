@@ -62,7 +62,6 @@ public class ClinicService(
             .ThenBy(provider => provider.FirstName, StringComparer.Ordinal)
             .ToList();
 
-        // Same definition as the dashboard: UTC day, declined and cancelled excluded.
         var todayStart = new DateTimeOffset(timeProvider.GetUtcNow().UtcDateTime.Date, TimeSpan.Zero);
         var todayCounts = await statusRepository.GetClinicCountsAsync(
             [clinicId],
@@ -96,7 +95,6 @@ public class ClinicService(
             ?? throw new ResourceNotFoundException("Clinic", clinicId);
 
         var providers = await providerRepository.GetProvidersByClinicIdAsync(clinicId);
-        // Pending and rejected applicants are visible only to those who decide on them.
         var seesApplicants = currentUser.IsAdministrator() || await currentUser.IsClinicAdminOfAsync(clinicId);
         return providers
             .Where(provider => seesApplicants || provider.VerificationStatus == ProviderVerificationStatus.VERIFIED)
@@ -161,8 +159,6 @@ public class ClinicService(
 
         RequestValidator.EnsureText(identitySubject, nameof(identitySubject), "Identity subject");
 
-        // The person may not have signed in yet, so their user row is created here if needed. Their email and
-        // display name are filled in from their token on first sign-in.
         var user = await userRepository.GetOrCreateAsync(identitySubject.Trim());
         if (await clinicAdminRepository.IsAdminOfClinicAsync(user.Id, clinicId))
             throw new ClinicAdminAlreadyAssignedException(user.IdentitySubject, clinicId);

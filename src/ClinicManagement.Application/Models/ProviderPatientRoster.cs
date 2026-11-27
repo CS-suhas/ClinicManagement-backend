@@ -1,13 +1,13 @@
+using ClinicManagement.Domain.Enums;
+
 namespace ClinicManagement.Application.Models;
 
-/// <summary>A patient who has at least one appointment with a provider, with visits relative to now.</summary>
 public sealed record ProviderPatientRosterItem(
     RosterPatient Patient,
     RosterVisit? LastVisit,
     RosterVisit? NextVisit,
     int AppointmentCount);
 
-/// <summary>AllergyCount and HighestSeverity (null when none) summarize the patient's recorded allergies.</summary>
 public sealed record RosterPatient(
     Guid Id,
     string FirstName,
@@ -16,7 +16,7 @@ public sealed record RosterPatient(
     string Email,
     string PhoneNumber,
     int AllergyCount,
-    string? HighestSeverity);
+    AllergySeverity? HighestSeverity);
 
 public sealed record RosterVisit(
     Guid Id,

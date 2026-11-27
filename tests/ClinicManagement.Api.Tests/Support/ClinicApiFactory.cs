@@ -51,9 +51,6 @@ public sealed class ClinicApiFactory : WebApplicationFactory<Program>
     {
         builder.UseEnvironment("Development");
 
-        // UseSetting (not ConfigureAppConfiguration) so these values are visible while
-        // Program.cs is still configuring services; with minimal hosting,
-        // ConfigureAppConfiguration callbacks are only applied once the host is built.
         builder.UseSetting("ConnectionStrings:DefaultConnection", "User Id=unused;Password=unused;Data Source=unused");
         builder.UseSetting("Authentication:Keycloak:Authority", Issuer);
         builder.UseSetting("Authentication:Keycloak:Audience", Audience);

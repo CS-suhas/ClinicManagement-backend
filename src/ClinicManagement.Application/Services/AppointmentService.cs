@@ -89,12 +89,10 @@ public class AppointmentService(
         RequestValidator.EnsureGuid(providerId, nameof(providerId), "Provider ID");
         var day = ParseBookingDate(date);
 
-        // Unverified providers are not bookable, so they must not be discoverable.
         var provider = await providerRepository.GetProviderByIdAsync(providerId);
         if (provider is null || !provider.IsAcceptingAppointments)
             throw new ResourceNotFoundException("Provider", providerId);
 
-        // "That date" is the UTC calendar day. See ParseBookingDate and the endpoint description.
         var dayStart = new DateTimeOffset(day.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero);
         var busyStartTimes = await appointmentRepository.GetActiveStartTimesInRangeAsync(
             providerId,
@@ -112,18 +110,14 @@ public class AppointmentService(
     {
         RequestValidator.EnsureGuid(providerId, nameof(providerId), "Provider ID");
 
-        // Same bookability rule as busy-slots: verified and assigned to a clinic, otherwise not found.
         var provider = await providerRepository.GetProviderByIdAsync(providerId);
         if (provider is null || !provider.IsAcceptingAppointments || provider.Clinic is null)
             throw new ResourceNotFoundException("Provider", providerId);
 
-        // "Today" and the 14-day search window are UTC calendar days, as in busy-slots.
         var now = timeProvider.GetUtcNow();
         var todayStart = new DateTimeOffset(now.UtcDateTime.Date, TimeSpan.Zero);
         var duration = TimeSpan.FromMinutes(clinicSettings.DefaultAppointmentDurationMinutes);
 
-        // One query. The range is padded by one duration on each side so that a busy start just outside the
-        // window still blocks a slot at its edge.
         var busyStarts = await appointmentRepository.GetActiveStartTimesInRangeAsync(
             providerId,
             todayStart - duration,
@@ -138,7 +132,6 @@ public class AppointmentService(
             duration,
             busyStarts);
 
-        // Declined and cancelled appointments are excluded, matching the dashboard's definition of "today".
         var todayAppointments = await appointmentRepository.GetProviderAppointmentsInRangeAsync(
             providerId,
             todayStart,
@@ -169,7 +162,6 @@ public class AppointmentService(
     public async Task<ProviderResponse> GetProviderByAppointmentIdAsync(Guid appointmentId)
     {
         var appointment = await GetViewableAppointmentAsync(appointmentId);
-        // Reload the provider so the response carries its clinic name; appointment rows do not join clinics.
         var provider = await providerRepository.GetProviderByIdAsync(appointment.ProviderId)
             ?? throw new ResourceNotFoundException("Provider", appointment.ProviderId);
         return provider.ToResponse();
@@ -265,8 +257,6 @@ public class AppointmentService(
         currentUser.RequireAuthenticated();
         if (currentUser.IsAdministrator())
             return query;
-        // Broadest role first, as for the patient summary: a clinic administrator who is also a patient can
-        // still search their clinic.
         if (query.ClinicId is { } clinicId && await currentUser.IsClinicAdminOfAsync(clinicId))
             return query;
         if (await currentUser.GetPatientAsync() is { } patient)
@@ -327,7 +317,6 @@ public class AppointmentService(
         var appointmentStartTime = TimeOnly.FromDateTime(appointmentDateTime.DateTime);
         var appointmentEndTime = TimeOnly.FromDateTime(appointmentEnd.DateTime);
 
-        // Opening and closing times are inclusive: a start at opening and an end at closing are both allowed.
         if (appointmentStartTime < clinicSettings.DefaultClinicStartTime
             || appointmentEnd.Date != appointmentDateTime.Date
             || appointmentEndTime > clinicSettings.DefaultClinicEndTime)

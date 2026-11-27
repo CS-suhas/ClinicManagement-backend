@@ -1,9 +1,3 @@
-// Gives the demo accounts something to show: allergies and an appointment history for the demo patient, and
-// a full schedule for the demo doctor. The accounts themselves (Keycloak users and their Users, Patients and
-// Providers rows) are created by the deploy repository's demo/demo-accounts.sh, which then runs this.
-//
-// Every run replaces the rows it wrote last time (by Id prefix) with new ones dated around today, and keeps
-// everything else, including appointments booked through the UI.
 import { asObjects, countBy, inTransaction, insertAll } from "./db.js";
 import { defaultSeed } from "./fake-data.js";
 import { createDemoActivity, demoIdPrefixes } from "./demo-data.js";

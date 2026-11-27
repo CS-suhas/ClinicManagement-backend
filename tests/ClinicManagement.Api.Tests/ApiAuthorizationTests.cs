@@ -1391,7 +1391,6 @@ public sealed class ApiAuthorizationTests(ClinicApiFactory factory)
         Assert.Equal(world.Clinic.Name, root.GetProperty("clinic").GetProperty("name").GetString());
         Assert.Equal(1, root.GetProperty("todayAppointmentCount").GetInt32());
 
-        // Slots start on the 20-minute grid from 08:00 and the last one begins at 15:40 (ends at 16:00).
         var next = root.GetProperty("nextAvailableStart");
         Assert.Equal(JsonValueKind.String, next.ValueKind);
         var start = DateTimeOffset.Parse(next.GetString()!);
@@ -1420,7 +1419,6 @@ public sealed class ApiAuthorizationTests(ClinicApiFactory factory)
     {
         var world = SeedWorld();
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
-        // Every read /doctors and /doctors/[id] make for an anonymous visitor.
         var urls = new[]
         {
             "/api/providers/directory?page=1&pageSize=100",
@@ -1513,7 +1511,6 @@ public sealed class ApiAuthorizationTests(ClinicApiFactory factory)
         using var signedInRequest = new HttpRequestMessage(HttpMethod.Get, "/api/clinics");
         signedInRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", Factory.MintToken(world.PatientSubject));
         using var signedIn = await client.SendAsync(signedInRequest);
-        // Reads that were public before the toggle existed are not affected by it.
         using var directory = await client.GetAsync("/api/providers/directory");
 
         Assert.Equal(HttpStatusCode.Unauthorized, anonymous.StatusCode);
@@ -1542,7 +1539,6 @@ public sealed class ApiAuthorizationTests(ClinicApiFactory factory)
 
     private Appointment AddAppointment(Patient patient, Provider provider, DateTimeOffset when, AppointmentStatus status)
     {
-        // Booked before its slot, so seeding a slot earlier today works whatever time the tests run.
         var bookedAt = DateTimeOffset.UtcNow;
         if (bookedAt >= when)
             bookedAt = when.AddHours(-1);

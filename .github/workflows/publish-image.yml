@@ -10,14 +10,11 @@ on:
 permissions:
   contents: read
 
-# Promotions must not interleave, or `latest` could end up on an older commit.
 concurrency:
   group: publish-image
   cancel-in-progress: false
 
 jobs:
-  # Builds the API, Liquibase and seeder images for one commit and pushes only the
-  # immutable `sha-<commit>` tag. Moving tags are set by `promote`.
   publish:
     if: >-
       github.event.workflow_run.conclusion == 'success' &&
@@ -41,19 +38,17 @@ jobs:
       contents: read
       packages: write
     steps:
-      # Safe: the job's `if` only admits `push` runs on main/v* (collaborator code),
-      # never fork pull requests, which is what this rule guards against.
       # nosemgrep: yaml.github-actions.security.workflow-run-target-code-checkout.workflow-run-target-code-checkout
       - name: Check out repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069
 
       - name: Log in to GitHub Container Registry
-        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -66,15 +61,14 @@ jobs:
 
       - name: Generate image tags and labels
         id: metadata
-        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302
         with:
           images: ${{ steps.image.outputs.name }}
           tags: |
             type=sha,prefix=sha-,value=${{ github.event.workflow_run.head_sha }}
 
-      # Build into the local daemon first so Trivy can scan before anything is pushed.
       - name: Build image for scanning
-        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc
         with:
           context: ${{ matrix.context }}
           file: ${{ matrix.file }}
@@ -83,10 +77,8 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.file }}
           cache-to: type=gha,mode=max,scope=${{ matrix.file }}
 
-      # Any fixable vulnerability (all severities) fails this matrix leg; `promote` and
-      # `deploy` need every leg, so nothing moves. Accepted risks go in .trivyignore with a reason.
       - name: Scan image for vulnerabilities
-        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
         with:
           version: v0.76.2
           image-ref: local/scan:${{ github.event.workflow_run.head_sha }}
@@ -96,7 +88,7 @@ jobs:
           trivyignores: .trivyignore
 
       - name: Build and publish image
-        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc
         with:
           context: ${{ matrix.context }}
           file: ${{ matrix.file }}
@@ -106,8 +98,6 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.file }}
           cache-to: type=gha,mode=max,scope=${{ matrix.file }}
 
-  # Runs only when all images were published, then points `latest` / version
-  # tags of every image at the same commit, so they can never diverge.
   promote:
     needs: publish
     runs-on: ubuntu-latest
@@ -116,10 +106,10 @@ jobs:
       packages: write
     steps:
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069
 
       - name: Log in to GitHub Container Registry
-        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -140,7 +130,7 @@ jobs:
 
       - name: Generate release tags
         id: metadata
-        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302
         with:
           images: ${{ steps.image.outputs.names }}
           tags: |
@@ -163,8 +153,6 @@ jobs:
             docker buildx imagetools create --tag "$tag" "$image:$source_tag"
           done <<< "$TAGS"
 
-  # Points the deploy repo's versions.env at this build; that push redeploys the server
-  # (ClinicManagement-Deploy, .github/workflows/deploy.yml). main only, after promote.
   deploy:
     needs: promote
     if: github.event.workflow_run.head_branch == 'main'
@@ -175,7 +163,7 @@ jobs:
       cancel-in-progress: false
     steps:
       - name: Check out deploy repo
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           repository: CS-suhas/ClinicManagement-Deploy
           ssh-key: ${{ secrets.DEPLOY_REPO_SSH_KEY }}
@@ -188,7 +176,6 @@ jobs:
           tag="sha-${HEAD_SHA::7}"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          # Retry: the other app repo may push a bump at the same time.
           for attempt in 1 2 3 4 5; do
             git fetch -q origin main && git reset -q --hard origin/main
             sed -i "s/^API_TAG=.*/API_TAG=$tag/" versions.env

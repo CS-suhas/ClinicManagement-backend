@@ -3,14 +3,6 @@ using ClinicManagement.Domain.Enums;
 
 namespace ClinicManagement.Application.Models;
 
-/// <summary>
-/// Everything authorization needs to know about one signed-in user, loaded once per request.
-/// </summary>
-/// <param name="AssignedRoles">Roles granted explicitly through <c>UserRoles</c>.</param>
-/// <param name="PatientId">The linked patient profile; null when there is none.</param>
-/// <param name="ProviderId">The linked provider profile; null when there is none.</param>
-/// <param name="ProviderStatus">The provider profile's verification status; null when there is no provider profile.</param>
-/// <param name="AdministeredClinicIds">Clinics the user administers; empty when none.</param>
 public sealed record UserAccessContext(
     Guid UserId,
     IReadOnlyList<string> AssignedRoles,
@@ -23,7 +15,6 @@ public sealed record UserAccessContext(
 
     public static UserAccessContext Empty(Guid userId) => new(userId, [], null, null, null, []);
 
-    /// <summary>The roles this context grants.</summary>
     public IReadOnlyList<string> DeriveRoles()
     {
         var roles = new List<string>(3 + AssignedRoles.Count);

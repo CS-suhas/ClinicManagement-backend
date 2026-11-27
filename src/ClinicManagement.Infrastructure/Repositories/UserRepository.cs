@@ -55,7 +55,6 @@ public sealed class UserRepository(IDbConnectionFactory connectionFactory) : IUs
         }
         catch (OracleException exception) when (exception.Number == UniqueConstraintViolation)
         {
-            // Lost a race with a concurrent first request for the same subject; theirs won.
             return await GetBySubjectAsync(identitySubject)
                 ?? throw new InvalidOperationException($"User '{identitySubject}' vanished after a duplicate insert.");
         }
@@ -64,9 +63,6 @@ public sealed class UserRepository(IDbConnectionFactory connectionFactory) : IUs
     public async Task<UserAccessContext> GetAccessContextAsync(Guid userId)
     {
         using var connection = connectionFactory.CreateConnection();
-        // Patients.UserId and Providers.UserId are unique, so the result has one row per administered clinic,
-        // or a single row with a null ClinicId when the user administers none. Assigned roles are few and short,
-        // so they come back as one comma-separated value rather than multiplying the rows.
         const string sql = """
             SELECT
                 (SELECT LISTAGG(r.Role, ',') WITHIN GROUP (ORDER BY r.Role)

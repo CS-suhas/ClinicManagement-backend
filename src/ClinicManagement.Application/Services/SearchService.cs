@@ -8,13 +8,6 @@ using ClinicManagement.Domain.Exceptions;
 
 namespace ClinicManagement.Application.Services;
 
-/// <summary>
-/// Global search. Who sees what:
-/// administrators see every patient and every provider; a verified provider sees patients with an appointment with
-/// them; a clinic administrator sees patients with an appointment at a clinic they administer (both roles together
-/// widen the patient list); other signed-in callers get no patients. Non-administrators only see verified providers.
-/// Clinics are visible to everyone.
-/// </summary>
 public sealed class SearchService(
     ISearchRepository searchRepository,
     ICurrentUser currentUser) : ISearchService

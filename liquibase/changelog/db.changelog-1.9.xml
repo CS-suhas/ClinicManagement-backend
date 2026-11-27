@@ -5,9 +5,6 @@
     xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
         https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
 
-    <!-- Roles granted explicitly by an administrator, as opposed to roles derived from a user's data (patient,
-         doctor, clinic admin). Users.IsPlatformAdmin becomes an 'admin' row here. Which role names are valid is
-         decided by the application, so adding an assignable role needs no migration. -->
     <changeSet id="1.9-create-user-roles" author="clinic-management">
         <createTable tableName="UserRoles">
             <column name="UserId" type="VARCHAR2(36)">
@@ -19,7 +16,6 @@
             <column name="GrantedAtUtc" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="SYSTIMESTAMP">
                 <constraints nullable="false"/>
             </column>
-            <!-- Null for grants made by configuration or migration rather than by a signed-in administrator. -->
             <column name="GrantedByUserId" type="VARCHAR2(36)"/>
         </createTable>
         <addPrimaryKey tableName="UserRoles" columnNames="UserId, Role" constraintName="PK_UserRoles"/>

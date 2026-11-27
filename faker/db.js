@@ -1,4 +1,3 @@
-// Oracle access shared by generate.js (fake data) and demo.js (demo account activity).
 import oracledb from "oracledb";
 
 const batchSize = 1000;
@@ -24,11 +23,9 @@ export const asObjects = { outFormat: oracledb.OUT_FORMAT_OBJECT };
 const string = (maxSize) => ({ type: oracledb.STRING, maxSize });
 const number = { type: oracledb.NUMBER };
 const id = string(36);
-// ISO-8601 with offset, e.g. 2026-11-23T08:20:00.000+00:00
 const timestamp = string(35);
 const timestampSql = (bind) => `TO_TIMESTAMP_TZ(:${bind}, 'YYYY-MM-DD"T"HH24:MI:SS.FF3TZH:TZM')`;
 
-// Insert order follows the foreign keys. Every column length matches the Liquibase changelogs.
 export const tables = [
   {
     name: "Clinics",
@@ -97,7 +94,6 @@ export const tables = [
   },
 ];
 
-/** Inserts each table's rows from `data[table.key]`, in foreign-key order. Tables missing from `data` are skipped. */
 export async function insertAll(connection, data) {
   for (const table of tables) {
     const rows = data[table.key] ?? [];
@@ -107,7 +103,6 @@ export async function insertAll(connection, data) {
   }
 }
 
-/** Runs `work` in one transaction on a new connection: commits if it returns, rolls back if it throws. */
 export async function inTransaction(work) {
   const connection = await connect();
   try {

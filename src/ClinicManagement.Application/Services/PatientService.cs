@@ -31,13 +31,6 @@ public class PatientService(
         return patient.ToResponse();
     }
 
-    /// <summary>
-    /// Summary of one patient. Who may call and what they see:
-    /// administrators and the patient themself see every appointment; a clinic administrator sees appointments at
-    /// clinics they administer; a verified doctor sees only their own appointments with the patient. Visit fields
-    /// are scoped the same way. Other callers, and unknown ids for anyone but an administrator, get 403, so the
-    /// response never reveals whether an unrelated patient exists. Administrators get 404 for an unknown id.
-    /// </summary>
     public async Task<PatientSummaryResponse> GetPatientSummaryAsync(Guid patientId)
     {
         RequestValidator.EnsureGuid(patientId, nameof(patientId), "Patient ID");
@@ -76,7 +69,7 @@ public class PatientService(
             .Select(allergy => new PatientSummaryAllergy(
                 allergy.AllergyId,
                 allergy.AllergyType.Name,
-                allergy.Severity.ToString()))
+                allergy.Severity))
             .ToList();
 
         return new PatientSummaryResponse(
@@ -104,7 +97,6 @@ public class PatientService(
         Guid patientId,
         IReadOnlyCollection<Appointment> appointments)
     {
-        // The broadest applicable role wins: administrator, then the patient, then clinic administrator, then doctor.
         if (currentUser.IsAdministrator())
             return PatientSummaryScope.All;
 
@@ -132,7 +124,7 @@ public class PatientService(
             appointment.Id,
             appointment.AppointmentDateTime,
             appointment.ReasonForVisit,
-            appointment.Status.ToString(),
+            appointment.Status,
             $"{appointment.Provider.FirstName} {appointment.Provider.LastName}");
 
     private sealed class PatientSummaryScope
@@ -238,8 +230,8 @@ public class PatientService(
         _ = await allergyTypeRepository.GetAllergyTypeByIdAsync(request.AllergyId)
             ?? throw new ResourceNotFoundException("Allergy type", request.AllergyId);
 
-        if (!Enum.TryParse<AllergySeverity>(request.Severity, true, out var severity)
-            || !Enum.IsDefined(severity))
+        var severity = request.Severity;
+        if (!Enum.IsDefined(severity))
         {
             throw new DomainValidationException("Allergy severity is invalid.", nameof(request.Severity));
         }

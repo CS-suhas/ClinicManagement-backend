@@ -12,17 +12,11 @@ public interface IProviderService
     Task<Guid> AddProviderAsync(ProviderRequest request);
     Task<Guid> UpdateProviderAsync(ProviderRequest request);
     Task<Guid> DeleteProviderAsync(Guid providerId);
-    /// <summary>
-    /// Searches providers. <paramref name="verificationStatus"/> is honoured for administrators only; everyone else
-    /// receives verified providers.
-    /// </summary>
     Task<PagedResponse<ProviderResponse>> SearchProvidersAsync(
         PageQuery query,
         Guid? clinicId,
         ProviderVerificationStatus? verificationStatus = null);
-    /// <summary>Verified providers with a clinic: what patients are allowed to browse.</summary>
     Task<PagedResponse<ProviderResponse>> SearchProviderDirectoryAsync(PageQuery query, Guid? clinicId);
-    /// <summary>Self-registration. The provider stays hidden until an admin verifies them.</summary>
     Task<Guid> RegisterProviderAsync(ProviderRegistrationRequest request);
     Task VerifyProviderAsync(Guid providerId);
     Task RejectProviderAsync(Guid providerId);
@@ -31,6 +25,5 @@ public interface IProviderService
         DateTimeOffset from,
         DateTimeOffset to,
         bool includeInactive);
-    /// <summary>Patients of a provider. Visible to the provider, an administrator, or the provider's clinic administrator.</summary>
     Task<PagedResponse<ProviderPatientRosterItem>> GetPatientRosterAsync(Guid providerId, PageQuery query);
 }

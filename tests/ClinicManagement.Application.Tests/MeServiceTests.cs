@@ -36,7 +36,7 @@ public class MeServiceTests
 
         Assert.Equal(patient.Id, result.Patient?.Id);
         Assert.Equal(provider.Id, result.Provider?.Id);
-        Assert.Equal("PENDING", result.Provider?.VerificationStatus);
+        Assert.Equal(ProviderVerificationStatus.PENDING, result.Provider?.VerificationStatus);
     }
 
     [Fact]

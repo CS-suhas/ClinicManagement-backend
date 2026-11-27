@@ -306,12 +306,11 @@ public class PatientRepository(IDbConnectionFactory connectionFactory) : IPatien
             row => new PatientAllergySummary(checked((int)row.AllergyCount), SeverityName(row.SeverityRank)));
     }
 
-    /// <summary>Maps the rank used by the SQL severity summaries back to its name.</summary>
-    internal static string? SeverityName(decimal? rank) => rank switch
+    internal static AllergySeverity? SeverityName(decimal? rank) => rank switch
     {
-        3 => "SEVERE",
-        2 => "MODERATE",
-        1 => "MILD",
+        3 => AllergySeverity.SEVERE,
+        2 => AllergySeverity.MODERATE,
+        1 => AllergySeverity.MILD,
         _ => null
     };
 

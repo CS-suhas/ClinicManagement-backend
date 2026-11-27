@@ -2,8 +2,6 @@ import { Faker, en } from "@faker-js/faker";
 import { allergySeverities, appointmentSettings, defaultSeed, toTimestamp } from "./fake-data.js";
 import { allergyCatalog, allergyNotes, genericReasons, specialties } from "./reference-data.js";
 
-// Rows written for the demo accounts get these Id prefixes, so demo.js can replace them on every run without
-// touching anything made through the UI. Both are valid GUIDs once the 12-digit counter is appended.
 export const demoIdPrefixes = Object.freeze({
   appointment: "d3300000-0000-4000-8001-",
   patientAllergy: "d3300000-0000-4000-8002-",
@@ -18,8 +16,6 @@ const slotsPerDay =
   (appointmentSettings.clinicEndMinutes - appointmentSettings.clinicStartMinutes) /
   appointmentSettings.durationMinutes;
 
-// The demo patient's history: a window of days from today, who it is with, and how it ended. Covers every
-// status so each patient screen has something in it.
 const patientPlan = [
   { days: [-65, -55], with: "doctor", status: "COMPLETED" },
   { days: [-45, -35], with: "other", status: "COMPLETED" },
@@ -32,7 +28,6 @@ const patientPlan = [
   { days: [12, 18], with: "other", status: "CONFIRMED" },
 ];
 
-// The demo doctor's share of slots on a working day, and how many requests are left waiting for a decision.
 const doctorLoad = 0.25;
 const minTodayBookings = 5;
 const minOpenRequests = 5;
@@ -45,23 +40,6 @@ function utcMidnight(ms) {
   return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
 }
 
-/**
- * Builds activity for the demo patient and demo doctor (see demo.js). Pure: random choices come from a
- * Faker instance seeded with `seed`, and dates are relative to `now`.
- *
- * @param {object} options
- * @param {Date} [options.now] Reference time.
- * @param {number} [options.seed] Faker seed.
- * @param {{Id: string, DateOfBirth: string}} options.patient The demo patient.
- * @param {{Id: string, Specialty: string}} options.provider The demo doctor.
- * @param {{Id: string, Specialty: string}[]} [options.otherProviders] Verified providers the demo patient can
- *   also see, closest first (same clinic first).
- * @param {{Id: string, DateOfBirth: string}[]} [options.patients] Patients the demo doctor can see.
- * @param {{Id: string, Name: string}[]} [options.allergyTypes] Allergy types already in the database.
- * @param {string[]} [options.patientAllergyIds] AllergyIds the demo patient already has.
- * @param {{PatientId: string, ProviderId: string, AppointmentDateTime: Date|string}[]} [options.booked]
- *   Requested, confirmed and completed appointments already in the database, which keep their slots.
- */
 export function createDemoActivity({
   now = new Date(),
   seed = defaultSeed,
@@ -93,13 +71,11 @@ export function createDemoActivity({
   const rulesOf = (someone) => specialties[someone.Specialty] ?? specialties["General Practice"];
   const isEligible = (person, rules) => {
     const age = (nowMs - person.dobMs) / year;
-    // Sex is not stored for patients, so sex-specific specialties are left out (as the seeder does).
     return age >= rules.minAge && age < rules.maxAge + 1 && !rules.sex;
   };
 
   const demoPatient = { id: patient.Id, dobMs: dobMsOf(patient.DateOfBirth) };
 
-  // ---------------------------------------------------------------- allergies
   const allergyIdByName = new Map(allergyTypes.map((type) => [type.Name.trim().toLowerCase(), type.Id]));
   const newAllergyTypes = [];
   const patientAllergies = [];
@@ -132,8 +108,6 @@ export function createDemoActivity({
     });
   }
 
-  // ---------------------------------------------------------------- booking
-  // A provider holds a slot once; a patient has at most one appointment a day (the seeder's rules).
   const providerSlots = new Set();
   const patientDays = new Set();
   const hold = (providerId, patientId, startMs) => {
@@ -144,7 +118,6 @@ export function createDemoActivity({
     !providerSlots.has(`${providerId}|${startMs}`) && !patientDays.has(`${patientId}|${utcMidnight(startMs)}`);
   for (const row of booked) hold(row.ProviderId, row.PatientId, msOf(row.AppointmentDateTime));
 
-  // Creation and status-change times consistent with the domain transitions.
   function timeline(startMs, status) {
     const latestCreatedMs = Math.min(startMs - 30 * minute, nowMs - 5 * minute);
     const createdMs = latestCreatedMs - between(hour, 14 * day);
@@ -160,13 +133,12 @@ export function createDemoActivity({
     return { createdMs: Math.round(createdMs), changedMs: changedMs == null ? null : Math.round(changedMs) };
   }
 
-  // Same weights as the seeder: past mostly completed, some not closed out yet; future mostly confirmed.
   function statusFor(startMs) {
     if (startMs + slotMs <= nowMs) {
       const daysAgo = (nowMs - startMs) / day;
       return weighted({ COMPLETED: 80, CANCELLED: 9, DECLINED: 4, CONFIRMED: daysAgo < 7 ? 6 : 0.4 });
     }
-    if (startMs <= nowMs) return "CONFIRMED"; // in progress
+    if (startMs <= nowMs) return "CONFIRMED";
     const soon = (startMs - nowMs) / day < 7;
     return weighted({ REQUESTED: soon ? 14 : 28, CONFIRMED: soon ? 68 : 54, CANCELLED: 12, DECLINED: 5 });
   }
@@ -202,10 +174,9 @@ export function createDemoActivity({
   }
 
   const slotStart = (dayMs, slot) => dayMs + appointmentSettings.clinicStartMinutes * minute + slot * slotMs;
-  const isWorkday = (dayMs) => new Date(dayMs).getUTCDay() !== 0; // Monday to Saturday
+  const isWorkday = (dayMs) => new Date(dayMs).getUTCDay() !== 0;
   const slotIndexes = Array.from({ length: slotsPerDay }, (_, index) => index);
 
-  // ---------------------------------------------------------------- demo patient
   const eligibleOthers = otherProviders.filter((other) => isEligible(demoPatient, rulesOf(other))).slice(0, 4);
   for (const entry of patientPlan) {
     const withProvider = entry.with === "doctor" || eligibleOthers.length === 0
@@ -226,7 +197,6 @@ export function createDemoActivity({
     }
   }
 
-  // ---------------------------------------------------------------- demo doctor
   const doctorRules = rulesOf(provider);
   const panel = faker.helpers
     .arrayElements(
@@ -259,7 +229,6 @@ export function createDemoActivity({
       }
     }
 
-    // Leave a queue of requests for the doctor to confirm or decline.
     const upcoming = appointments
       .filter((row) => row.ProviderId === provider.Id && msOf(row.AppointmentDateTime) > nowMs)
       .sort((a, b) => msOf(a.AppointmentDateTime) - msOf(b.AppointmentDateTime));

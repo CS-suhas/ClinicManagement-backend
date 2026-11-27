@@ -1,3 +1,5 @@
+using ClinicManagement.Domain.Enums;
+
 namespace ClinicManagement.Application.Models;
 
 public record ProviderRegistrationRequest(
@@ -7,5 +9,5 @@ public record ProviderRegistrationRequest(
     string LastName,
     string Specialty,
     decimal? Fee = null,
-    string? Gender = null
+    Gender? Gender = null
 );

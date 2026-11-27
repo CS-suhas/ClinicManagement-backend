@@ -14,7 +14,6 @@ public class Appointment : BaseEntity
     public string? ReasonForVisit { get; private set; } = null;
     public AppointmentStatus Status { get; private set; } = AppointmentStatus.REQUESTED;
 
-    /// <summary>Requested and confirmed appointments occupy the provider's time slot.</summary>
     public static readonly AppointmentStatus[] ActiveStatuses =
         [AppointmentStatus.REQUESTED, AppointmentStatus.CONFIRMED];
     

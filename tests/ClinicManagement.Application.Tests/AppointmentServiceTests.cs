@@ -600,7 +600,6 @@ public class AppointmentServiceTests
         var summary = await service.GetProviderSummaryAsync(SummaryProvider.Id);
 
         Assert.Equal(SlotAt(2, 8, 20), summary.NextAvailableStart);
-        // Padded by one duration on each side of the 14 UTC days starting today.
         Assert.Equal((SlotAt(1, 23, 40), SlotAt(16, 0, 20)), repository.ActiveStartTimeRange);
     }
 
@@ -706,7 +705,6 @@ public class AppointmentServiceTests
     private static DateTimeOffset SlotAt(int day, int hour, int minute) =>
         new(2030, 1, day, hour, minute, 0, TimeSpan.Zero);
 
-    // Every 20-minute slot start of a clinic day: 08:00 through 15:40, so each slot ends by 16:00.
     private static IEnumerable<DateTimeOffset> DaySlotStarts(int day)
     {
         for (var start = SlotAt(day, 8, 0); start.AddMinutes(20) <= SlotAt(day, 16, 0); start = start.AddMinutes(20))
@@ -718,7 +716,7 @@ public class AppointmentServiceTests
             Guid.NewGuid(), Guid.NewGuid(), "Ada Lovelace",
             SummaryProvider.Id, "Alan Turing", "Computing",
             SummaryClinic.Id, "Riverside",
-            when, null, "CONFIRMED", 0, null, when, when);
+            when, null, AppointmentStatus.CONFIRMED, 0, null, when, when);
 
     private static AppointmentService CreateService(
         FakeAppointmentRepository appointmentRepository,
@@ -1092,7 +1090,6 @@ public class AppointmentServiceTests
         }
     }
 
-    /// <summary>Unless configured otherwise, any requested provider exists and accepts appointments.</summary>
     private sealed class FakeProviderRepository : IProviderRepository
     {
         public Task<IReadOnlyDictionary<Guid, int>> GetVerifiedProviderCountsByClinicAsync() =>

@@ -63,7 +63,7 @@ public class PatientServiceTests
         var allergy = Assert.Single(result);
         Assert.Equal(allergyType.Id, allergy.AllergyId);
         Assert.Equal("Peanuts", allergy.Name);
-        Assert.Equal("SEVERE", allergy.Severity);
+        Assert.Equal(AllergySeverity.SEVERE, allergy.Severity);
         Assert.Equal("Carries an epinephrine auto-injector", allergy.Notes);
     }
 

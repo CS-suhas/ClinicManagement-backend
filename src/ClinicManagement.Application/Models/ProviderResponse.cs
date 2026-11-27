@@ -1,3 +1,5 @@
+using ClinicManagement.Domain.Enums;
+
 namespace ClinicManagement.Application.Models;
 
 public record ProviderResponse(
@@ -6,8 +8,8 @@ public record ProviderResponse(
     string FirstName,
     string LastName,
     string Specialty,
-    string VerificationStatus,
+    ProviderVerificationStatus VerificationStatus,
     decimal? Fee,
-    string? Gender,
+    Gender? Gender,
     string? ClinicName
 );

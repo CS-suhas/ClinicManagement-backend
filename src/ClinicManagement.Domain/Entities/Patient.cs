@@ -11,7 +11,7 @@ public class Patient : BaseEntity
 
     public string FirstName { get; private set; } = string.Empty;
     public string LastName { get; private set; } = string.Empty;
-    public DateOnly DateOfBirth { get; private set; } // as UTC timestamp
+    public DateOnly DateOfBirth { get; private set; }
     public string Email { get; private set; } = string.Empty;
     public string PhoneNumber { get; private set; } = string.Empty;
     public Guid? UserId { get; private set; }

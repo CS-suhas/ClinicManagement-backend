@@ -11,13 +11,8 @@ public static class ClinicEndpoints
     {
         var clinics = app.MapGroup("/api/clinics").WithTags(ApiTags.Clinics);
 
-        // Every other clinic endpoint needs a signed-in user. The list stays outside this subgroup: the subgroup's
-        // sign-in requirement would apply on top of the PublicDoctors toggle.
         var signedIn = clinics.MapGroup("").RequireAuthorization(AuthorizationPolicies.Authenticated);
 
-        // Queries
-
-        // The list carries only clinic contact details and a count, no patient or user data.
         clinics.MapGet("", async ([FromServices] IClinicService service) =>
             Results.Ok(await service.GetAllClinicsAsync()))
             .WithName("GetClinics")
@@ -75,8 +70,6 @@ public static class ClinicEndpoints
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status404NotFound);
 
-        // Commands
-
         signedIn.MapPost("", async ([FromBody] ClinicRequest request, [FromServices] IClinicService service) =>
         {
             var id = await service.AddClinicAsync(request with { Id = Guid.NewGuid() });
@@ -116,8 +109,6 @@ public static class ClinicEndpoints
             .Produces(StatusCodes.Status204NoContent)
             .ProducesAuthFailures()
             .ProducesProblem(StatusCodes.Status404NotFound);
-
-        // Clinic administrators
 
         signedIn.MapPost("/{clinicId}/admins", async (
             Guid clinicId,

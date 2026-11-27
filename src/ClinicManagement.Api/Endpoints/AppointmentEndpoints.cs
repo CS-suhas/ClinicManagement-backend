@@ -14,8 +14,6 @@ public static class AppointmentEndpoints
     {
         var appointments = app.MapGroup("/api/appointments").WithTags(ApiTags.Appointments);
 
-        // Queries
-
         appointments.MapGet("", async ([FromServices] IAppointmentService service) =>
             Results.Ok(await service.GetAllAppointmentsAsync()))
             .WithName("GetAppointments")
@@ -82,8 +80,6 @@ public static class AppointmentEndpoints
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status404NotFound);
 
-        // Commands
-
         appointments.MapPost("", async ([FromBody] AppointmentRequest request, [FromServices] IAppointmentService service) =>
         {
             var id = await service.AddAppointmentAsync(request with { Id = Guid.NewGuid() });
@@ -126,8 +122,6 @@ public static class AppointmentEndpoints
             .Produces(StatusCodes.Status204NoContent)
             .ProducesAuthFailures()
             .ProducesProblem(StatusCodes.Status404NotFound);
-
-        // Status transitions
 
         appointments.MapPost("/{id}/confirm", async (Guid id, [FromServices] IAppointmentService service) =>
         {

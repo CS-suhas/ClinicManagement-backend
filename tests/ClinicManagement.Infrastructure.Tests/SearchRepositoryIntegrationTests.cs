@@ -27,7 +27,6 @@ public class SearchRepositoryIntegrationTests
         var appointments = new AppointmentRepository(connectionFactory);
         var repository = new SearchRepository(connectionFactory);
 
-        // A unique token keeps the matches to rows seeded here, so exact counts are safe.
         var token = $"sx{Guid.NewGuid():N}"[..14];
         var clinicAId = Guid.NewGuid();
         var clinicBId = Guid.NewGuid();

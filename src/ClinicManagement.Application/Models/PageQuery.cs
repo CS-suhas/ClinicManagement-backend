@@ -2,7 +2,6 @@ using ClinicManagement.Domain.Exceptions;
 
 namespace ClinicManagement.Application.Models;
 
-/// <summary>Search and pagination parameters for a collection endpoint.</summary>
 public sealed record PageQuery(
     string? Search = null,
     int Page = 1,

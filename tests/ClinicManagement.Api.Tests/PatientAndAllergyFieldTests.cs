@@ -6,7 +6,6 @@ using ClinicManagement.Domain.Enums;
 
 namespace ClinicManagement.Api.Tests;
 
-/// <summary>Allergy summaries on patient lists and roster rows, and patient counts on allergy types.</summary>
 public sealed class PatientAndAllergyFieldTests(ClinicApiFactory factory)
     : ClinicApiTestBase(factory), IClassFixture<ClinicApiFactory>
 {

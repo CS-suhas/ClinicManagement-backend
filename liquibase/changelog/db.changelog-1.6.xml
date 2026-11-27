@@ -5,7 +5,6 @@
     xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
         https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
 
-    <!-- Consultation fee (LKR) and gender for providers. Both nullable, because existing rows have neither. -->
     <changeSet id="1.6-providers-fee-gender" author="clinic-management">
         <addColumn tableName="Providers">
             <column name="Fee" type="NUMBER(10,2)"/>

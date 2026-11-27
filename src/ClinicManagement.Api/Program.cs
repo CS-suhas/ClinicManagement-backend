@@ -5,6 +5,7 @@ using ClinicManagement.Api.Middleware;
 using ClinicManagement.Api.Security;
 using ClinicManagement.Application.Common.Settings;
 using Microsoft.Extensions.Options;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -22,7 +23,12 @@ builder.Services
     .ValidateOnStart();
 builder.Services.AddSingleton(
     serviceProvider => serviceProvider.GetRequiredService<IOptions<ClinicManagementSettings>>().Value);
-builder.Services.AddControllers();
+builder.Services.ConfigureHttpJsonOptions(options =>
+    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter(allowIntegerValues: false)));
+builder.Services.Configure<RouteHandlerOptions>(options => options.ThrowOnBadRequest = true);
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter(allowIntegerValues: false)));
 builder.Services.AddClinicManagementOpenApi();
 builder.Services.AddHealthChecks();
 builder.Services.AddExceptionHandler<ApiExceptionHandler>();

@@ -1,9 +1,5 @@
 namespace ClinicManagement.Api.Security;
 
-/// <summary>
-/// What an endpoint requires, independent of who may do it. Each permission is registered as an authorization
-/// policy of the same name; <see cref="RolePermissions"/> decides which roles hold it.
-/// </summary>
 public static class Permissions
 {
     public const string AllergyTypesManage = "allergy-types:manage";
@@ -22,7 +18,6 @@ public static class Permissions
 
     public const string ProvidersReadAll = "providers:read-all";
     public const string ProvidersManage = "providers:manage";
-    /// <summary>Verify or reject doctors. Clinic administrators are further limited to their own clinic by the service.</summary>
     public const string ProvidersVerify = "providers:verify";
     public const string OwnCalendarRead = "providers:read-own-calendar";
 

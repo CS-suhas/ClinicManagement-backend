@@ -5,8 +5,6 @@
     xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
         https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
 
-    <!-- Existing providers are treated as already verified. New self-registered providers
-         are inserted explicitly as PENDING by the application. -->
     <changeSet id="1.4-providers-verification-status" author="clinic-management">
         <addColumn tableName="Providers">
             <column name="VerificationStatus" type="VARCHAR2(20)" defaultValue="VERIFIED">
@@ -20,7 +18,6 @@
         </sql>
     </changeSet>
 
-    <!-- A self-registered provider has no clinic until a join request is approved. -->
     <changeSet id="1.4-providers-clinic-optional" author="clinic-management">
         <dropNotNullConstraint
             tableName="Providers"
@@ -48,8 +45,6 @@
             </column>
             <column name="UpdatedAtUtc" type="TIMESTAMP WITH TIME ZONE"/>
         </createTable>
-        <!-- Join requests are workflow records, not clinical data, so they go away with
-             the provider or clinic they belong to. -->
         <addForeignKeyConstraint
             baseTableName="ClinicJoinRequests"
             baseColumnNames="ProviderId"
@@ -76,15 +71,12 @@
             ADD CONSTRAINT CK_ClinicJoinRequests_Status
             CHECK (Status IN ('PENDING', 'APPROVED', 'REJECTED', 'CANCELLED'))
         </sql>
-        <!-- A provider can have at most one pending request at a time. -->
         <sql>
             CREATE UNIQUE INDEX UX_ClinicJoinRequests_OnePending
             ON ClinicJoinRequests (CASE WHEN Status = 'PENDING' THEN ProviderId END)
         </sql>
     </changeSet>
 
-    <!-- Existing appointments are treated as already confirmed. New bookings are inserted
-         explicitly as REQUESTED by the application. -->
     <changeSet id="1.4-appointments-status" author="clinic-management">
         <addColumn tableName="Appointments">
             <column name="Status" type="VARCHAR2(20)" defaultValue="CONFIRMED">

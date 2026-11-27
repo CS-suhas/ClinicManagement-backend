@@ -24,7 +24,7 @@ public static class AppointmentMappings
             appointment.Provider.Specialty,
             appointment.AppointmentDateTime,
             appointment.ReasonForVisit,
-            appointment.Status.ToString());
+            appointment.Status);
 
     public static void ApplyTo(this AppointmentRequest request, Appointment appointment, DateTimeOffset currentTime)
     {

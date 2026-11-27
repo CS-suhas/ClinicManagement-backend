@@ -9,7 +9,6 @@ namespace ClinicManagement.Infrastructure.Tests;
 
 public class StatusRepositoryIntegrationTests
 {
-    // A far-future day: no dev-dataset or other test rows fall in it, so window and dashboard results are predictable.
     private static readonly DateTimeOffset FarDay = new(2090, 3, 10, 0, 0, 0, TimeSpan.Zero);
 
     [Fact]
@@ -45,7 +44,6 @@ public class StatusRepositoryIntegrationTests
                 patientId,
                 providerId);
 
-            // Other test classes insert rows concurrently, so the totals can only be checked as lower bounds.
             var after = await repository.GetStatisticsAsync();
             Assert.True(after.Clinics >= before.Clinics + 1);
             Assert.True(after.Providers >= before.Providers + 1);
@@ -103,7 +101,6 @@ public class StatusRepositoryIntegrationTests
             Assert.True(await appointments.TryUpdateStatusAsync(confirmedId, AppointmentStatus.REQUESTED, AppointmentStatus.CONFIRMED));
             Assert.True(await appointments.TryUpdateStatusAsync(declinedId, AppointmentStatus.REQUESTED, AppointmentStatus.DECLINED));
 
-            // With "now" one day before the far day, the upcoming list starts with the seeded appointments.
             var dashboard = await repository.GetDashboardAsync(upcomingDay.AddDays(-1));
             Assert.True(dashboard.Clinics >= before.Clinics + 1);
             Assert.True(dashboard.Providers >= before.Providers + 1);
@@ -159,7 +156,6 @@ public class StatusRepositoryIntegrationTests
             await clinics.AddClinicAsync(clinic);
             await providers.AddProviderAsync(Provider.Create(verifiedProviderId, clinicId, "Grace", "Hopper", "General Practice"), clinicId);
 
-            // A pending provider: self-registered at the clinic, not yet verified.
             await providers.AddProviderAsync(Provider.Register(pendingProviderId, clinicId, "Alan", "Turing", "Dermatology"), clinicId);
 
             await patients.AddPatientAsync(Patient.Create(patientId, "Ada", "Lovelace", new DateOnly(1985, 12, 10), $"ada.{patientId:N}@example.com", "555-0100"));
@@ -174,7 +170,6 @@ public class StatusRepositoryIntegrationTests
             Assert.True(await appointments.TryUpdateStatusAsync(declinedId, AppointmentStatus.REQUESTED, AppointmentStatus.DECLINED));
 
             var after = await repository.GetPlatformCountsAsync(todayStart, todayEnd);
-            // The far-day window holds no other rows, so the declined appointment is the only thing left out.
             Assert.Equal(before.TodayAppointmentCount + 1, after.TodayAppointmentCount);
             Assert.True(after.PendingProviderVerificationCount >= before.PendingProviderVerificationCount + 1);
             Assert.True(after.ProviderCount >= before.ProviderCount + 2);
@@ -240,7 +235,6 @@ public class StatusRepositoryIntegrationTests
             await patients.AddPatientAsync(Patient.Create(patient2Id, "Pat", "Two", new DateOnly(1981, 1, 1), $"p2.{patient2Id:N}@example.com", "555-0202"));
             await patients.AddPatientAsync(Patient.Create(patient3Id, "Pat", "Three", new DateOnly(1982, 1, 1), $"p3.{patient3Id:N}@example.com", "555-0203"));
 
-            // In window and counted: a1, a2, a3. Declined in window: a4. Outside the window: a5. Outside the clinics: a6.
             var seeds = new (Guid Patient, Guid Provider, DateTimeOffset When, AppointmentStatus Status)[]
             {
                 (patient1Id, providerA1Id, todayStart.AddHours(9), AppointmentStatus.REQUESTED),
@@ -356,12 +350,9 @@ public class StatusRepositoryIntegrationTests
                 todayEnd,
                 weekEnd);
 
-            // Today: the requested and confirmed ones (declined excluded). Week adds the day-three request.
             Assert.Equal(2, section.TodayAppointmentCount);
             Assert.Equal(3, section.WeekAppointmentCount);
-            // Distinct patients over all of this provider's appointments, including the declined one.
             Assert.Equal(2, section.DistinctPatientCount);
-            // Requested appointments starting after "now": today's request and the day-three request.
             Assert.Equal(2, section.PendingRequestCount);
             Assert.NotNull(section.NextAppointment);
             Assert.Equal(todayRequestedId, section.NextAppointment.Id);
@@ -413,13 +404,11 @@ public class StatusRepositoryIntegrationTests
             await appointments.AddAppointmentAsync(
                 Appointment.Create(declinedId, patientId, providerId, now.AddDays(1), null, now), patientId, providerId);
 
-            // Confirmed first, declined second, so the declined one is the most recent decision.
             Assert.True(await appointments.TryUpdateStatusAsync(confirmedSoonId, AppointmentStatus.REQUESTED, AppointmentStatus.CONFIRMED));
             Assert.True(await appointments.TryUpdateStatusAsync(declinedId, AppointmentStatus.REQUESTED, AppointmentStatus.DECLINED));
 
             var section = await repository.GetPatientDashboardAsync(patientId, now);
 
-            // Upcoming: confirmed and requested ones; the declined one is not upcoming.
             Assert.Equal(2, section.UpcomingAppointmentCount);
             Assert.NotNull(section.NextAppointment);
             Assert.Equal(confirmedSoonId, section.NextAppointment.Id);
@@ -427,8 +416,8 @@ public class StatusRepositoryIntegrationTests
             Assert.Equal(
                 new[] { declinedId, confirmedSoonId },
                 section.RecentDecisions.Select(decision => decision.AppointmentId));
-            Assert.Equal("CONFIRMED", section.RecentDecisions[1].Status);
-            Assert.Equal("DECLINED", section.RecentDecisions[0].Status);
+            Assert.Equal(AppointmentStatus.CONFIRMED, section.RecentDecisions[1].Status);
+            Assert.Equal(AppointmentStatus.DECLINED, section.RecentDecisions[0].Status);
             Assert.All(section.RecentDecisions, decision => Assert.Equal("Grace Hopper", decision.ProviderName));
         }
         finally

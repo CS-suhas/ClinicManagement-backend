@@ -5,8 +5,6 @@
     xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
         https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
 
-    <!-- Users is the single home for a sign-in identity. Patients, Providers and ClinicAdmins point at it by
-         UserId instead of each storing the identity subject; PlatformAdmins becomes Users.IsPlatformAdmin. -->
     <changeSet id="1.8-create-users" author="clinic-management">
         <createTable tableName="Users">
             <column name="Id" type="VARCHAR2(36)">
@@ -28,7 +26,6 @@
         <sql>ALTER TABLE Users ADD CONSTRAINT CK_Users_IsPlatformAdmin CHECK (IsPlatformAdmin IN (0, 1))</sql>
     </changeSet>
 
-    <!-- One user per distinct subject already in use anywhere. -->
     <changeSet id="1.8-backfill-users" author="clinic-management">
         <sql>
             INSERT INTO Users (Id, IdentitySubject, IsPlatformAdmin)

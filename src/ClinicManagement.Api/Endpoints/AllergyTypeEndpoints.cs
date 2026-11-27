@@ -11,8 +11,6 @@ public static class AllergyTypeEndpoints
     {
         var allergyTypes = app.MapGroup("/api/allergy-types").WithTags(ApiTags.AllergyTypes);
 
-        // Queries
-
         allergyTypes.MapGet("", async ([FromServices] IAllergyTypeService service) =>
             Results.Ok(await service.GetAllAllergyTypesAsync()))
             .WithName("GetAllergyTypes")
@@ -53,8 +51,6 @@ public static class AllergyTypeEndpoints
             .Produces<List<PatientResponse>>(StatusCodes.Status200OK)
             .ProducesAuthFailures()
             .ProducesProblem(StatusCodes.Status404NotFound);
-
-        // Commands
 
         allergyTypes.MapPost("", async ([FromBody] AllergyTypeRequest request, [FromServices] IAllergyTypeService service) =>
         {

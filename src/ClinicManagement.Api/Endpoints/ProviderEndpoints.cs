@@ -13,10 +13,7 @@ public static class ProviderEndpoints
 
     public static IEndpointRouteBuilder MapProviderEndpoints(this WebApplication app)
     {
-        // No group-wide authorization: the directory, search, profile and availability endpoints are public.
         var providers = app.MapGroup("/api/providers").WithTags(ApiTags.Providers);
-
-        // Public directory and availability
 
         providers.MapGet("/search", async (
             [AsParameters] PageQuery query,
@@ -74,8 +71,6 @@ public static class ProviderEndpoints
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status404NotFound);
 
-        // Signed-in views
-
         providers.MapGet("", async ([FromServices] IProviderService service) =>
             Results.Ok(await service.GetAllProvidersAsync()))
             .WithName("GetProviders")
@@ -126,8 +121,6 @@ public static class ProviderEndpoints
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status404NotFound);
 
-        // Registration and verification
-
         providers.MapPost("/register", async (
             [FromBody] ProviderRegistrationRequest request,
             [FromServices] IProviderService service) =>
@@ -172,8 +165,6 @@ public static class ProviderEndpoints
             .ProducesAuthFailures()
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict);
-
-        // Commands
 
         providers.MapPost("", async ([FromBody] ProviderRequest request, [FromServices] IProviderService service) =>
         {

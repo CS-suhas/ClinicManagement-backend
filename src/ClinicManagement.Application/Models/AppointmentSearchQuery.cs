@@ -3,7 +3,6 @@ using ClinicManagement.Domain.Exceptions;
 
 namespace ClinicManagement.Application.Models;
 
-/// <summary>Search, filter, and pagination parameters for appointments.</summary>
 public sealed record AppointmentSearchQuery(
     string? Search = null,
     DateTimeOffset? From = null,

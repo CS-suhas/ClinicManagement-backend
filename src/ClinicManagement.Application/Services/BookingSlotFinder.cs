@@ -1,10 +1,5 @@
 namespace ClinicManagement.Application.Services;
 
-/// <summary>
-/// Finds the earliest bookable start time. Slots are opening time plus k times the duration. A slot must fit fully
-/// inside clinic hours (both bounds inclusive) and must not conflict with a busy start: a busy start T conflicts with
-/// a slot start S when T - duration &lt; S &lt; T + duration. All times are UTC.
-/// </summary>
 internal static class BookingSlotFinder
 {
     public static DateTimeOffset? FindFirstAvailableStart(

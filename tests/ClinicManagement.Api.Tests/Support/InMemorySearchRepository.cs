@@ -4,10 +4,6 @@ using ClinicManagement.Domain.Enums;
 
 namespace ClinicManagement.Api.Tests.Support;
 
-/// <summary>
-/// Mirrors the SQL in SearchRepository: case-insensitive contains-match, ordering by upper-cased name, and the
-/// same visibility rule for patients. The SQL itself is only exercised by the Oracle integration tests.
-/// </summary>
 internal sealed class InMemorySearchRepository(InMemoryStore store) : ISearchRepository
 {
     public Task<IReadOnlyList<SearchPatientResult>> SearchPatientsAsync(

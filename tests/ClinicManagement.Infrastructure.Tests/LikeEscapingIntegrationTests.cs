@@ -6,7 +6,6 @@ using ClinicManagement.Infrastructure.Data;
 
 namespace ClinicManagement.Infrastructure.Tests;
 
-/// <summary>%, _ and \ typed into a search box must match literally, not act as LIKE wildcards.</summary>
 public class LikeEscapingIntegrationTests
 {
     [Fact]
@@ -24,7 +23,6 @@ public class LikeEscapingIntegrationTests
         var search = new SearchRepository(connectionFactory);
         var token = Guid.NewGuid().ToString("N")[..12];
 
-        // Same prefix and suffix; only the literal one contains "50%_\off".
         var literal = Clinic.Create(Guid.NewGuid(), $"Lk{token} 50%_\\off", "1 Road", "555-0100");
         var lookalike = Clinic.Create(Guid.NewGuid(), $"Lk{token} 50xyz9off", "2 Road", "555-0101");
 
@@ -40,10 +38,8 @@ public class LikeEscapingIntegrationTests
             Assert.Equal(1, total);
             Assert.Equal([literal.Id], paged.Select(clinic => clinic.Id));
 
-            // An underscore alone must not match any single character.
             Assert.Empty(await search.SearchClinicsAsync($"Lk{token} 50_", 10));
 
-            // A plain term still matches both.
             Assert.Equal(2, (await search.SearchClinicsAsync($"Lk{token}", 10)).Count);
         }
         finally

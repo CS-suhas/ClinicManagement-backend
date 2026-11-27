@@ -3,10 +3,6 @@ using ClinicManagement.Domain.Exceptions;
 
 namespace ClinicManagement.Domain.Entities;
 
-/// <summary>
-/// A sign-in identity, keyed by the identity provider's subject claim. Patient and provider profiles and
-/// clinic-admin assignments hang off a user; a user may have any combination of them.
-/// </summary>
 public class User : BaseEntity
 {
     public string IdentitySubject { get; private set; } = string.Empty;
@@ -31,10 +27,6 @@ public class User : BaseEntity
         };
     }
 
-    /// <summary>
-    /// Refreshes the profile from the latest token. Blank values never erase a stored one, so a token that
-    /// omits a claim does not wipe it. Returns true when anything changed.
-    /// </summary>
     public bool UpdateProfile(string? email, string? displayName)
     {
         var newEmail = Normalize(email) ?? Email;

@@ -14,8 +14,6 @@ public static class PatientEndpoints
     {
         var patients = app.MapGroup("/api/patients").WithTags(ApiTags.Patients);
 
-        // Queries
-
         patients.MapGet("", async ([FromServices] IPatientService patientService) =>
             Results.Ok(await patientService.GetAllPatientsAsync()))
             .WithName("GetPatients")
@@ -70,8 +68,6 @@ public static class PatientEndpoints
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status404NotFound);
 
-        // Commands
-
         patients.MapPost("", async ([FromBody] PatientRequest request, [FromServices] IPatientService patientService) =>
         {
             var id = await patientService.AddPatientAsync(request with { Id = Guid.NewGuid() });
@@ -112,8 +108,6 @@ public static class PatientEndpoints
             .ProducesAuthFailures()
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict);
-
-        // Allergies
 
         patients.MapGet("/{id}/allergies", async (Guid id, [FromServices] IPatientService patientService) =>
             Results.Ok(await patientService.GetPatientAllergiesAsync(id)))

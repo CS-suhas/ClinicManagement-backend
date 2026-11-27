@@ -23,7 +23,6 @@ public static class PatientMappings
             patient.PhoneNumber,
             patient.Email);
 
-    /// <summary>Lists show the allergy summary; a patient missing from the summaries has no allergies.</summary>
     public static PatientListItemResponse ToListItem(
         this Patient patient,
         IReadOnlyDictionary<Guid, PatientAllergySummary> allergySummaries)

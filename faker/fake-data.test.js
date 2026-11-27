@@ -13,7 +13,6 @@ import {
   seedClinicName,
 } from "./fake-data.js";
 
-// SEED_TEST_NOW / SEED_TEST_SEED let the same invariants be checked against other reference times and seeds.
 const now = new Date(process.env.SEED_TEST_NOW ?? "2026-11-23T10:30:00Z");
 const seed = process.env.SEED_TEST_SEED === undefined ? undefined : Number(process.env.SEED_TEST_SEED);
 const today = now.toISOString().slice(0, 10);
@@ -21,7 +20,6 @@ const nowMs = now.getTime();
 const minute = 60_000;
 const data = createSeedData({ patientCount: 600, now, seed });
 
-// Column lengths from liquibase/changelog (VARCHAR2 sizes).
 const columnLengths = {
   clinics: { Id: 36, Name: 200, Address: 500, PhoneNumber: 50 },
   providers: { Id: 36, FirstName: 100, LastName: 100, Specialty: 200, ClinicId: 36, VerificationStatus: 20, Gender: 10 },
@@ -215,7 +213,6 @@ test("appointment statuses and timestamps respect the transitions", () => {
     }
     assert.ok(changed !== null && changed >= created && changed <= nowMs, appointment.Id);
     if (appointment.Status === "COMPLETED") {
-      // Complete is only allowed from CONFIRMED and only once the visit is over.
       assert.ok(start + 20 * minute <= nowMs, "completed appointments are in the past");
       assert.ok(changed >= start + 20 * minute);
     } else {

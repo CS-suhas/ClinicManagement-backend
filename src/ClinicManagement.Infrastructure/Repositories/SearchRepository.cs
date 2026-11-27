@@ -7,7 +7,6 @@ namespace ClinicManagement.Infrastructure.Repositories;
 
 public class SearchRepository(IDbConnectionFactory connectionFactory) : ISearchRepository
 {
-    // Case-insensitive contains-match on the name parts and the email, as the other search queries do.
     private const string PatientMatch = """
         (UPPER(p.FirstName) LIKE '%' || UPPER(:Term) || '%' ESCAPE '\'
           OR UPPER(p.LastName) LIKE '%' || UPPER(:Term) || '%' ESCAPE '\'

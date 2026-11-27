@@ -3,7 +3,6 @@ using Microsoft.Extensions.Options;
 
 namespace ClinicManagement.Api.Security;
 
-/// <summary>Met by anyone while <see cref="PublicAccessSettings.Doctors"/> is on, otherwise by a signed-in user.</summary>
 public sealed class PublicDoctorsRequirement : IAuthorizationRequirement;
 
 public sealed class PublicDoctorsAuthorizationHandler(IOptionsMonitor<PublicAccessSettings> settings)

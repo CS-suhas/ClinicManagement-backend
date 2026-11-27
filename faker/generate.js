@@ -1,9 +1,7 @@
 import { asObjects, countBy, inTransaction, insertAll, tables } from "./db.js";
 import { createSeedData, defaultSeed, seedClinicId, seedClinicName } from "./fake-data.js";
 
-// The Patients table is topped up to this many rows; existing patients are reused for appointments.
 const targetPatientCount = 600;
-// Upper bound on existing patients pulled in as appointment candidates.
 const existingPatientLimit = 2000;
 
 async function readExistingData(connection) {
@@ -38,8 +36,6 @@ function summarize(data) {
 }
 
 await inTransaction(async (connection) => {
-  // The marker clinic is inserted in the same transaction as everything else, so it exists only after a
-  // complete, committed run. Checking the fixed Id as well guards against a renamed marker clinic.
   const marker = await connection.execute(
     "SELECT COUNT(*) FROM Clinics WHERE Name = :Name OR Id = :Id",
     { Name: seedClinicName, Id: seedClinicId },

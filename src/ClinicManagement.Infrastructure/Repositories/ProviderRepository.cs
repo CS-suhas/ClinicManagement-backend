@@ -249,7 +249,6 @@ public class ProviderRepository(IDbConnectionFactory connectionFactory) : IProvi
         if (patientRows.Count == 0)
             return ([], totalCount);
 
-        // One query finds the latest past and the earliest upcoming visit for every patient on the page.
         var visitRows = (await connection.QueryAsync<RosterVisitRow>(
             """
             SELECT Kind, PatientId, Id, AppointmentDateTime, ReasonForVisit
@@ -290,7 +289,7 @@ public class ProviderRepository(IDbConnectionFactory connectionFactory) : IProvi
                 row.Email,
                 row.PhoneNumber,
                 checked((int)row.AllergyCount),
-                row.HighestSeverity),
+                row.HighestSeverity is null ? null : Enum.Parse<AllergySeverity>(row.HighestSeverity)),
             lastVisits.TryGetValue(row.Id, out var last) ? ToRosterVisit(last) : null,
             nextVisits.TryGetValue(row.Id, out var next) ? ToRosterVisit(next) : null,
             checked((int)row.AppointmentCount))).ToList();

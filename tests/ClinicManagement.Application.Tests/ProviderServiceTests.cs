@@ -242,7 +242,7 @@ public class ProviderServiceTests
             new FakeAppointmentRepository(), new TestCurrentUser());
 
         await service.AddProviderAsync(
-            new ProviderRequest(Guid.NewGuid(), Guid.NewGuid(), "Grace", "Hopper", "Computing", 1500.75m, " female "));
+            new ProviderRequest(Guid.NewGuid(), Guid.NewGuid(), "Grace", "Hopper", "Computing", 1500.75m, Gender.FEMALE));
 
         Assert.NotNull(providerRepository.AddedProvider);
         Assert.Equal(1500.75m, providerRepository.AddedProvider.Fee);
@@ -277,7 +277,7 @@ public class ProviderServiceTests
 
         var exception = await Assert.ThrowsAsync<DomainValidationException>(
             () => service.AddProviderAsync(
-                new ProviderRequest(Guid.NewGuid(), Guid.NewGuid(), "Grace", "Hopper", "Computing", Gender: "unknown")));
+                new ProviderRequest(Guid.NewGuid(), Guid.NewGuid(), "Grace", "Hopper", "Computing", Gender: (Gender)99)));
 
         Assert.Equal("gender", exception.PropertyName);
         Assert.Null(providerRepository.AddedProvider);
@@ -290,7 +290,7 @@ public class ProviderServiceTests
         var service = new ProviderService(providerRepository, new FakeClinicRepository { Exists = true }, new FakeAppointmentRepository(), new TestCurrentUser());
 
         await service.RegisterProviderAsync(
-            new ProviderRegistrationRequest(Guid.NewGuid(), Guid.NewGuid(), "Grace", "Hopper", "Computing", 900m, "OTHER"));
+            new ProviderRegistrationRequest(Guid.NewGuid(), Guid.NewGuid(), "Grace", "Hopper", "Computing", 900m, Gender.OTHER));
 
         var registered = Assert.IsType<Provider>(providerRepository.Registered);
         Assert.Equal(900m, registered.Fee);
@@ -311,7 +311,7 @@ public class ProviderServiceTests
         var result = await service.GetProviderByIdAsync(provider.Id);
 
         Assert.Equal(2000m, result.Fee);
-        Assert.Equal("MALE", result.Gender);
+        Assert.Equal(Gender.MALE, result.Gender);
     }
 
     [Fact]

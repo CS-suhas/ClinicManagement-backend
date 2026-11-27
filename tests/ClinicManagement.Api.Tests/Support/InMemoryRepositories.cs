@@ -15,10 +15,8 @@ public sealed class InMemoryStore
     public List<User> Users { get; } = [];
     public List<StoredUserRole> UserRoles { get; } = [];
     public List<AllergyType> AllergyTypes { get; } = [];
-    /// <summary>When each appointment last changed status, mirroring Appointments.StatusChangedAtUtc.</summary>
     public Dictionary<Guid, DateTimeOffset> StatusChangedAt { get; } = [];
 
-    /// <summary>The user for <paramref name="subject"/>, created when missing. Use it to seed linked rows.</summary>
     public User UserFor(string subject)
     {
         lock (Users)
@@ -36,7 +34,6 @@ public sealed class InMemoryStore
 
 public sealed record StoredUserRole(Guid UserId, string Role, DateTimeOffset GrantedAtUtc, Guid? GrantedByUserId);
 
-/// <summary>Allergy summary of a patient, computed the way the SQL summaries are.</summary>
 internal static class InMemoryAllergySummary
 {
     public static PatientAllergySummary From(Patient patient)
@@ -44,11 +41,10 @@ internal static class InMemoryAllergySummary
         var highest = patient.Allergies.Count == 0
             ? (AllergySeverity?)null
             : patient.Allergies.Max(allergy => allergy.Severity);
-        return new PatientAllergySummary(patient.Allergies.Count, highest?.ToString());
+        return new PatientAllergySummary(patient.Allergies.Count, highest);
     }
 }
 
-/// <summary>Maps appointments to list items the same way the SQL list query does.</summary>
 internal static class InMemoryAppointmentListItems
 {
     public static AppointmentListResponse ToListItem(Appointment appointment, InMemoryStore store)
@@ -70,9 +66,9 @@ internal static class InMemoryAppointmentListItems
             store.Clinics.FirstOrDefault(clinic => clinic.Id == appointment.Provider.ClinicId)?.Name ?? string.Empty,
             appointment.AppointmentDateTime,
             appointment.ReasonForVisit,
-            appointment.Status.ToString(),
+            appointment.Status,
             allergies.Count,
-            highest?.ToString(),
+            highest,
             appointment.CreatedAtUtc,
             statusChangedAt);
     }
@@ -160,7 +156,6 @@ internal sealed class InMemoryProviderRepository(InMemoryStore store) : IProvide
 {
     private Provider Attach(Provider provider)
     {
-        // The SQL repository joins the clinic onto every provider it returns; mirror that here.
         if (provider.Clinic is null && provider.ClinicId is { } clinicId
             && store.Clinics.FirstOrDefault(clinic => clinic.Id == clinicId) is { } clinic)
             provider.SetClinic(clinic);
@@ -343,7 +338,6 @@ internal sealed class InMemoryAppointmentRepository(InMemoryStore store) : IAppo
 
     public Task<Guid> AddAppointmentAsync(Appointment request, Guid patientId, Guid providerId)
     {
-        // The SQL repository hydrates patient and provider on read; attach them so listings can map the row.
         request.SetPatient(store.Patients.Single(patient => patient.Id == patientId));
         request.SetProvider(store.Providers.Single(provider => provider.Id == providerId));
         store.Appointments.Add(request);
@@ -635,7 +629,7 @@ internal sealed class InMemoryStatusRepository(InMemoryStore store) : IStatusRep
             .Where(appointment => appointment.Status is AppointmentStatus.CONFIRMED or AppointmentStatus.DECLINED)
             .Select(appointment => new PatientRecentDecision(
                 appointment.Id,
-                appointment.Status.ToString(),
+                appointment.Status,
                 store.StatusChangedAt.TryGetValue(appointment.Id, out var changed) ? changed : appointment.CreatedAtUtc,
                 $"{appointment.Provider.FirstName} {appointment.Provider.LastName}"))
             .OrderByDescending(decision => decision.DecidedAtUtc)

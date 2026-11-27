@@ -58,7 +58,6 @@ public sealed class StatusRepository(IDbConnectionFactory connectionFactory) : I
             upcomingAppointments);
     }
 
-    // The fragments have no trailing newline, so they must be joined on separate lines, not with +.
     private const string SelectListItem = $"""
         {AppointmentListSql.Columns}
         {AppointmentListSql.Joins}

@@ -22,7 +22,6 @@ public class AppointmentRepository(IDbConnectionFactory connectionFactory) : IAp
 
     private const string ListItemJoins = AppointmentListSql.Joins;
 
-    // Requested and confirmed appointments occupy the provider's time slot.
     private const string ActiveStatuses = "('REQUESTED', 'CONFIRMED')";
 
     public async Task<Appointment?> GetAppointmentByIdAsync(Guid appointmentId)

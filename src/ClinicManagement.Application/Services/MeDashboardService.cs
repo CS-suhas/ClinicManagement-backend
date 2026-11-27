@@ -14,8 +14,6 @@ public sealed class MeDashboardService(
     {
         currentUser.RequireAuthenticated();
 
-        // All day and week boundaries are UTC: "today" is [todayStart, todayEnd) and "this week" is the seven
-        // days starting at todayStart.
         var now = timeProvider.GetUtcNow();
         var todayStart = new DateTimeOffset(now.UtcDateTime.Date, TimeSpan.Zero);
         var todayEnd = todayStart.AddDays(1);

@@ -18,15 +18,12 @@ public interface IAppointmentRepository
         AppointmentSearchQuery query,
         int offset);
     Task<IReadOnlyList<AppointmentListResponse>> GetUpcomingAppointmentsAsync(DateTimeOffset from, int count);
-    /// <summary>Returns false when the stored status is no longer <paramref name="expected"/>.</summary>
     Task<bool> TryUpdateStatusAsync(Guid appointmentId, AppointmentStatus expected, AppointmentStatus next);
-    /// <summary>Appointments starting in [start, end). Declined and cancelled ones are excluded unless requested.</summary>
     Task<IReadOnlyList<AppointmentListResponse>> GetProviderAppointmentsInRangeAsync(
         Guid providerId,
         DateTimeOffset start,
         DateTimeOffset end,
         bool includeInactive);
-    /// <summary>Start times of the provider's REQUESTED or CONFIRMED appointments starting in [start, end), earliest first.</summary>
     Task<IReadOnlyList<DateTimeOffset>> GetActiveStartTimesInRangeAsync(
         Guid providerId,
         DateTimeOffset start,

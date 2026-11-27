@@ -5,7 +5,6 @@ using ClinicManagement.Domain.Entities;
 
 namespace ClinicManagement.Api.Tests;
 
-/// <summary>GET /api/search: sign-in, validation, per-role visibility, ordering and limits.</summary>
 public sealed class GlobalSearchTests(ClinicApiFactory factory)
     : ClinicApiTestBase(factory), IClassFixture<ClinicApiFactory>
 {

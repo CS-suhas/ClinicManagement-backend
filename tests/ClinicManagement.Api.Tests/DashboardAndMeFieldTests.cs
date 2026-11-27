@@ -6,7 +6,6 @@ using ClinicManagement.Domain.Enums;
 
 namespace ClinicManagement.Api.Tests;
 
-/// <summary>Dashboard additions (pending counts, recent decisions) and the clinic on the linked provider.</summary>
 public sealed class DashboardAndMeFieldTests(ClinicApiFactory factory)
     : ClinicApiTestBase(factory), IClassFixture<ClinicApiFactory>
 {
@@ -15,7 +14,6 @@ public sealed class DashboardAndMeFieldTests(ClinicApiFactory factory)
     {
         var world = SeedWorld();
         var now = DateTimeOffset.UtcNow;
-        // A request that already started must not be counted.
         Factory.Store.Appointments.Add(Appointment.Create(
             Guid.NewGuid(),
             world.Patient.Id,

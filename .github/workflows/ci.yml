@@ -4,8 +4,6 @@ on:
   push:
 
 jobs:
-  # Static analysis. Any finding fails CI, and image publishing only runs after CI
-  # passes. C# is also covered by the .NET security analyzers (Directory.Build.props).
   # False positives: `// nosemgrep: <rule-id>` on the line, with the reason.
   sast:
     name: Static analysis (Semgrep)
@@ -16,7 +14,7 @@ jobs:
     container:
       image: semgrep/semgrep:1.186.0@sha256:6e1b04340e60e910fbb4ddbf3c857ab0918f064417ad5ac530014ccb3cf8c8f1
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - name: Semgrep scan
         run: >-
           semgrep scan --metrics=off --error
@@ -44,8 +42,8 @@ jobs:
     env:
       TEST_DATABASE_CONNECTION_STRING: "User Id=clinic_test;Password=clinic_test_password;Data Source=localhost:1521/FREEPDB1"
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73
         with:
           dotnet-version: 10.0.x
       - name: Apply database migrations

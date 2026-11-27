@@ -5,9 +5,6 @@
     xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
         https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
 
-    <!-- A provider always belongs to a clinic: self-registration now names one. Providers that registered
-         without a clinic are removed. Their join requests go with them (FK cascades); appointments do not
-         cascade, so they are deleted first. The deletion cannot be rolled back. -->
     <changeSet id="1.10-delete-providers-without-clinic" author="clinic-management">
         <sql>DELETE FROM Appointments WHERE ProviderId IN (SELECT Id FROM Providers WHERE ClinicId IS NULL)</sql>
         <sql>DELETE FROM Providers WHERE ClinicId IS NULL</sql>
@@ -21,8 +18,6 @@
             columnDataType="VARCHAR2(36)"/>
     </changeSet>
 
-    <!-- Clinic join requests are gone: a provider picks their clinic when registering, and only a platform
-         administrator moves them. The request history is discarded and cannot be rolled back. -->
     <changeSet id="1.10-drop-clinic-join-requests" author="clinic-management">
         <dropTable tableName="ClinicJoinRequests" cascadeConstraints="true"/>
         <rollback/>

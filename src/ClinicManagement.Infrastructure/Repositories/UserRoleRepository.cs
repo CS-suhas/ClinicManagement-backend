@@ -29,7 +29,6 @@ public sealed class UserRoleRepository(IDbConnectionFactory connectionFactory) :
         }
         catch (OracleException exception) when (exception.Number == UniqueConstraintViolation)
         {
-            // A concurrent grant of the same role won; the user holds it either way.
             return false;
         }
     }

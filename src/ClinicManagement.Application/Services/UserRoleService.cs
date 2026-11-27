@@ -28,7 +28,6 @@ public sealed class UserRoleService(
         RequestValidator.EnsureText(identitySubject, nameof(identitySubject), "Identity subject");
         EnsureAssignable(role);
 
-        // As with clinic admins, the person may not have signed in yet; their profile fills in on first sign-in.
         var user = await userRepository.GetOrCreateAsync(identitySubject.Trim());
         await userRoleRepository.AssignAsync(user.Id, role, currentUser.UserId);
     }

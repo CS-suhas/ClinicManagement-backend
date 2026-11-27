@@ -3,10 +3,6 @@ using ClinicManagement.Application.Common;
 
 namespace ClinicManagement.Api.Security;
 
-/// <summary>
-/// The single place that says which role holds which <see cref="Permissions">permission</see>. Granting a role a new
-/// ability is a change here, not on the endpoints.
-/// </summary>
 public static class RolePermissions
 {
     private static readonly FrozenDictionary<string, FrozenSet<string>> Map =
@@ -49,7 +45,6 @@ public static class RolePermissions
     public static bool Grants(string role, string permission) =>
         Map.TryGetValue(role, out var permissions) && permissions.Contains(permission);
 
-    /// <summary>Every permission held through any of <paramref name="roles"/>, in a stable order.</summary>
     public static IReadOnlyList<string> For(IEnumerable<string> roles) =>
         roles.SelectMany(role => Map.TryGetValue(role, out var permissions) ? permissions : [])
             .Distinct(StringComparer.Ordinal)

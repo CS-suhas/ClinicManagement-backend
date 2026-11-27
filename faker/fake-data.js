@@ -11,14 +11,10 @@ import {
   selfRegisteredProviderPlan,
 } from "./reference-data.js";
 
-// Bump the version (name and Id) when the generated data set changes shape, so existing databases get the new
-// data once. generate.js skips the run when a clinic with this Name or Id already exists.
 export const seedClinicName = "Training Clinic (clinic-management-demo-v2)";
 export const seedClinicId = "5eed0002-c11c-4a5e-8000-000000000001";
 export const defaultSeed = 20240917;
 
-// Mirrors ClinicManagementSettings in src/ClinicManagement.Api/appsettings.json. The API treats clinic hours
-// and booking days as UTC, so the seeder does too.
 export const appointmentSettings = Object.freeze({
   durationMinutes: 20,
   clinicStartMinutes: 8 * 60,
@@ -68,22 +64,6 @@ function ageInYears(dobMs, atMs) {
   return (atMs - dobMs) / year;
 }
 
-/**
- * Builds the complete demo data set. Pure: everything random comes from a Faker instance seeded with `seed`,
- * and every relative date comes from `now`, so the same inputs always give the same rows.
- *
- * @param {object} options
- * @param {number} options.patientCount New patients to create (tops the table up to the target).
- * @param {Date} [options.now] Reference time; appointments span weeks before and after it.
- * @param {number} [options.seed] Faker seed.
- * @param {{Id: string, DateOfBirth: string}[]} [options.existingPatients] Patients already in the database; they
- *   may be booked into the new appointments.
- * @param {{Id: string, Name: string}[]} [options.existingAllergyTypes] Allergy types already in the database;
- *   reused by name (case-insensitive) instead of inserted again.
- * @param {string[]} [options.existingEmails] Patient emails already in use (UK_Patients_Email).
- * @param {number} [options.pastWeeks] How far back appointments go.
- * @param {number} [options.futureWeeks] How far ahead appointments go.
- */
 export function createSeedData({
   patientCount,
   now = new Date(),
@@ -117,7 +97,6 @@ export function createSeedData({
   const weighted = (weights) =>
     faker.helpers.weightedArrayElement(Object.entries(weights).map(([value, weight]) => ({ value, weight })));
 
-  // ---------------------------------------------------------------- people
   const communityChoices = communities.map((community) => ({ weight: community.weight, value: community }));
 
   function createPerson(sex = faker.helpers.arrayElement(["M", "F"])) {
@@ -130,7 +109,7 @@ export function createSeedData({
   }
 
   function providerGender(sex) {
-    if (chance(0.05)) return null; // older profiles never captured gender
+    if (chance(0.05)) return null;
     if (chance(0.015)) return "OTHER";
     return sex === "M" ? "MALE" : "FEMALE";
   }
@@ -154,7 +133,6 @@ export function createSeedData({
     throw new Error("Could not generate a unique provider name.");
   }
 
-  // ---------------------------------------------------------------- clinics
   const clinics = clinicProfiles.map((profile, index) => ({
     Id: index === 0 ? seedClinicId : faker.string.uuid(),
     Name: index === 0 ? seedClinicName : profile.name,
@@ -164,7 +142,6 @@ export function createSeedData({
     UpdatedAtUtc: null,
   }));
 
-  // ---------------------------------------------------------------- providers
   const providers = [];
   const providerMeta = [];
 
@@ -176,8 +153,6 @@ export function createSeedData({
     return faker.helpers.arrayElements([1, 2, 3, 4, 5, 6], count).sort();
   }
 
-  // Splits a clinic's headcount across its specialties in proportion to the weights (largest remainder), so
-  // small rosters still get every specialty they list instead of whatever a random draw happens to give.
   function allocateSpecialties(specialtyWeights, count) {
     const entries = Object.entries(specialtyWeights);
     const total = entries.reduce((sum, [, weight]) => sum + weight, 0);
@@ -191,7 +166,6 @@ export function createSeedData({
       share.seats++;
     }
     const roster = shares.flatMap((share) => Array(share.seats).fill(share.name));
-    // Primary care first, so the clinic's first provider is someone patients can register with.
     return [
       ...roster.filter((name) => specialties[name].primaryCare),
       ...faker.helpers.shuffle(roster.filter((name) => !specialties[name].primaryCare)),
@@ -210,13 +184,11 @@ export function createSeedData({
       let updatedMs = null;
       let availableFromMs;
       if (chance(0.35)) {
-        // Self-registered at this clinic, then verified by a platform administrator.
         const verifiedMs = nowMs - between(120 * day, 700 * day);
         createdMs = verifiedMs - between(1 * day, 10 * day);
         updatedMs = verifiedMs;
         availableFromMs = verifiedMs;
       } else {
-        // Added directly by an administrator.
         createdMs = nowMs - between(1 * year, 5 * year);
         availableFromMs = createdMs;
         if (chance(0.2)) updatedMs = between(createdMs, nowMs - day);
@@ -260,13 +232,11 @@ export function createSeedData({
       let updatedMs = null;
 
       if (status === "PENDING") {
-        // Freshly self-registered, waiting for a platform administrator.
         createdMs = nowMs - between(1 * day, 20 * day);
       } else if (status === "REJECTED") {
         createdMs = nowMs - between(30 * day, 120 * day);
         updatedMs = createdMs + between(1 * day, 7 * day);
       } else {
-        // Recently verified, not yet on the scheduled roster.
         createdMs = nowMs - between(20 * day, 150 * day);
         updatedMs = createdMs + between(1 * day, 7 * day);
       }
@@ -286,7 +256,6 @@ export function createSeedData({
     }
   }
 
-  // ---------------------------------------------------------------- allergy types
   const existingAllergyIds = new Map(
     existingAllergyTypes.map((type) => [type.Name.trim().toLowerCase(), type.Id]),
   );
@@ -308,7 +277,6 @@ export function createSeedData({
     });
   }
 
-  // ---------------------------------------------------------------- patients
   const usedEmails = new Set(existingEmails.map((email) => email.trim().toLowerCase()));
   function uniqueEmail(firstName, lastName) {
     const first = firstName.toLowerCase().replace(/[^a-z]/g, "");
@@ -340,7 +308,7 @@ export function createSeedData({
     const earliestCreatedMs = Math.max(dobMs + 7 * day, nowMs - 3 * year);
     const createdMs = chance(0.9)
       ? between(earliestCreatedMs, nowMs - 120 * day)
-      : between(nowMs - 60 * day, nowMs - day); // recently registered
+      : between(nowMs - 60 * day, nowMs - day);
     const id = faker.string.uuid();
 
     patients.push({
@@ -356,19 +324,15 @@ export function createSeedData({
     patientMeta.push({ id, sex: person.sex, dobMs, createdMs, isNew: true });
   }
   for (const existing of existingPatients) {
-    // Sex is not stored, so existing patients are never booked with sex-specific specialties.
     patientMeta.push({ id: existing.Id, sex: null, dobMs: Date.parse(`${existing.DateOfBirth}T00:00:00Z`), createdMs: 0, isNew: false });
   }
   for (const patient of patientMeta) {
     const age = ageInYears(patient.dobMs, nowMs);
-    // Heavy-tailed visit frequency: most patients come a few times, a few chronic patients come often.
     patient.propensity = (1 / (0.25 + faker.number.float({ min: 0, max: 1 }))) * (1 + age / 80);
-    // Caps how often one patient appears in the window, so small panels do not pile onto a few people.
     patient.visitCap = Math.round(3 + patient.propensity * 4);
     patient.visits = 0;
   }
 
-  // ---------------------------------------------------------------- patient allergies
   const patientAllergies = [];
   for (const patient of patientMeta.filter((meta) => meta.isNew)) {
     const count = faker.helpers.weightedArrayElement([
@@ -398,7 +362,6 @@ export function createSeedData({
     }
   }
 
-  // ---------------------------------------------------------------- care relationships
   function isEligible(patient, rules, atMs) {
     const age = ageInYears(patient.dobMs, atMs);
     if (age < rules.minAge || age >= rules.maxAge + 1) return false;
@@ -460,7 +423,6 @@ export function createSeedData({
     return faker.helpers.weightedArrayElement(provider.pools.at(-1).choices);
   }
 
-  // ---------------------------------------------------------------- appointments
   function chooseStatus(startMs, allowInactive) {
     const endMs = startMs + slotMs;
     let weights;
@@ -470,12 +432,11 @@ export function createSeedData({
         COMPLETED: 80,
         CANCELLED: 9,
         DECLINED: 4,
-        // Providers do not always close out an appointment straight away.
         CONFIRMED: daysAgo < 7 ? 6 : 0.4,
         REQUESTED: daysAgo < 3 ? 2 : 0,
       };
     } else if (startMs <= nowMs) {
-      weights = { CONFIRMED: 1 }; // in progress
+      weights = { CONFIRMED: 1 };
     } else {
       const soon = (startMs - nowMs) / day < 7;
       weights = { REQUESTED: soon ? 14 : 28, CONFIRMED: soon ? 68 : 54, CANCELLED: 12, DECLINED: 5 };
@@ -487,8 +448,6 @@ export function createSeedData({
     return weighted(Object.fromEntries(Object.entries(weights).filter(([, weight]) => weight > 0)));
   }
 
-  // Creation and status-change times that respect the domain transitions:
-  // REQUESTED -> CONFIRMED | DECLINED | CANCELLED, CONFIRMED -> CANCELLED | COMPLETED.
   function buildTimeline(startMs, earliestCreatedMs, allowInactive) {
     const latestCreatedMs = Math.min(startMs - 10 * minute, nowMs - 5 * minute);
     if (latestCreatedMs <= earliestCreatedMs + minute) return null;
@@ -582,7 +541,6 @@ export function createSeedData({
         if (startMs <= provider.availableFromMs + day) continue;
 
         const booked = tryBook(provider, startMs, 0, true);
-        // A cancelled or declined slot is often rebooked by someone else.
         if (booked && inactiveAppointmentStatuses.includes(booked.timeline.status) && chance(0.4)) {
           tryBook(provider, startMs, booked.timeline.changedMs, false);
         }
