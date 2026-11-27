@@ -48,7 +48,12 @@ app.UseAuthorization();
 
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
+    app.MapOpenApi().AllowAnonymous();
+    app.UseSwaggerUI(options =>
+    {
+        options.SwaggerEndpoint("/openapi/v1.json", "Clinic Management API v1");
+        options.DocumentTitle = "Clinic Management API";
+    });
 }
 
 app.MapPatientEndpoints();
